@@ -1,0 +1,19 @@
+# PgREST benchmark configuration
+# This config is used when running PgREST in Docker for benchmarks
+# Format: key = value (simple key-value pairs, not TOML)
+
+# Database settings
+db-schemas = test_api
+db-anon-role = web_anon
+db-pool-size = 10
+
+# Server settings
+server-host = 0.0.0.0
+server-port = 3000
+
+# Logging
+log-level = error
+
+# Streaming
+server-streaming-enabled = true
+server-streaming-threshold = 10485760

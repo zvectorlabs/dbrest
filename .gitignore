@@ -1,0 +1,201 @@
+# Rust
+# -----
+# Build artifacts
+/target/
+**/*.rs.bk
+*.pdb
+
+# Cargo
+# Note: For binaries, Cargo.lock should be committed
+# For libraries, uncomment the next line:
+# Cargo.lock
+
+# Rustfmt
+rustfmt.toml
+
+# Clippy
+clippy.toml
+
+# Coverage reports
+tarpaulin-report.html
+cobertura.xml
+*.lcov
+
+# Profiling data
+perf.data
+perf.data.old
+flamegraph.svg
+
+# Node.js
+# -------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Package manager lock files (uncomment if using npm/yarn)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+.nuxt/
+.cache/
+
+# Environment variables
+.env
+.env.local
+.env.bench
+.env.*.local
+.env.production
+.env.development
+
+# IDE / Editor
+# ------------
+# VSCode
+.vscode/
+*.code-workspace
+.history/
+
+# IntelliJ IDEA / CLion / RustRover
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Vim
+*.swp
+*.swo
+*~
+.vim/
+
+# Emacs
+*~
+\#*\#
+.\#*
+*~
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# OS
+# --
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+.nfs*
+
+# Test & Development
+# ------------------
+# Test artifacts
+*.test
+*.profraw
+test-results/
+coverage/
+
+# Database
+# --------
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+pgdata/
+postgres-data/
+
+# Docker
+# ------
+docker-compose.override.yml
+
+# Logs
+# ----
+*.log
+logs/
+*.log.*
+
+# Temporary files
+# ---------------
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+*.swp
+*.swo
+*~
+.cache/
+tmp/
+temp/
+
+# Configuration files with secrets
+# --------------------------------
+config.local.toml
+config.production.toml
+*.secret
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+
+# Documentation builds
+# --------------------
+docs/_build/
+docs/.doctrees/
+site/
+
+# Misc
+# ----
+*.pid
+*.seed
+*.pid.lock
+.cargo/
+.rustc_info.json
+
+plans/

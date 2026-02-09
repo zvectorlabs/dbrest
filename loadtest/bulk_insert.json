@@ -1,0 +1,12 @@
+[
+  {"title": "Post 1", "body": "Body 1", "user_id": 1},
+  {"title": "Post 2", "body": "Body 2", "user_id": 2},
+  {"title": "Post 3", "body": "Body 3", "user_id": 3},
+  {"title": "Post 4", "body": "Body 4", "user_id": 4},
+  {"title": "Post 5", "body": "Body 5", "user_id": 5},
+  {"title": "Post 6", "body": "Body 6", "user_id": 6},
+  {"title": "Post 7", "body": "Body 7", "user_id": 7},
+  {"title": "Post 8", "body": "Body 8", "user_id": 8},
+  {"title": "Post 9", "body": "Body 9", "user_id": 9},
+  {"title": "Post 10", "body": "Body 10", "user_id": 10}
+]
