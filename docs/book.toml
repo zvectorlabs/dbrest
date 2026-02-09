@@ -1,0 +1,8 @@
+[book]
+title = "PgREST Documentation"
+description = "User documentation for PgREST - REST API for PostgreSQL"
+authors = ["PgREST Contributors"]
+language = "en"
+
+[build]
+build-dir = "book"

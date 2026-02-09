@@ -1,0 +1,2602 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>PgREST Documentation</title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="User documentation for PgREST - REST API for PostgreSQL">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-2459343d.css">
+        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-7e6e4608.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-f624db4e.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">PgREST Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
+<p>PgREST is a standalone web server that turns your PostgreSQL database into a REST API. It automatically generates REST endpoints for your database tables, views, and functions, allowing you to interact with your data using standard HTTP methods.</p>
+<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
+<ul>
+<li><strong>PostgreSQL 17+</strong> - A running PostgreSQL database server</li>
+<li><strong>Rust 1.91+</strong> (if building from source) - For compiling PgREST</li>
+<li><strong>Release binary</strong> (if using pre-built) - Download from releases</li>
+</ul>
+<h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
+<h3 id="from-source"><a class="header" href="#from-source">From Source</a></h3>
+<p>Build PgREST from source using Cargo:</p>
+<pre><code class="language-bash"># Clone the repository
+git clone &lt;repository-url&gt;
+cd pgrest
+
+# Build the release binary
+cargo build --release
+
+# The binary will be at target/release/pgrest
+</code></pre>
+<p>Or install directly:</p>
+<pre><code class="language-bash">cargo install --path .
+</code></pre>
+<h3 id="from-releases"><a class="header" href="#from-releases">From Releases</a></h3>
+<p>Download the pre-built binary for your platform from the releases page and place it in your PATH.</p>
+<h3 id="docker"><a class="header" href="#docker">Docker</a></h3>
+<p>PgREST includes a Dockerfile for containerized deployments:</p>
+<pre><code class="language-bash">docker build -t pgrest .
+docker run -p 3000:3000 pgrest
+</code></pre>
+<p>See the <a href="#deployment">Deployment</a> section for more Docker configuration options.</p>
+<h2 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h2>
+<h3 id="1-prepare-your-database"><a class="header" href="#1-prepare-your-database">1. Prepare Your Database</a></h3>
+<p>Create a simple table in PostgreSQL:</p>
+<pre><code class="language-sql">CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL
+);
+
+INSERT INTO users (name, email) VALUES
+    ('Alice', 'alice@example.com'),
+    ('Bob', 'bob@example.com');
+</code></pre>
+<h3 id="2-configure-pgrest"><a class="header" href="#2-configure-pgrest">2. Configure PgREST</a></h3>
+<p>Create a configuration file <code>config.toml</code>:</p>
+<pre><code class="language-ini">db-uri = "postgresql://user:password@localhost:5432/mydb"
+db-schemas = "public"
+db-anon-role = "anon"
+server-port = 3000
+</code></pre>
+<p>Or use environment variables:</p>
+<pre><code class="language-bash">export PGRST_DB_URI="postgresql://user:password@localhost:5432/mydb"
+export PGRST_DB_SCHEMAS="public"
+export PGRST_DB_ANON_ROLE="anon"
+export PGRST_SERVER_PORT=3000
+</code></pre>
+<p><strong>Note:</strong> Make sure the <code>anon</code> role exists in your database and has appropriate permissions:</p>
+<pre><code class="language-sql">CREATE ROLE anon;
+GRANT USAGE ON SCHEMA public TO anon;
+GRANT SELECT ON users TO anon;
+</code></pre>
+<h3 id="3-start-the-server"><a class="header" href="#3-start-the-server">3. Start the Server</a></h3>
+<pre><code class="language-bash"># Using config file
+./pgrest --config config.toml
+
+# Or using environment variables
+./pgrest
+
+# Or with CLI overrides
+./pgrest --db-uri "postgresql://..." --port 3000
+</code></pre>
+<h3 id="4-make-your-first-request"><a class="header" href="#4-make-your-first-request">4. Make Your First Request</a></h3>
+<p>Query the users table:</p>
+<pre><code class="language-bash">curl http://localhost:3000/users
+</code></pre>
+<p>You should receive a JSON response:</p>
+<pre><code class="language-json">[
+  {"id": 1, "name": "Alice", "email": "alice@example.com"},
+  {"id": 2, "name": "Bob", "email": "bob@example.com"}
+]
+</code></pre>
+<h3 id="5-explore-the-api"><a class="header" href="#5-explore-the-api">5. Explore the API</a></h3>
+<p>Get the OpenAPI specification:</p>
+<pre><code class="language-bash">curl -H "Accept: application/openapi+json" http://localhost:3000/
+</code></pre>
+<p>This returns a complete OpenAPI 3.0 specification describing all available endpoints. You can use this with tools like Swagger UI or Redoc to explore and test the API interactively.</p>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next Steps</a></h2>
+<ul>
+<li>Read the <a href="#configuration">Configuration</a> guide to learn about all available settings</li>
+<li>Explore the <a href="#api-reference">API Reference</a> to understand how to query and modify data</li>
+<li>Check out the <a href="#authentication-with-jwt">How-tos</a> for common tasks like authentication and CORS setup</li>
+<li>Review <a href="#deployment">Deployment</a> options for production environments</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="configuration"><a class="header" href="#configuration">Configuration</a></h1>
+<p>PgREST can be configured using a configuration file, environment variables, or command-line arguments. Configuration values follow a precedence order where later sources override earlier ones.</p>
+<h2 id="configuration-precedence"><a class="header" href="#configuration-precedence">Configuration Precedence</a></h2>
+<ol>
+<li><strong>Command-line arguments</strong> (highest priority)</li>
+<li><strong>Environment variables</strong> (<code>PGRST_*</code> prefix)</li>
+<li><strong>Configuration file</strong> (key=value format)</li>
+<li><strong>Default values</strong> (lowest priority)</li>
+</ol>
+<h2 id="configuration-file-format"><a class="header" href="#configuration-file-format">Configuration File Format</a></h2>
+<p>Configuration files use a simple <code>key=value</code> format with support for comments:</p>
+<pre><code class="language-ini"># This is a comment
+-- This is also a comment
+
+# Database connection
+db-uri = "postgresql://user:password@localhost:5432/mydb"
+db-schemas = "public,api"
+db-anon-role = "anon"
+
+# Server settings
+server-port = 3000
+server-host = "0.0.0.0"
+
+# JWT authentication
+jwt-secret = "your-secret-key-here"
+</code></pre>
+<p>Values can be quoted with single or double quotes, or left unquoted. Comments start with <code>#</code> or <code>--</code>.</p>
+<h2 id="environment-variables"><a class="header" href="#environment-variables">Environment Variables</a></h2>
+<p>Environment variables use the <code>PGRST_</code> prefix. The prefix is stripped and underscores are converted to hyphens:</p>
+<pre><code class="language-bash">export PGRST_DB_URI="postgresql://user:password@localhost:5432/mydb"
+export PGRST_DB_SCHEMAS="public,api"
+export PGRST_SERVER_PORT=3000
+</code></pre>
+<h2 id="command-line-arguments"><a class="header" href="#command-line-arguments">Command-Line Arguments</a></h2>
+<pre><code class="language-bash">pgrest --config config.toml --db-uri "postgresql://..." --port 3000
+</code></pre>
+<p>Available CLI flags:</p>
+<ul>
+<li><code>--config</code>, <code>-c</code> - Path to configuration file (env: <code>PGREST_CONFIG</code>)</li>
+<li><code>--db-uri</code> - Database connection URI (env: <code>PGREST_DB_URI</code>)</li>
+<li><code>--port</code>, <code>-p</code> - Server bind port (env: <code>PGREST_SERVER_PORT</code>)</li>
+</ul>
+<h2 id="configuration-reference"><a class="header" href="#configuration-reference">Configuration Reference</a></h2>
+<h3 id="database-settings"><a class="header" href="#database-settings">Database Settings</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Config Key</th><th>Environment Variable</th><th>Type</th><th>Default</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>db-uri</code></td><td><code>PGRST_DB_URI</code></td><td>String</td><td><code>postgresql://</code></td><td>PostgreSQL connection URI</td></tr>
+<tr><td><code>db-schemas</code></td><td><code>PGRST_DB_SCHEMAS</code></td><td>Comma-separated list</td><td><code>public</code></td><td>Schemas to expose (first is default)</td></tr>
+<tr><td><code>db-anon-role</code></td><td><code>PGRST_DB_ANON_ROLE</code></td><td>String</td><td><code>None</code></td><td>Anonymous role for unauthenticated requests</td></tr>
+<tr><td><code>db-pool</code></td><td><code>PGRST_DB_POOL</code></td><td>Integer</td><td><code>10</code></td><td>Connection pool size</td></tr>
+<tr><td><code>db-pool-acquisition-timeout</code></td><td><code>PGRST_DB_POOL_ACQUISITION_TIMEOUT</code></td><td>Integer (seconds)</td><td><code>10</code></td><td>Pool acquisition timeout</td></tr>
+<tr><td><code>db-pool-max-lifetime</code></td><td><code>PGRST_DB_POOL_MAX_LIFETIME</code></td><td>Integer (seconds)</td><td><code>1800</code></td><td>Maximum connection lifetime</td></tr>
+<tr><td><code>db-pool-max-idletime</code></td><td><code>PGRST_DB_POOL_MAX_IDLETIME</code></td><td>Integer (seconds)</td><td><code>30</code></td><td>Maximum idle time before closing connection</td></tr>
+<tr><td><code>db-pool-automatic-recovery</code></td><td><code>PGRST_DB_POOL_AUTOMATIC_RECOVERY</code></td><td>Boolean</td><td><code>true</code></td><td>Enable automatic pool recovery</td></tr>
+<tr><td><code>db-prepared-statements</code></td><td><code>PGRST_DB_PREPARED_STATEMENTS</code></td><td>Boolean</td><td><code>true</code></td><td>Use prepared statements</td></tr>
+<tr><td><code>db-pre-request</code></td><td><code>PGRST_DB_PRE_REQUEST</code></td><td>Qualified identifier</td><td><code>None</code></td><td>Pre-request function to call (schema.name)</td></tr>
+<tr><td><code>db-root-spec</code></td><td><code>PGRST_DB_ROOT_SPEC</code></td><td>Qualified identifier</td><td><code>None</code></td><td>Root spec function for <code>/</code> endpoint</td></tr>
+<tr><td><code>db-extra-search-path</code></td><td><code>PGRST_DB_EXTRA_SEARCH_PATH</code></td><td>Comma-separated list</td><td><code>public</code></td><td>Extra schemas for search_path</td></tr>
+<tr><td><code>db-hoisted-tx-settings</code></td><td><code>PGRST_DB_HOISTED_TX_SETTINGS</code></td><td>Comma-separated list</td><td><code>statement_timeout,plan_filter.statement_cost_limit,default_transaction_isolation</code></td><td>Transaction settings to hoist</td></tr>
+<tr><td><code>db-max-rows</code></td><td><code>PGRST_DB_MAX_ROWS</code></td><td>Integer</td><td><code>None</code></td><td>Maximum rows to return (no limit if unset)</td></tr>
+<tr><td><code>db-plan-enabled</code></td><td><code>PGRST_DB_PLAN_ENABLED</code></td><td>Boolean</td><td><code>false</code></td><td>Enable EXPLAIN output</td></tr>
+<tr><td><code>db-tx-end</code></td><td><code>PGRST_DB_TX_END</code></td><td>String</td><td><code>commit</code></td><td>Transaction end behavior: <code>commit</code>, <code>commit-allow-override</code>, <code>rollback</code>, <code>rollback-allow-override</code></td></tr>
+<tr><td><code>db-tx-read-isolation</code></td><td><code>PGRST_DB_TX_READ_ISOLATION</code></td><td>String</td><td><code>read-committed</code></td><td>Isolation level for read transactions: <code>read-committed</code>, <code>repeatable-read</code>, <code>serializable</code></td></tr>
+<tr><td><code>db-tx-write-isolation</code></td><td><code>PGRST_DB_TX_WRITE_ISOLATION</code></td><td>String</td><td><code>read-committed</code></td><td>Isolation level for write transactions: <code>read-committed</code>, <code>repeatable-read</code>, <code>serializable</code></td></tr>
+<tr><td><code>db-aggregates-enabled</code></td><td><code>PGRST_DB_AGGREGATES_ENABLED</code></td><td>Boolean</td><td><code>false</code></td><td>Enable aggregate functions</td></tr>
+<tr><td><code>db-config</code></td><td><code>PGRST_DB_CONFIG</code></td><td>Boolean</td><td><code>true</code></td><td>Load config from database</td></tr>
+<tr><td><code>db-pre-config</code></td><td><code>PGRST_DB_PRE_CONFIG</code></td><td>Qualified identifier</td><td><code>None</code></td><td>Pre-config function to call</td></tr>
+<tr><td><code>db-channel</code></td><td><code>PGRST_DB_CHANNEL</code></td><td>String</td><td><code>pgrst</code></td><td>NOTIFY channel name</td></tr>
+<tr><td><code>db-channel-enabled</code></td><td><code>PGRST_DB_CHANNEL_ENABLED</code></td><td>Boolean</td><td><code>true</code></td><td>Enable NOTIFY listener</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="server-settings"><a class="header" href="#server-settings">Server Settings</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Config Key</th><th>Environment Variable</th><th>Type</th><th>Default</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>server-host</code></td><td><code>PGRST_SERVER_HOST</code></td><td>String</td><td><code>!4</code></td><td>Server bind host (<code>!4</code> = IPv4, <code>!6</code> = IPv6)</td></tr>
+<tr><td><code>server-port</code></td><td><code>PGRST_SERVER_PORT</code></td><td>Integer</td><td><code>3000</code></td><td>Server bind port</td></tr>
+<tr><td><code>server-unix-socket</code></td><td><code>PGRST_SERVER_UNIX_SOCKET</code></td><td>Path</td><td><code>None</code></td><td>Unix socket path (if set, overrides host/port)</td></tr>
+<tr><td><code>server-unix-socket-mode</code></td><td><code>PGRST_SERVER_UNIX_SOCKET_MODE</code></td><td>Octal</td><td><code>660</code></td><td>Unix socket file mode</td></tr>
+<tr><td><code>server-cors-allowed-origins</code></td><td><code>PGRST_SERVER_CORS_ALLOWED_ORIGINS</code></td><td>Comma-separated list</td><td><code>None</code></td><td>CORS allowed origins (allows all if unset)</td></tr>
+<tr><td><code>server-trace-header</code></td><td><code>PGRST_SERVER_TRACE_HEADER</code></td><td>String</td><td><code>None</code></td><td>Trace header name</td></tr>
+<tr><td><code>server-timing-enabled</code></td><td><code>PGRST_SERVER_TIMING_ENABLED</code></td><td>Boolean</td><td><code>false</code></td><td>Enable Server-Timing header</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="admin-server-settings"><a class="header" href="#admin-server-settings">Admin Server Settings</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Config Key</th><th>Environment Variable</th><th>Type</th><th>Default</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>admin-server-host</code></td><td><code>PGRST_ADMIN_SERVER_HOST</code></td><td>String</td><td><code>!4</code></td><td>Admin server bind host</td></tr>
+<tr><td><code>admin-server-port</code></td><td><code>PGRST_ADMIN_SERVER_PORT</code></td><td>Integer</td><td><code>None</code></td><td>Admin server bind port (disabled if unset)</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="jwt-settings"><a class="header" href="#jwt-settings">JWT Settings</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Config Key</th><th>Environment Variable</th><th>Type</th><th>Default</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>jwt-secret</code></td><td><code>PGRST_JWT_SECRET</code></td><td>String</td><td><code>None</code></td><td>JWT secret (or JWKS JSON). Must be at least 32 characters</td></tr>
+<tr><td><code>jwt-secret-is-base64</code></td><td><code>PGRST_JWT_SECRET_IS_BASE64</code></td><td>Boolean</td><td><code>false</code></td><td>JWT secret is base64 encoded</td></tr>
+<tr><td><code>jwt-aud</code></td><td><code>PGRST_JWT_AUD</code></td><td>String</td><td><code>None</code></td><td>Expected JWT audience</td></tr>
+<tr><td><code>jwt-role-claim-key</code></td><td><code>PGRST_JWT_ROLE_CLAIM_KEY</code></td><td>JSON path</td><td><code>role</code></td><td>Path to role claim in JWT (e.g., <code>role</code>, <code>user.role</code>)</td></tr>
+<tr><td><code>jwt-cache-max-entries</code></td><td><code>PGRST_JWT_CACHE_MAX_ENTRIES</code></td><td>Integer</td><td><code>1000</code></td><td>JWT cache maximum entries</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="logging-settings"><a class="header" href="#logging-settings">Logging Settings</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Config Key</th><th>Environment Variable</th><th>Type</th><th>Default</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>log-level</code></td><td><code>PGRST_LOG_LEVEL</code></td><td>String</td><td><code>error</code></td><td>Log level: <code>crit</code>, <code>error</code>, <code>warn</code>, <code>info</code>, <code>debug</code></td></tr>
+<tr><td><code>log-query</code></td><td><code>PGRST_LOG_QUERY</code></td><td>Boolean</td><td><code>false</code></td><td>Log SQL queries</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="openapi-settings"><a class="header" href="#openapi-settings">OpenAPI Settings</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Config Key</th><th>Environment Variable</th><th>Type</th><th>Default</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>openapi-mode</code></td><td><code>PGRST_OPENAPI_MODE</code></td><td>String</td><td><code>follow-privileges</code></td><td>OpenAPI generation mode: <code>follow-privileges</code>, <code>ignore-privileges</code>, <code>disabled</code></td></tr>
+<tr><td><code>openapi-security-active</code></td><td><code>PGRST_OPENAPI_SECURITY_ACTIVE</code></td><td>Boolean</td><td><code>false</code></td><td>Include security definitions in OpenAPI</td></tr>
+<tr><td><code>openapi-server-proxy-uri</code></td><td><code>PGRST_OPENAPI_SERVER_PROXY_URI</code></td><td>String</td><td><code>None</code></td><td>OpenAPI server proxy URI</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="streaming-settings"><a class="header" href="#streaming-settings">Streaming Settings</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Config Key</th><th>Environment Variable</th><th>Type</th><th>Default</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>server-streaming-enabled</code></td><td><code>PGRST_SERVER_STREAMING_ENABLED</code></td><td>Boolean</td><td><code>true</code></td><td>Enable streaming responses for large result sets</td></tr>
+<tr><td><code>server-streaming-threshold</code></td><td><code>PGRST_SERVER_STREAMING_THRESHOLD</code></td><td>Integer (bytes)</td><td><code>10485760</code> (10MB)</td><td>Threshold in bytes for streaming</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="app-settings"><a class="header" href="#app-settings">App Settings</a></h3>
+<p>Custom application settings can be set using the <code>app.settings.*</code> prefix:</p>
+<pre><code class="language-ini">app.settings.custom-key = "custom-value"
+app.settings.another-setting = "value"
+</code></pre>
+<p>These are stored in <code>app_settings</code> and can be accessed by application code.</p>
+<h2 id="configuration-examples"><a class="header" href="#configuration-examples">Configuration Examples</a></h2>
+<h3 id="minimal-configuration"><a class="header" href="#minimal-configuration">Minimal Configuration</a></h3>
+<pre><code class="language-ini">db-uri = "postgresql://user:password@localhost:5432/mydb"
+db-schemas = "public"
+db-anon-role = "anon"
+</code></pre>
+<h3 id="production-configuration"><a class="header" href="#production-configuration">Production Configuration</a></h3>
+<pre><code class="language-ini"># Database
+db-uri = "postgresql://user:password@localhost:5432/mydb"
+db-schemas = "api,public"
+db-anon-role = "anon"
+db-pool = 20
+db-pool-max-lifetime = 3600
+
+# Server
+server-host = "0.0.0.0"
+server-port = 3000
+server-cors-allowed-origins = "https://example.com,https://app.example.com"
+
+# JWT
+jwt-secret = "your-very-long-secret-key-at-least-32-characters"
+jwt-aud = "api.example.com"
+
+# Logging
+log-level = "info"
+log-query = false
+
+# OpenAPI
+openapi-mode = "follow-privileges"
+openapi-security-active = true
+
+# Transaction isolation
+db-tx-read-isolation = "repeatable-read"
+db-tx-write-isolation = "serializable"
+</code></pre>
+<h3 id="using-environment-variables"><a class="header" href="#using-environment-variables">Using Environment Variables</a></h3>
+<pre><code class="language-bash">export PGRST_DB_URI="postgresql://user:password@localhost:5432/mydb"
+export PGRST_DB_SCHEMAS="api,public"
+export PGRST_DB_ANON_ROLE="anon"
+export PGRST_SERVER_PORT=3000
+export PGRST_JWT_SECRET="your-secret-key"
+export PGRST_LOG_LEVEL="info"
+
+./pgrest
+</code></pre>
+<h2 id="validation"><a class="header" href="#validation">Validation</a></h2>
+<p>PgREST validates configuration on startup and will exit with an error if:</p>
+<ul>
+<li><code>db-schemas</code> is empty</li>
+<li><code>db-schemas</code> includes system schemas (<code>pg_catalog</code>, <code>information_schema</code>)</li>
+<li><code>admin-server-port</code> equals <code>server-port</code></li>
+<li><code>jwt-secret</code> is less than 32 characters (unless it’s JWKS JSON)</li>
+<li><code>db-pool</code> is zero</li>
+</ul>
+<h2 id="qualified-identifiers"><a class="header" href="#qualified-identifiers">Qualified Identifiers</a></h2>
+<p>Some settings accept qualified identifiers in the format <code>schema.name</code> or just <code>name</code> (defaults to the first schema):</p>
+<ul>
+<li><code>db-pre-request</code>: <code>api.auth_hook</code> or <code>auth_hook</code></li>
+<li><code>db-root-spec</code>: <code>api.root_spec</code> or <code>root_spec</code></li>
+<li><code>db-pre-config</code>: <code>api.pre_config</code> or <code>pre_config</code></li>
+</ul>
+<h2 id="boolean-values"><a class="header" href="#boolean-values">Boolean Values</a></h2>
+<p>Boolean values accept multiple formats:</p>
+<ul>
+<li><code>true</code>, <code>yes</code>, <code>on</code>, <code>1</code> → true</li>
+<li><code>false</code>, <code>no</code>, <code>off</code>, <code>0</code> → false</li>
+</ul>
+<h2 id="comma-separated-lists"><a class="header" href="#comma-separated-lists">Comma-Separated Lists</a></h2>
+<p>List values can be comma-separated with optional spaces:</p>
+<ul>
+<li><code>db-schemas = "api,public"</code></li>
+<li><code>db-schemas = "api, public"</code></li>
+<li><code>server-cors-allowed-origins = "https://example.com,https://app.example.com"</code></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="api-reference"><a class="header" href="#api-reference">API Reference</a></h1>
+<p>PgREST automatically generates REST endpoints for your PostgreSQL database tables, views, and functions. The API follows RESTful conventions and uses standard HTTP methods.</p>
+<h2 id="endpoints"><a class="header" href="#endpoints">Endpoints</a></h2>
+<h3 id="root-endpoint"><a class="header" href="#root-endpoint">Root Endpoint</a></h3>
+<p><strong>GET /</strong> - Returns OpenAPI specification or schema information</p>
+<ul>
+<li><strong>Without Accept header</strong>: Returns JSON listing available tables/views</li>
+<li><strong>With <code>Accept: application/openapi+json</code></strong>: Returns full OpenAPI 3.0 specification</li>
+</ul>
+<pre><code class="language-bash"># Get OpenAPI spec
+curl -H "Accept: application/openapi+json" http://localhost:3000/
+
+# Get schema info
+curl http://localhost:3000/
+</code></pre>
+<p><strong>OPTIONS /</strong> - CORS preflight for root endpoint</p>
+<h3 id="resource-endpoints"><a class="header" href="#resource-endpoints">Resource Endpoints</a></h3>
+<p>Resources are exposed as one-level deep routes based on table/view names.</p>
+<p><strong>GET /:resource</strong> - Read rows from a table or view</p>
+<pre><code class="language-bash">curl http://localhost:3000/users
+</code></pre>
+<p><strong>HEAD /:resource</strong> - Same as GET but returns headers only (no body)</p>
+<p><strong>POST /:resource</strong> - Create new rows</p>
+<pre><code class="language-bash">curl -X POST http://localhost:3000/users \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Alice", "email": "alice@example.com"}'
+</code></pre>
+<p><strong>PATCH /:resource</strong> - Update existing rows (requires filters)</p>
+<pre><code class="language-bash">curl -X PATCH http://localhost:3000/users?id=eq.1 \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Alice Updated"}'
+</code></pre>
+<p><strong>PUT /:resource</strong> - Upsert rows (insert or update)</p>
+<pre><code class="language-bash">curl -X PUT http://localhost:3000/users?id=eq.1 \
+  -H "Content-Type: application/json" \
+  -d '{"id": 1, "name": "Alice", "email": "alice@example.com"}'
+</code></pre>
+<p><strong>DELETE /:resource</strong> - Delete rows (requires filters)</p>
+<pre><code class="language-bash">curl -X DELETE http://localhost:3000/users?id=eq.1
+</code></pre>
+<p><strong>OPTIONS /:resource</strong> - CORS preflight for resource endpoint</p>
+<h3 id="rpc-endpoints"><a class="header" href="#rpc-endpoints">RPC Endpoints</a></h3>
+<p>Functions (stored procedures) are exposed under the <code>/rpc</code> prefix.</p>
+<p><strong>GET /rpc/:function</strong> - Call a function via GET</p>
+<pre><code class="language-bash">curl "http://localhost:3000/rpc/get_user?id=1"
+</code></pre>
+<p><strong>POST /rpc/:function</strong> - Call a function via POST</p>
+<pre><code class="language-bash">curl -X POST http://localhost:3000/rpc/create_user \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Alice", "email": "alice@example.com"}'
+</code></pre>
+<h2 id="query-parameters"><a class="header" href="#query-parameters">Query Parameters</a></h2>
+<h3 id="filtering-horizontal-filtering"><a class="header" href="#filtering-horizontal-filtering">Filtering (Horizontal Filtering)</a></h3>
+<p>Filter rows by adding query parameters with column names and operators:</p>
+<pre><code class="language-bash"># Equal
+curl "http://localhost:3000/users?id=eq.1"
+
+# Greater than
+curl "http://localhost:3000/users?age=gt.18"
+
+# Multiple conditions (AND)
+curl "http://localhost:3000/users?age=gte.18&amp;active=is.true"
+
+# IN list
+curl "http://localhost:3000/users?id=in.(1,2,3)"
+
+# Pattern matching
+curl "http://localhost:3000/users?name=like.*Alice*"
+</code></pre>
+<h3 id="operators"><a class="header" href="#operators">Operators</a></h3>
+<h4 id="comparison-operators"><a class="header" href="#comparison-operators">Comparison Operators</a></h4>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operator</th><th>PostgreSQL</th><th>Description</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>eq</code></td><td><code>=</code></td><td>equals</td><td><code>?id=eq.1</code></td></tr>
+<tr><td><code>gt</code></td><td><code>&gt;</code></td><td>greater than</td><td><code>?age=gt.18</code></td></tr>
+<tr><td><code>gte</code></td><td><code>&gt;=</code></td><td>greater than or equal</td><td><code>?age=gte.18</code></td></tr>
+<tr><td><code>lt</code></td><td><code>&lt;</code></td><td>less than</td><td><code>?age=lt.65</code></td></tr>
+<tr><td><code>lte</code></td><td><code>&lt;=</code></td><td>less than or equal</td><td><code>?age=lte.65</code></td></tr>
+<tr><td><code>neq</code></td><td><code>&lt;&gt;</code> or <code>!=</code></td><td>not equal</td><td><code>?status=neq.inactive</code></td></tr>
+<tr><td><code>like</code></td><td><code>LIKE</code></td><td>pattern match (use <code>*</code> for <code>%</code>)</td><td><code>?name=like.*Alice*</code></td></tr>
+<tr><td><code>ilike</code></td><td><code>ILIKE</code></td><td>case-insensitive pattern match</td><td><code>?name=ilike.*alice*</code></td></tr>
+<tr><td><code>match</code></td><td><code>~</code></td><td>regular expression match</td><td><code>?email=match.*@example\.com</code></td></tr>
+<tr><td><code>imatch</code></td><td><code>~*</code></td><td>case-insensitive regex match</td><td><code>?email=imatch.*@example\.com</code></td></tr>
+<tr><td><code>in</code></td><td><code>IN</code></td><td>one of a list</td><td><code>?id=in.(1,2,3)</code></td></tr>
+<tr><td><code>is</code></td><td><code>IS</code></td><td>exact equality check</td><td><code>?deleted=is.null</code></td></tr>
+<tr><td><code>isdistinct</code></td><td><code>IS DISTINCT FROM</code></td><td>not equal (NULL-aware)</td><td><code>?value=isdistinct.0</code></td></tr>
+</tbody>
+</table>
+</div>
+<h4 id="arrayjson-operators"><a class="header" href="#arrayjson-operators">Array/JSON Operators</a></h4>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operator</th><th>PostgreSQL</th><th>Description</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>cs</code></td><td><code>@&gt;</code></td><td>contains</td><td><code>?tags=cs.{example,new}</code></td></tr>
+<tr><td><code>cd</code></td><td><code>&lt;@</code></td><td>contained in</td><td><code>?values=cd.{1,2,3}</code></td></tr>
+<tr><td><code>ov</code></td><td><code>&amp;&amp;</code></td><td>overlap</td><td><code>?period=ov.[2024-01-01,2024-12-31]</code></td></tr>
+<tr><td><code>sl</code></td><td><code>&lt;&lt;</code></td><td>strictly left</td><td><code>?range=sl.[2024-01-01,2024-06-30]</code></td></tr>
+<tr><td><code>sr</code></td><td><code>&gt;&gt;</code></td><td>strictly right</td><td><code>?range=sr.[2024-07-01,2024-12-31]</code></td></tr>
+<tr><td><code>nxr</code></td><td><code>&amp;&lt;</code></td><td>does not extend right</td><td><code>?range=nxr.[2024-01-01,2024-06-30]</code></td></tr>
+<tr><td><code>nxl</code></td><td><code>&amp;&gt;</code></td><td>does not extend left</td><td><code>?range=nxl.[2024-07-01,2024-12-31]</code></td></tr>
+<tr><td><code>adj</code></td><td>`-</td><td>-`</td><td>adjacent</td></tr>
+</tbody>
+</table>
+</div>
+<h4 id="full-text-search-operators"><a class="header" href="#full-text-search-operators">Full-Text Search Operators</a></h4>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operator</th><th>PostgreSQL</th><th>Description</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>fts</code></td><td><code>@@</code></td><td>full-text search (to_tsquery)</td><td><code>?content=fts.hello</code></td></tr>
+<tr><td><code>plfts</code></td><td><code>@@</code></td><td>plain full-text search</td><td><code>?content=plfts.hello world</code></td></tr>
+<tr><td><code>phfts</code></td><td><code>@@</code></td><td>phrase full-text search</td><td><code>?content=phfts."hello world"</code></td></tr>
+<tr><td><code>wfts</code></td><td><code>@@</code></td><td>websearch full-text search</td><td><code>?content=wfts.hello OR world</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Full-text search operators support an optional language parameter:</p>
+<pre><code class="language-bash">curl "http://localhost:3000/articles?content=fts(english).database"
+</code></pre>
+<h4 id="quantifiers"><a class="header" href="#quantifiers">Quantifiers</a></h4>
+<p>Quantifiable operators (<code>eq</code>, <code>gt</code>, <code>gte</code>, <code>lt</code>, <code>lte</code>, <code>like</code>, <code>ilike</code>, <code>match</code>, <code>imatch</code>) support <code>any</code> and <code>all</code> quantifiers for array/JSON operations:</p>
+<pre><code class="language-bash"># Match any element in array
+curl "http://localhost:3000/users?tags=cs(any).{admin,user}"
+
+# Match all elements
+curl "http://localhost:3000/users?tags=cs(all).{admin,user}"
+</code></pre>
+<h4 id="is-values"><a class="header" href="#is-values">IS Values</a></h4>
+<p>The <code>is</code> operator supports:</p>
+<ul>
+<li><code>null</code> - IS NULL</li>
+<li><code>not_null</code> - IS NOT NULL</li>
+<li><code>true</code> - IS TRUE</li>
+<li><code>false</code> - IS FALSE</li>
+<li><code>unknown</code> - IS UNKNOWN</li>
+</ul>
+<h3 id="logical-operators"><a class="header" href="#logical-operators">Logical Operators</a></h3>
+<p>Combine multiple filters using <code>and</code> and <code>or</code>:</p>
+<pre><code class="language-bash"># AND (default)
+curl "http://localhost:3000/users?age=gte.18&amp;active=is.true"
+
+# OR
+curl "http://localhost:3000/users?or=(age.gte.18,age.lt.13)"
+
+# Complex logic
+curl "http://localhost:3000/users?and=(active.is.true,or=(age.gte.18,age.lt.13))"
+</code></pre>
+<h3 id="ordering"><a class="header" href="#ordering">Ordering</a></h3>
+<p>Use the <code>order</code> parameter to sort results:</p>
+<pre><code class="language-bash"># Ascending (default)
+curl "http://localhost:3000/users?order=name"
+
+# Descending
+curl "http://localhost:3000/users?order=name.desc"
+
+# Multiple columns
+curl "http://localhost:3000/users?order=age.desc,name.asc"
+
+# Nulls first/last
+curl "http://localhost:3000/users?order=email.asc.nullsfirst"
+</code></pre>
+<h3 id="pagination"><a class="header" href="#pagination">Pagination</a></h3>
+<p>Use <code>limit</code> and <code>offset</code> for pagination:</p>
+<pre><code class="language-bash"># First 10 rows
+curl "http://localhost:3000/users?limit=10"
+
+# Skip first 20, get next 10
+curl "http://localhost:3000/users?limit=10&amp;offset=20"
+</code></pre>
+<p>Or use <code>Range</code> header:</p>
+<pre><code class="language-bash">curl -H "Range: 0-9" http://localhost:3000/users
+</code></pre>
+<h3 id="column-selection"><a class="header" href="#column-selection">Column Selection</a></h3>
+<p>Use <code>select</code> to specify which columns to return:</p>
+<pre><code class="language-bash"># Specific columns
+curl "http://localhost:3000/users?select=id,name"
+
+# All columns (default)
+curl "http://localhost:3000/users?select=*"
+
+# Exclude columns
+curl "http://localhost:3000/users?select=*!password"
+</code></pre>
+<h3 id="embedding-resource-embedding"><a class="header" href="#embedding-resource-embedding">Embedding (Resource Embedding)</a></h3>
+<p>Embed related resources using foreign key relationships:</p>
+<pre><code class="language-bash"># Embed one-to-many relationship
+curl "http://localhost:3000/users?select=*,posts(*)"
+
+# Embed many-to-one relationship
+curl "http://localhost:3000/posts?select=*,author(*)"
+
+# Nested embedding
+curl "http://localhost:3000/users?select=*,posts(*,comments(*))"
+
+# Filter embedded resources
+curl "http://localhost:3000/users?select=*,posts(*)&amp;posts.published=is.true"
+</code></pre>
+<h2 id="request-headers"><a class="header" href="#request-headers">Request Headers</a></h2>
+<h3 id="authorization"><a class="header" href="#authorization">Authorization</a></h3>
+<p><strong>Authorization: Bearer <token></token></strong> - JWT authentication token</p>
+<pre><code class="language-bash">curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  http://localhost:3000/users
+</code></pre>
+<h3 id="accept"><a class="header" href="#accept">Accept</a></h3>
+<p><strong>Accept</strong> - Response format</p>
+<ul>
+<li><code>application/json</code> (default) - JSON response</li>
+<li><code>text/csv</code> - CSV response</li>
+<li><code>application/octet-stream</code> - Binary response</li>
+<li><code>application/openapi+json</code> - OpenAPI specification (root endpoint only)</li>
+</ul>
+<pre><code class="language-bash"># CSV response
+curl -H "Accept: text/csv" http://localhost:3000/users
+
+# Binary response
+curl -H "Accept: application/octet-stream" http://localhost:3000/users
+</code></pre>
+<h3 id="prefer"><a class="header" href="#prefer">Prefer</a></h3>
+<p><strong>Prefer</strong> - Request preferences</p>
+<ul>
+<li><code>plurality=singular</code> - Return single object instead of array</li>
+<li><code>count=exact</code> - Include exact count in <code>Content-Range</code> header</li>
+<li><code>count=planned</code> - Include planned count (faster)</li>
+<li><code>count=estimated</code> - Include estimated count (fastest)</li>
+<li><code>max-affected=N</code> - Validate that no more than N rows are affected</li>
+</ul>
+<pre><code class="language-bash"># Return single object
+curl -H "Prefer: plurality=singular" "http://localhost:3000/users?id=eq.1"
+
+# Include exact count
+curl -H "Prefer: count=exact" http://localhost:3000/users
+
+# Limit affected rows
+curl -X PATCH \
+  -H "Prefer: max-affected=10" \
+  "http://localhost:3000/users?active=is.false" \
+  -d '{"active": true}'
+</code></pre>
+<h3 id="content-type"><a class="header" href="#content-type">Content-Type</a></h3>
+<p><strong>Content-Type: application/json</strong> - Required for POST, PATCH, PUT requests with JSON body</p>
+<h3 id="range"><a class="header" href="#range">Range</a></h3>
+<p><strong>Range: <start>-<end></end></start></strong> - Pagination using HTTP range requests</p>
+<pre><code class="language-bash">curl -H "Range: 0-9" http://localhost:3000/users
+</code></pre>
+<h2 id="response-formats"><a class="header" href="#response-formats">Response Formats</a></h2>
+<h3 id="json-default"><a class="header" href="#json-default">JSON (Default)</a></h3>
+<pre><code class="language-json">[
+  {"id": 1, "name": "Alice", "email": "alice@example.com"},
+  {"id": 2, "name": "Bob", "email": "bob@example.com"}
+]
+</code></pre>
+<h3 id="csv"><a class="header" href="#csv">CSV</a></h3>
+<p>Request with <code>Accept: text/csv</code>:</p>
+<pre><code class="language-csv">id,name,email
+1,Alice,alice@example.com
+2,Bob,bob@example.com
+</code></pre>
+<h3 id="binary"><a class="header" href="#binary">Binary</a></h3>
+<p>Request with <code>Accept: application/octet-stream</code> for binary data.</p>
+<h2 id="response-headers"><a class="header" href="#response-headers">Response Headers</a></h2>
+<h3 id="content-range"><a class="header" href="#content-range">Content-Range</a></h3>
+<p>Indicates the range and total count of results:</p>
+<pre><code>Content-Range: 0-9/100
+</code></pre>
+<h3 id="preference-applied"><a class="header" href="#preference-applied">Preference-Applied</a></h3>
+<p>Echoes back applied preferences:</p>
+<pre><code>Preference-Applied: count=exact
+</code></pre>
+<h3 id="server-timing"><a class="header" href="#server-timing">Server-Timing</a></h3>
+<p>When enabled (<code>server-timing-enabled=true</code>), includes request timing:</p>
+<pre><code>Server-Timing: total;dur=123.456
+</code></pre>
+<h2 id="error-responses"><a class="header" href="#error-responses">Error Responses</a></h2>
+<p>Errors are returned as JSON with appropriate HTTP status codes:</p>
+<pre><code class="language-json">{
+  "code": "PGRST123",
+  "message": "Column not found",
+  "details": "Could not find column 'unknown' in table 'users'",
+  "hint": "Available columns: id, name, email"
+}
+</code></pre>
+<p>Common HTTP status codes:</p>
+<ul>
+<li><code>200 OK</code> - Success</li>
+<li><code>201 Created</code> - Resource created</li>
+<li><code>204 No Content</code> - Success with no body</li>
+<li><code>400 Bad Request</code> - Invalid request</li>
+<li><code>401 Unauthorized</code> - Authentication required</li>
+<li><code>403 Forbidden</code> - Insufficient permissions</li>
+<li><code>404 Not Found</code> - Resource not found</li>
+<li><code>406 Not Acceptable</code> - Unsupported Accept header</li>
+<li><code>500 Internal Server Error</code> - Server error</li>
+</ul>
+<h2 id="openapi-specification"><a class="header" href="#openapi-specification">OpenAPI Specification</a></h2>
+<p>Get the complete OpenAPI 3.0 specification:</p>
+<pre><code class="language-bash">curl -H "Accept: application/openapi+json" http://localhost:3000/
+</code></pre>
+<p>The specification includes:</p>
+<ul>
+<li>All available endpoints (tables, views, functions)</li>
+<li>Supported HTTP methods</li>
+<li>Request/response schemas</li>
+<li>Authentication requirements</li>
+<li>Example requests</li>
+</ul>
+<p>You can use this specification with tools like:</p>
+<ul>
+<li>Swagger UI</li>
+<li>Redoc</li>
+<li>Postman</li>
+<li>OpenAPI Generator</li>
+</ul>
+<h2 id="examples"><a class="header" href="#examples">Examples</a></h2>
+<h3 id="complete-crud-example"><a class="header" href="#complete-crud-example">Complete CRUD Example</a></h3>
+<pre><code class="language-bash"># Create
+curl -X POST http://localhost:3000/users \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Alice", "email": "alice@example.com"}'
+
+# Read (with filters)
+curl "http://localhost:3000/users?email=eq.alice@example.com&amp;select=id,name,email"
+
+# Update
+curl -X PATCH "http://localhost:3000/users?id=eq.1" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Alice Updated"}'
+
+# Delete
+curl -X DELETE "http://localhost:3000/users?id=eq.1"
+</code></pre>
+<h3 id="complex-query-example"><a class="header" href="#complex-query-example">Complex Query Example</a></h3>
+<pre><code class="language-bash"># Get active users over 18, ordered by name, first 10
+curl "http://localhost:3000/users?active=is.true&amp;age=gt.18&amp;order=name.asc&amp;limit=10"
+
+# Get users with their posts (embedded)
+curl "http://localhost:3000/users?select=id,name,posts(id,title,created_at)&amp;posts.published=is.true"
+
+# Full-text search
+curl "http://localhost:3000/articles?content=fts.database&amp;select=title,content"
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="deployment"><a class="header" href="#deployment">Deployment</a></h1>
+<p>This guide covers deploying PgREST in production environments using Docker and systemd.</p>
+<h2 id="docker-deployment"><a class="header" href="#docker-deployment">Docker Deployment</a></h2>
+<h3 id="building-the-image"><a class="header" href="#building-the-image">Building the Image</a></h3>
+<p>Build the Docker image from the Dockerfile:</p>
+<pre><code class="language-bash">docker build -t pgrest .
+</code></pre>
+<h3 id="running-with-docker"><a class="header" href="#running-with-docker">Running with Docker</a></h3>
+<p>Basic run command:</p>
+<pre><code class="language-bash">docker run -p 3000:3000 \
+  -e PGRST_DB_URI="postgresql://user:password@host:5432/dbname" \
+  -e PGRST_DB_SCHEMAS="public" \
+  -e PGRST_DB_ANON_ROLE="anon" \
+  pgrest
+</code></pre>
+<h3 id="using-docker-compose"><a class="header" href="#using-docker-compose">Using Docker Compose</a></h3>
+<p>Create a <code>docker-compose.yml</code>:</p>
+<pre><code class="language-yaml">version: '3.8'
+
+services:
+  pgrest:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      PGRST_DB_URI: "postgresql://postgres:postgres@postgres:5432/mydb"
+      PGRST_DB_SCHEMAS: "public"
+      PGRST_DB_ANON_ROLE: "anon"
+      PGRST_SERVER_PORT: 3000
+      PGRST_JWT_SECRET: "your-secret-key-here"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: mydb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:
+</code></pre>
+<p>Run with:</p>
+<pre><code class="language-bash">docker-compose up -d
+</code></pre>
+<h3 id="using-config-file-with-docker"><a class="header" href="#using-config-file-with-docker">Using Config File with Docker</a></h3>
+<p>Mount a config file:</p>
+<pre><code class="language-bash">docker run -p 3000:3000 \
+  -v $(pwd)/config.toml:/app/config.toml \
+  -e PGREST_CONFIG=/app/config.toml \
+  pgrest
+</code></pre>
+<h3 id="docker-health-check"><a class="header" href="#docker-health-check">Docker Health Check</a></h3>
+<p>Add a health check to your Dockerfile or docker-compose.yml:</p>
+<pre><code class="language-yaml">healthcheck:
+  test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 40s
+</code></pre>
+<h2 id="systemd-deployment"><a class="header" href="#systemd-deployment">Systemd Deployment</a></h2>
+<h3 id="create-systemd-service-file"><a class="header" href="#create-systemd-service-file">Create Systemd Service File</a></h3>
+<p>Create <code>/etc/systemd/system/pgrest.service</code>:</p>
+<pre><code class="language-ini">[Unit]
+Description=PgREST REST API for PostgreSQL
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=pgrest
+Group=pgrest
+WorkingDirectory=/opt/pgrest
+ExecStart=/opt/pgrest/pgrest --config /etc/pgrest/config.toml
+Restart=always
+RestartSec=10
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/pgrest
+
+# Environment
+Environment="RUST_LOG=info"
+
+[Install]
+WantedBy=multi-user.target
+</code></pre>
+<h3 id="setup-steps"><a class="header" href="#setup-steps">Setup Steps</a></h3>
+<ol>
+<li><strong>Create user and directories:</strong></li>
+</ol>
+<pre><code class="language-bash">sudo useradd -r -s /bin/false pgrest
+sudo mkdir -p /opt/pgrest
+sudo mkdir -p /etc/pgrest
+sudo mkdir -p /var/log/pgrest
+</code></pre>
+<ol start="2">
+<li><strong>Install binary:</strong></li>
+</ol>
+<pre><code class="language-bash">sudo cp pgrest /opt/pgrest/
+sudo chown pgrest:pgrest /opt/pgrest/pgrest
+sudo chmod +x /opt/pgrest/pgrest
+</code></pre>
+<ol start="3">
+<li><strong>Create configuration:</strong></li>
+</ol>
+<pre><code class="language-bash">sudo nano /etc/pgrest/config.toml
+</code></pre>
+<ol start="4">
+<li><strong>Set permissions:</strong></li>
+</ol>
+<pre><code class="language-bash">sudo chown -R pgrest:pgrest /etc/pgrest
+sudo chown -R pgrest:pgrest /var/log/pgrest
+</code></pre>
+<ol start="5">
+<li><strong>Enable and start service:</strong></li>
+</ol>
+<pre><code class="language-bash">sudo systemctl daemon-reload
+sudo systemctl enable pgrest
+sudo systemctl start pgrest
+</code></pre>
+<ol start="6">
+<li><strong>Check status:</strong></li>
+</ol>
+<pre><code class="language-bash">sudo systemctl status pgrest
+sudo journalctl -u pgrest -f
+</code></pre>
+<h2 id="production-considerations"><a class="header" href="#production-considerations">Production Considerations</a></h2>
+<h3 id="connection-pool-sizing"><a class="header" href="#connection-pool-sizing">Connection Pool Sizing</a></h3>
+<p>Configure the connection pool based on your workload:</p>
+<pre><code class="language-ini"># For high-traffic applications
+db-pool = 50
+
+# For low-traffic applications
+db-pool = 10
+</code></pre>
+<p>Monitor connection usage and adjust accordingly. A good starting point is:</p>
+<ul>
+<li><strong>Low traffic</strong>: 10-20 connections</li>
+<li><strong>Medium traffic</strong>: 20-50 connections</li>
+<li><strong>High traffic</strong>: 50-100 connections</li>
+</ul>
+<h3 id="logging-configuration"><a class="header" href="#logging-configuration">Logging Configuration</a></h3>
+<p>Set appropriate log levels:</p>
+<pre><code class="language-ini"># Production: info or warn
+log-level = "info"
+
+# Development: debug
+log-level = "debug"
+
+# Disable SQL query logging in production
+log-query = false
+</code></pre>
+<h3 id="cors-configuration"><a class="header" href="#cors-configuration">CORS Configuration</a></h3>
+<p>Restrict CORS to specific origins in production:</p>
+<pre><code class="language-ini">server-cors-allowed-origins = "https://example.com,https://app.example.com"
+</code></pre>
+<h3 id="security-best-practices"><a class="header" href="#security-best-practices">Security Best Practices</a></h3>
+<ol>
+<li>
+<p><strong>JWT Secret:</strong></p>
+<ul>
+<li>Use a strong, randomly generated secret (at least 32 characters)</li>
+<li>Store in environment variables or secrets management</li>
+<li>Never commit secrets to version control</li>
+</ul>
+</li>
+<li>
+<p><strong>Database Role:</strong></p>
+<ul>
+<li>Use least-privilege principle for <code>db-anon-role</code></li>
+<li>Create separate roles for different access levels</li>
+<li>Use row-level security (RLS) policies</li>
+</ul>
+</li>
+<li>
+<p><strong>Network Security:</strong></p>
+<ul>
+<li>Use firewall rules to restrict access</li>
+<li>Consider using a reverse proxy (nginx, Traefik)</li>
+<li>Enable TLS/SSL termination at the proxy</li>
+</ul>
+</li>
+<li>
+<p><strong>Resource Limits:</strong></p>
+<ul>
+<li>Set <code>db-max-rows</code> to prevent large result sets</li>
+<li>Configure <code>server-streaming-threshold</code> for large responses</li>
+<li>Use <code>Prefer: max-affected</code> for write operations</li>
+</ul>
+</li>
+</ol>
+<h3 id="reverse-proxy-setup-nginx"><a class="header" href="#reverse-proxy-setup-nginx">Reverse Proxy Setup (Nginx)</a></h3>
+<p>Example Nginx configuration:</p>
+<pre><code class="language-nginx">upstream pgrest {
+    server localhost:3000;
+}
+
+server {
+    listen 80;
+    server_name api.example.com;
+
+    # Redirect to HTTPS
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name api.example.com;
+
+    ssl_certificate /etc/ssl/certs/api.example.com.crt;
+    ssl_certificate_key /etc/ssl/private/api.example.com.key;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # Rate limiting
+    limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+    limit_req zone=api_limit burst=20 nodelay;
+
+    location / {
+        proxy_pass http://pgrest;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+}
+</code></pre>
+<h3 id="monitoring"><a class="header" href="#monitoring">Monitoring</a></h3>
+<p>Enable Server-Timing header for performance monitoring:</p>
+<pre><code class="language-ini">server-timing-enabled = true
+</code></pre>
+<p>Monitor key metrics:</p>
+<ul>
+<li>Request rate</li>
+<li>Response times</li>
+<li>Error rates</li>
+<li>Database connection pool usage</li>
+<li>Memory usage</li>
+</ul>
+<h3 id="high-availability"><a class="header" href="#high-availability">High Availability</a></h3>
+<p>For high availability:</p>
+<ol>
+<li>
+<p><strong>Multiple Instances:</strong></p>
+<ul>
+<li>Run multiple PgREST instances behind a load balancer</li>
+<li>Use sticky sessions if needed</li>
+<li>Ensure all instances use the same database</li>
+</ul>
+</li>
+<li>
+<p><strong>Database Connection:</strong></p>
+<ul>
+<li>Use PostgreSQL connection pooling (PgBouncer)</li>
+<li>Configure failover/read replicas</li>
+<li>Monitor database health</li>
+</ul>
+</li>
+<li>
+<p><strong>Health Checks:</strong></p>
+<ul>
+<li>Implement health check endpoints</li>
+<li>Configure load balancer health checks</li>
+<li>Set up alerting for failures</li>
+</ul>
+</li>
+</ol>
+<h3 id="backup-and-recovery"><a class="header" href="#backup-and-recovery">Backup and Recovery</a></h3>
+<ol>
+<li>
+<p><strong>Configuration Backup:</strong></p>
+<ul>
+<li>Version control your configuration files</li>
+<li>Backup configuration regularly</li>
+</ul>
+</li>
+<li>
+<p><strong>Database Backup:</strong></p>
+<ul>
+<li>Use PostgreSQL native backup tools</li>
+<li>Set up automated backups</li>
+<li>Test recovery procedures</li>
+</ul>
+</li>
+<li>
+<p><strong>Disaster Recovery:</strong></p>
+<ul>
+<li>Document recovery procedures</li>
+<li>Test failover scenarios</li>
+<li>Maintain runbooks</li>
+</ul>
+</li>
+</ol>
+<h2 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h2>
+<h3 id="service-wont-start"><a class="header" href="#service-wont-start">Service Won’t Start</a></h3>
+<p>Check logs:</p>
+<pre><code class="language-bash"># Systemd
+sudo journalctl -u pgrest -n 50
+
+# Docker
+docker logs pgrest
+</code></pre>
+<p>Common issues:</p>
+<ul>
+<li>Invalid configuration file</li>
+<li>Database connection failure</li>
+<li>Port already in use</li>
+<li>Permission issues</li>
+</ul>
+<h3 id="high-memory-usage"><a class="header" href="#high-memory-usage">High Memory Usage</a></h3>
+<ul>
+<li>Enable streaming for large responses</li>
+<li>Reduce <code>db-pool-size</code> if too high</li>
+<li>Check for memory leaks in application code</li>
+</ul>
+<h3 id="slow-performance"><a class="header" href="#slow-performance">Slow Performance</a></h3>
+<ul>
+<li>Check database query performance</li>
+<li>Review connection pool size</li>
+<li>Enable query logging to identify slow queries</li>
+<li>Consider database indexes</li>
+</ul>
+<h3 id="connection-errors"><a class="header" href="#connection-errors">Connection Errors</a></h3>
+<ul>
+<li>Verify database URI is correct</li>
+<li>Check network connectivity</li>
+<li>Verify database user permissions</li>
+<li>Review connection pool settings</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="authentication-with-jwt"><a class="header" href="#authentication-with-jwt">Authentication with JWT</a></h1>
+<p>PgREST supports JWT (JSON Web Token) authentication for securing your API endpoints.</p>
+<h2 id="configuration-1"><a class="header" href="#configuration-1">Configuration</a></h2>
+<h3 id="setting-the-jwt-secret"><a class="header" href="#setting-the-jwt-secret">Setting the JWT Secret</a></h3>
+<p>Configure the JWT secret in your configuration file:</p>
+<pre><code class="language-ini">jwt-secret = "your-very-long-secret-key-at-least-32-characters-long"
+</code></pre>
+<p>Or via environment variable:</p>
+<pre><code class="language-bash">export PGRST_JWT_SECRET="your-very-long-secret-key-at-least-32-characters-long"
+</code></pre>
+<p><strong>Important:</strong> The JWT secret must be at least 32 characters long for security.</p>
+<h3 id="base64-encoded-secrets"><a class="header" href="#base64-encoded-secrets">Base64 Encoded Secrets</a></h3>
+<p>If your secret is base64 encoded:</p>
+<pre><code class="language-ini">jwt-secret = "dGhpcyBpcyBhIGJhc2U2NCBlbmNvZGVkIHNlY3JldA=="
+jwt-secret-is-base64 = true
+</code></pre>
+<h3 id="jwks-json-web-key-set"><a class="header" href="#jwks-json-web-key-set">JWKS (JSON Web Key Set)</a></h3>
+<p>You can also use JWKS for public key verification:</p>
+<pre><code class="language-ini">jwt-secret = '{"keys":[{"kty":"RSA","n":"...","e":"AQAB"}]}'
+</code></pre>
+<h2 id="jwt-token-structure"><a class="header" href="#jwt-token-structure">JWT Token Structure</a></h2>
+<p>Your JWT tokens should include a role claim that maps to a PostgreSQL role:</p>
+<pre><code class="language-json">{
+  "role": "authenticated_user",
+  "exp": 1234567890,
+  "iat": 1234567890
+}
+</code></pre>
+<h3 id="custom-role-claim-path"><a class="header" href="#custom-role-claim-path">Custom Role Claim Path</a></h3>
+<p>By default, PgREST looks for the role in the <code>role</code> claim. To use a different path:</p>
+<pre><code class="language-ini">jwt-role-claim-key = "user.role"
+</code></pre>
+<p>This would read from:</p>
+<pre><code class="language-json">{
+  "user": {
+    "role": "authenticated_user"
+  }
+}
+</code></pre>
+<h3 id="audience-validation"><a class="header" href="#audience-validation">Audience Validation</a></h3>
+<p>To validate the JWT audience:</p>
+<pre><code class="language-ini">jwt-aud = "api.example.com"
+</code></pre>
+<h2 id="using-jwt-tokens"><a class="header" href="#using-jwt-tokens">Using JWT Tokens</a></h2>
+<h3 id="request-format"><a class="header" href="#request-format">Request Format</a></h3>
+<p>Include the JWT token in the <code>Authorization</code> header:</p>
+<pre><code class="language-bash">curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  http://localhost:3000/users
+</code></pre>
+<h3 id="example-generating-a-token"><a class="header" href="#example-generating-a-token">Example: Generating a Token</a></h3>
+<p>Here’s a simple example using Node.js:</p>
+<pre><code class="language-javascript">const jwt = require('jsonwebtoken');
+
+const token = jwt.sign(
+  {
+    role: 'authenticated_user',
+    exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour
+  },
+  'your-very-long-secret-key-at-least-32-characters-long'
+);
+
+console.log(token);
+</code></pre>
+<h3 id="example-using-python"><a class="header" href="#example-using-python">Example: Using Python</a></h3>
+<pre><code class="language-python">import jwt
+import time
+
+token = jwt.encode(
+    {
+        'role': 'authenticated_user',
+        'exp': int(time.time()) + 3600,  # 1 hour
+    },
+    'your-very-long-secret-key-at-least-32-characters-long',
+    algorithm='HS256'
+)
+
+print(token)
+</code></pre>
+<h2 id="database-roles"><a class="header" href="#database-roles">Database Roles</a></h2>
+<h3 id="creating-roles"><a class="header" href="#creating-roles">Creating Roles</a></h3>
+<p>Create PostgreSQL roles that match your JWT role claims:</p>
+<pre><code class="language-sql">-- Create an authenticated user role
+CREATE ROLE authenticated_user;
+
+-- Grant permissions
+GRANT USAGE ON SCHEMA public TO authenticated_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON users TO authenticated_user;
+</code></pre>
+<h3 id="anonymous-role"><a class="header" href="#anonymous-role">Anonymous Role</a></h3>
+<p>For unauthenticated requests, configure an anonymous role:</p>
+<pre><code class="language-ini">db-anon-role = "anon"
+</code></pre>
+<p>Create the role:</p>
+<pre><code class="language-sql">CREATE ROLE anon;
+GRANT USAGE ON SCHEMA public TO anon;
+GRANT SELECT ON users TO anon;  -- Read-only access
+</code></pre>
+<h2 id="security-best-practices-1"><a class="header" href="#security-best-practices-1">Security Best Practices</a></h2>
+<ol>
+<li><strong>Use strong secrets</strong>: At least 32 characters, randomly generated</li>
+<li><strong>Set expiration</strong>: Always include <code>exp</code> claim in tokens</li>
+<li><strong>Use HTTPS</strong>: Never send tokens over unencrypted connections</li>
+<li><strong>Validate audience</strong>: Use <code>jwt-aud</code> to validate token audience</li>
+<li><strong>Rotate secrets</strong>: Regularly rotate JWT secrets</li>
+<li><strong>Limit permissions</strong>: Grant minimal necessary permissions to roles</li>
+</ol>
+<h2 id="jwt-caching"><a class="header" href="#jwt-caching">JWT Caching</a></h2>
+<p>PgREST caches validated JWT tokens to improve performance:</p>
+<pre><code class="language-ini">jwt-cache-max-entries = 1000
+</code></pre>
+<p>Increase this value if you have many unique tokens in use simultaneously.</p>
+<h2 id="troubleshooting-1"><a class="header" href="#troubleshooting-1">Troubleshooting</a></h2>
+<h3 id="invalid-jwt-error"><a class="header" href="#invalid-jwt-error">“Invalid JWT” Error</a></h3>
+<ul>
+<li>Verify the secret matches between token generation and PgREST config</li>
+<li>Check token expiration (<code>exp</code> claim)</li>
+<li>Ensure token is properly formatted (three parts separated by dots)</li>
+</ul>
+<h3 id="role-not-found-error"><a class="header" href="#role-not-found-error">“Role not found” Error</a></h3>
+<ul>
+<li>Verify the role exists in PostgreSQL</li>
+<li>Check <code>jwt-role-claim-key</code> matches your token structure</li>
+<li>Ensure the role has necessary permissions</li>
+</ul>
+<h3 id="jwt-secret-too-short-error"><a class="header" href="#jwt-secret-too-short-error">“JWT secret too short” Error</a></h3>
+<ul>
+<li>JWT secret must be at least 32 characters</li>
+<li>Use a longer, randomly generated secret</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="enabling-cors"><a class="header" href="#enabling-cors">Enabling CORS</a></h1>
+<p>Cross-Origin Resource Sharing (CORS) allows web applications running on different domains to access your PgREST API.</p>
+<h2 id="configuration-2"><a class="header" href="#configuration-2">Configuration</a></h2>
+<h3 id="allow-all-origins-development"><a class="header" href="#allow-all-origins-development">Allow All Origins (Development)</a></h3>
+<p>By default, if <code>server-cors-allowed-origins</code> is not set, PgREST allows requests from any origin. This is useful for development but should be restricted in production.</p>
+<h3 id="restrict-to-specific-origins-production"><a class="header" href="#restrict-to-specific-origins-production">Restrict to Specific Origins (Production)</a></h3>
+<p>Configure allowed origins in your config file:</p>
+<pre><code class="language-ini">server-cors-allowed-origins = "https://example.com,https://app.example.com"
+</code></pre>
+<p>Or via environment variable:</p>
+<pre><code class="language-bash">export PGRST_SERVER_CORS_ALLOWED_ORIGINS="https://example.com,https://app.example.com"
+</code></pre>
+<h3 id="single-origin"><a class="header" href="#single-origin">Single Origin</a></h3>
+<p>For a single origin:</p>
+<pre><code class="language-ini">server-cors-allowed-origins = "https://example.com"
+</code></pre>
+<h2 id="cors-headers"><a class="header" href="#cors-headers">CORS Headers</a></h2>
+<p>PgREST automatically handles CORS headers for:</p>
+<ul>
+<li><strong>Allowed Methods</strong>: GET, POST, PATCH, PUT, DELETE, OPTIONS, HEAD</li>
+<li><strong>Allowed Headers</strong>: Authorization, Content-Type, Accept, Range, Prefer, Accept-Profile, Content-Profile</li>
+<li><strong>Exposed Headers</strong>: Content-Range, Preference-Applied, Location</li>
+</ul>
+<h2 id="preflight-requests"><a class="header" href="#preflight-requests">Preflight Requests</a></h2>
+<p>PgREST automatically responds to OPTIONS (preflight) requests with appropriate CORS headers.</p>
+<h3 id="example-preflight-request"><a class="header" href="#example-preflight-request">Example Preflight Request</a></h3>
+<pre><code class="language-bash">curl -X OPTIONS http://localhost:3000/users \
+  -H "Origin: https://example.com" \
+  -H "Access-Control-Request-Method: GET" \
+  -v
+</code></pre>
+<p>Response includes:</p>
+<pre><code>Access-Control-Allow-Origin: https://example.com
+Access-Control-Allow-Methods: GET, POST, PATCH, PUT, DELETE, OPTIONS, HEAD
+Access-Control-Allow-Headers: Authorization, Content-Type, Accept, Range, Prefer
+</code></pre>
+<h2 id="browser-example"><a class="header" href="#browser-example">Browser Example</a></h2>
+<h3 id="javascript-fetch"><a class="header" href="#javascript-fetch">JavaScript Fetch</a></h3>
+<pre><code class="language-javascript">fetch('http://localhost:3000/users', {
+  method: 'GET',
+  headers: {
+    'Authorization': 'Bearer ' + token,
+    'Content-Type': 'application/json',
+  },
+  credentials: 'include', // Include cookies if needed
+})
+  .then(response =&gt; response.json())
+  .then(data =&gt; console.log(data));
+</code></pre>
+<h3 id="xmlhttprequest"><a class="header" href="#xmlhttprequest">XMLHttpRequest</a></h3>
+<pre><code class="language-javascript">const xhr = new XMLHttpRequest();
+xhr.open('GET', 'http://localhost:3000/users');
+xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+xhr.setRequestHeader('Content-Type', 'application/json');
+xhr.withCredentials = true; // Include cookies if needed
+xhr.onload = () =&gt; {
+  console.log(JSON.parse(xhr.responseText));
+};
+xhr.send();
+</code></pre>
+<h2 id="common-cors-issues"><a class="header" href="#common-cors-issues">Common CORS Issues</a></h2>
+<h3 id="access-control-allow-origin-error"><a class="header" href="#access-control-allow-origin-error">“Access-Control-Allow-Origin” Error</a></h3>
+<p><strong>Problem</strong>: Browser blocks request due to CORS policy.</p>
+<p><strong>Solution</strong>:</p>
+<ul>
+<li>Add your origin to <code>server-cors-allowed-origins</code></li>
+<li>Ensure the origin matches exactly (including protocol and port)</li>
+</ul>
+<h3 id="credentials-not-sent"><a class="header" href="#credentials-not-sent">Credentials Not Sent</a></h3>
+<p><strong>Problem</strong>: Cookies or authorization headers not sent with CORS requests.</p>
+<p><strong>Solution</strong>:</p>
+<ul>
+<li>Use <code>credentials: 'include'</code> in fetch or <code>withCredentials: true</code> in XHR</li>
+<li>Ensure server allows credentials (PgREST does by default)</li>
+</ul>
+<h3 id="preflight-fails"><a class="header" href="#preflight-fails">Preflight Fails</a></h3>
+<p><strong>Problem</strong>: OPTIONS request fails or returns wrong headers.</p>
+<p><strong>Solution</strong>:</p>
+<ul>
+<li>PgREST handles OPTIONS automatically</li>
+<li>Verify <code>server-cors-allowed-origins</code> includes your origin</li>
+<li>Check browser console for specific error messages</li>
+</ul>
+<h2 id="production-recommendations"><a class="header" href="#production-recommendations">Production Recommendations</a></h2>
+<ol>
+<li><strong>Restrict origins</strong>: Never use wildcard (<code>*</code>) in production</li>
+<li><strong>Use HTTPS</strong>: Always use HTTPS for CORS-enabled APIs</li>
+<li><strong>Validate origins</strong>: Ensure origins match exactly (case-sensitive)</li>
+<li><strong>Monitor requests</strong>: Log CORS-related errors to detect issues</li>
+</ol>
+<h2 id="testing-cors"><a class="header" href="#testing-cors">Testing CORS</a></h2>
+<h3 id="using-curl"><a class="header" href="#using-curl">Using curl</a></h3>
+<p>Test preflight request:</p>
+<pre><code class="language-bash">curl -X OPTIONS http://localhost:3000/users \
+  -H "Origin: https://example.com" \
+  -H "Access-Control-Request-Method: GET" \
+  -H "Access-Control-Request-Headers: Authorization" \
+  -v
+</code></pre>
+<p>Test actual request:</p>
+<pre><code class="language-bash">curl http://localhost:3000/users \
+  -H "Origin: https://example.com" \
+  -H "Authorization: Bearer token" \
+  -v
+</code></pre>
+<h3 id="browser-console"><a class="header" href="#browser-console">Browser Console</a></h3>
+<p>Open browser developer tools and check the Network tab for CORS headers in responses.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="csv-response-format"><a class="header" href="#csv-response-format">CSV Response Format</a></h1>
+<p>PgREST can return data in CSV format, which is useful for data export, spreadsheet applications, and bulk data processing.</p>
+<h2 id="requesting-csv-format"><a class="header" href="#requesting-csv-format">Requesting CSV Format</a></h2>
+<p>Use the <code>Accept</code> header to request CSV format:</p>
+<pre><code class="language-bash">curl -H "Accept: text/csv" http://localhost:3000/users
+</code></pre>
+<h2 id="response-format"><a class="header" href="#response-format">Response Format</a></h2>
+<p>CSV responses include:</p>
+<ul>
+<li>Header row with column names</li>
+<li>Data rows with comma-separated values</li>
+<li>Proper escaping of special characters (commas, quotes, newlines)</li>
+<li>UTF-8 encoding</li>
+</ul>
+<h3 id="example-response"><a class="header" href="#example-response">Example Response</a></h3>
+<pre><code class="language-http">HTTP/1.1 200 OK
+Content-Type: text/csv; charset=utf-8
+
+id,name,email
+1,Alice,alice@example.com
+2,Bob,bob@example.com
+</code></pre>
+<h2 id="csv-escaping"><a class="header" href="#csv-escaping">CSV Escaping</a></h2>
+<p>PgREST properly escapes CSV values:</p>
+<ul>
+<li><strong>Commas</strong>: Values containing commas are quoted</li>
+<li><strong>Quotes</strong>: Double quotes are escaped as <code>""</code></li>
+<li><strong>Newlines</strong>: Values containing newlines are quoted</li>
+<li><strong>Special characters</strong>: Handled according to CSV standards</li>
+</ul>
+<h3 id="example-with-special-characters"><a class="header" href="#example-with-special-characters">Example with Special Characters</a></h3>
+<pre><code class="language-bash">curl -H "Accept: text/csv" "http://localhost:3000/users?name=like.*Alice*"
+</code></pre>
+<p>Response:</p>
+<pre><code class="language-csv">id,name,email
+1,"Alice, Smith","alice@example.com"
+2,"Bob ""The Builder""","bob@example.com"
+</code></pre>
+<h2 id="filtering-and-selection"><a class="header" href="#filtering-and-selection">Filtering and Selection</a></h2>
+<p>CSV format works with all query parameters:</p>
+<pre><code class="language-bash"># Filtered CSV
+curl -H "Accept: text/csv" "http://localhost:3000/users?active=is.true"
+
+# Selected columns
+curl -H "Accept: text/csv" "http://localhost:3000/users?select=id,name,email"
+
+# Ordered CSV
+curl -H "Accept: text/csv" "http://localhost:3000/users?order=name.asc"
+</code></pre>
+<h2 id="pagination-1"><a class="header" href="#pagination-1">Pagination</a></h2>
+<p>CSV responses support pagination:</p>
+<pre><code class="language-bash"># First 100 rows
+curl -H "Accept: text/csv" "http://localhost:3000/users?limit=100"
+
+# Using Range header
+curl -H "Accept: text/csv" -H "Range: 0-99" http://localhost:3000/users
+</code></pre>
+<h2 id="downloading-csv-files"><a class="header" href="#downloading-csv-files">Downloading CSV Files</a></h2>
+<h3 id="using-curl-1"><a class="header" href="#using-curl-1">Using curl</a></h3>
+<p>Save CSV to file:</p>
+<pre><code class="language-bash">curl -H "Accept: text/csv" http://localhost:3000/users &gt; users.csv
+</code></pre>
+<h3 id="using-browser"><a class="header" href="#using-browser">Using Browser</a></h3>
+<p>Most browsers will download CSV files when accessed directly:</p>
+<pre><code class="language-javascript">const link = document.createElement('a');
+link.href = 'http://localhost:3000/users';
+link.setAttribute('download', 'users.csv');
+link.setAttribute('Accept', 'text/csv');
+link.click();
+</code></pre>
+<h3 id="using-javascript-fetch"><a class="header" href="#using-javascript-fetch">Using JavaScript Fetch</a></h3>
+<pre><code class="language-javascript">fetch('http://localhost:3000/users', {
+  headers: {
+    'Accept': 'text/csv',
+    'Authorization': 'Bearer ' + token,
+  },
+})
+  .then(response =&gt; response.text())
+  .then(csv =&gt; {
+    // Process CSV data
+    console.log(csv);
+    // Or download
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'users.csv';
+    a.click();
+  });
+</code></pre>
+<h2 id="large-datasets"><a class="header" href="#large-datasets">Large Datasets</a></h2>
+<p>For large datasets, CSV format is efficient:</p>
+<pre><code class="language-bash"># Export all users
+curl -H "Accept: text/csv" http://localhost:3000/users &gt; all_users.csv
+
+# Export with filters
+curl -H "Accept: text/csv" \
+  "http://localhost:3000/orders?created_at=gte.2024-01-01" \
+  &gt; orders_2024.csv
+</code></pre>
+<h2 id="importing-csv"><a class="header" href="#importing-csv">Importing CSV</a></h2>
+<p>While PgREST doesn’t directly import CSV, you can use PostgreSQL’s <code>COPY</code> command:</p>
+<pre><code class="language-sql">-- Create temporary table
+CREATE TEMP TABLE temp_users (id INT, name TEXT, email TEXT);
+
+-- Copy CSV data
+COPY temp_users FROM '/path/to/users.csv' WITH (FORMAT csv, HEADER true);
+
+-- Insert into actual table
+INSERT INTO users SELECT * FROM temp_users;
+</code></pre>
+<h2 id="use-cases"><a class="header" href="#use-cases">Use Cases</a></h2>
+<ol>
+<li><strong>Data Export</strong>: Export data for analysis in Excel, Google Sheets, etc.</li>
+<li><strong>Reporting</strong>: Generate CSV reports for business users</li>
+<li><strong>Data Migration</strong>: Export data for migration to other systems</li>
+<li><strong>Bulk Processing</strong>: Process large datasets in batch jobs</li>
+<li><strong>Integration</strong>: Integrate with systems that consume CSV</li>
+</ol>
+<h2 id="limitations"><a class="header" href="#limitations">Limitations</a></h2>
+<ul>
+<li><strong>Embedding</strong>: CSV format doesn’t support resource embedding (use JSON for that)</li>
+<li><strong>Nested Data</strong>: Complex nested JSON structures are flattened</li>
+<li><strong>Binary Data</strong>: Binary columns are not included in CSV output</li>
+</ul>
+<h2 id="content-type-header"><a class="header" href="#content-type-header">Content-Type Header</a></h2>
+<p>CSV responses include the proper Content-Type header:</p>
+<pre><code>Content-Type: text/csv; charset=utf-8
+</code></pre>
+<p>This ensures browsers and tools recognize the format correctly.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="using-prefer-headers"><a class="header" href="#using-prefer-headers">Using Prefer Headers</a></h1>
+<p>The <code>Prefer</code> header allows you to customize request behavior and response format.</p>
+<h2 id="plurality"><a class="header" href="#plurality">Plurality</a></h2>
+<h3 id="singular-response"><a class="header" href="#singular-response">Singular Response</a></h3>
+<p>Return a single object instead of an array when filtering to one result:</p>
+<pre><code class="language-bash">curl -H "Prefer: plurality=singular" "http://localhost:3000/users?id=eq.1"
+</code></pre>
+<p><strong>Response</strong> (singular):</p>
+<pre><code class="language-json">{"id": 1, "name": "Alice", "email": "alice@example.com"}
+</code></pre>
+<p><strong>Without Prefer</strong> (plural):</p>
+<pre><code class="language-json">[{"id": 1, "name": "Alice", "email": "alice@example.com"}]
+</code></pre>
+<h3 id="use-cases-1"><a class="header" href="#use-cases-1">Use Cases</a></h3>
+<ul>
+<li>When you know exactly one result will be returned</li>
+<li>Simplifies client code (no array indexing)</li>
+<li>Returns <code>404 Not Found</code> if no results match</li>
+</ul>
+<h2 id="count-strategies"><a class="header" href="#count-strategies">Count Strategies</a></h2>
+<p>Control how row counts are calculated and included in the <code>Content-Range</code> header.</p>
+<h3 id="exact-count"><a class="header" href="#exact-count">Exact Count</a></h3>
+<p>Count all matching rows (slower but accurate):</p>
+<pre><code class="language-bash">curl -H "Prefer: count=exact" http://localhost:3000/users
+</code></pre>
+<p><strong>Response Header</strong>:</p>
+<pre><code>Content-Range: 0-9/100
+</code></pre>
+<h3 id="planned-count"><a class="header" href="#planned-count">Planned Count</a></h3>
+<p>Use PostgreSQL’s query planner estimate (faster):</p>
+<pre><code class="language-bash">curl -H "Prefer: count=planned" http://localhost:3000/users
+</code></pre>
+<p><strong>Response Header</strong>:</p>
+<pre><code>Content-Range: 0-9/95
+</code></pre>
+<h3 id="estimated-count"><a class="header" href="#estimated-count">Estimated Count</a></h3>
+<p>Use a quick estimate (fastest):</p>
+<pre><code class="language-bash">curl -H "Prefer: count=estimated" http://localhost:3000/users
+</code></pre>
+<p><strong>Response Header</strong>:</p>
+<pre><code>Content-Range: 0-9/~
+</code></pre>
+<p>The <code>~</code> indicates an estimate.</p>
+<h3 id="no-count"><a class="header" href="#no-count">No Count</a></h3>
+<p>Omit count entirely:</p>
+<pre><code class="language-bash">curl -H "Prefer: count=none" http://localhost:3000/users
+</code></pre>
+<p><strong>Response Header</strong>:</p>
+<pre><code>Content-Range: 0-9/*
+</code></pre>
+<h2 id="max-affected-rows"><a class="header" href="#max-affected-rows">Max Affected Rows</a></h2>
+<p>Validate that write operations don’t affect more rows than expected:</p>
+<h3 id="limit-updates"><a class="header" href="#limit-updates">Limit Updates</a></h3>
+<pre><code class="language-bash">curl -X PATCH \
+  -H "Prefer: max-affected=10" \
+  "http://localhost:3000/users?active=is.false" \
+  -H "Content-Type: application/json" \
+  -d '{"active": true}'
+</code></pre>
+<p>If more than 10 rows would be affected, the request fails with <code>416 Range Not Satisfiable</code>.</p>
+<h3 id="limit-deletes"><a class="header" href="#limit-deletes">Limit Deletes</a></h3>
+<pre><code class="language-bash">curl -X DELETE \
+  -H "Prefer: max-affected=5" \
+  "http://localhost:3000/users?created_at=lt.2020-01-01"
+</code></pre>
+<h3 id="use-cases-1-1"><a class="header" href="#use-cases-1-1">Use Cases</a></h3>
+<ul>
+<li>Prevent accidental bulk updates</li>
+<li>Ensure data integrity</li>
+<li>Implement safety checks in applications</li>
+</ul>
+<h2 id="combining-preferences"><a class="header" href="#combining-preferences">Combining Preferences</a></h2>
+<p>You can combine multiple preferences:</p>
+<pre><code class="language-bash">curl -H "Prefer: plurality=singular,count=exact" \
+  "http://localhost:3000/users?id=eq.1"
+</code></pre>
+<h2 id="preference-applied-header"><a class="header" href="#preference-applied-header">Preference-Applied Header</a></h2>
+<p>The server echoes back applied preferences in the <code>Preference-Applied</code> header:</p>
+<pre><code class="language-http">HTTP/1.1 200 OK
+Preference-Applied: count=exact
+Content-Range: 0-9/100
+</code></pre>
+<h2 id="examples-1"><a class="header" href="#examples-1">Examples</a></h2>
+<h3 id="get-single-user-with-exact-count"><a class="header" href="#get-single-user-with-exact-count">Get Single User with Exact Count</a></h3>
+<pre><code class="language-bash">curl -H "Prefer: plurality=singular,count=exact" \
+  "http://localhost:3000/users?email=eq.alice@example.com"
+</code></pre>
+<h3 id="safe-bulk-update"><a class="header" href="#safe-bulk-update">Safe Bulk Update</a></h3>
+<pre><code class="language-bash">curl -X PATCH \
+  -H "Prefer: max-affected=100" \
+  "http://localhost:3000/users?role=eq.guest" \
+  -H "Content-Type: application/json" \
+  -d '{"role": "user"}'
+</code></pre>
+<h3 id="fast-pagination-with-estimated-count"><a class="header" href="#fast-pagination-with-estimated-count">Fast Pagination with Estimated Count</a></h3>
+<pre><code class="language-bash">curl -H "Prefer: count=estimated" \
+  "http://localhost:3000/users?limit=20&amp;offset=0"
+</code></pre>
+<h2 id="error-handling"><a class="header" href="#error-handling">Error Handling</a></h2>
+<h3 id="max-affected-exceeded"><a class="header" href="#max-affected-exceeded">Max Affected Exceeded</a></h3>
+<p>If <code>max-affected</code> is exceeded:</p>
+<pre><code class="language-http">HTTP/1.1 416 Range Not Satisfiable
+Content-Range: */100
+
+{
+  "code": "PGRST116",
+  "message": "Maximum affected rows exceeded",
+  "details": "Request would affect 100 rows, but max-affected=10"
+}
+</code></pre>
+<h3 id="invalid-preference"><a class="header" href="#invalid-preference">Invalid Preference</a></h3>
+<p>Invalid preference values are ignored (no error, just not applied).</p>
+<h2 id="best-practices"><a class="header" href="#best-practices">Best Practices</a></h2>
+<ol>
+<li><strong>Use <code>plurality=singular</code></strong> when you expect exactly one result</li>
+<li><strong>Use <code>count=exact</code></strong> when accuracy is important</li>
+<li><strong>Use <code>count=estimated</code></strong> for better performance on large datasets</li>
+<li><strong>Always use <code>max-affected</code></strong> for write operations to prevent accidents</li>
+<li><strong>Check <code>Preference-Applied</code></strong> header to verify preferences were applied</li>
+</ol>
+<h2 id="performance-considerations"><a class="header" href="#performance-considerations">Performance Considerations</a></h2>
+<ul>
+<li><strong><code>count=exact</code></strong>: Requires full query execution (slowest)</li>
+<li><strong><code>count=planned</code></strong>: Uses query planner estimate (faster)</li>
+<li><strong><code>count=estimated</code></strong>: Quick estimate (fastest)</li>
+<li><strong><code>plurality=singular</code></strong>: No performance impact</li>
+<li><strong><code>max-affected</code></strong>: Adds validation overhead (minimal)</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="transaction-isolation-levels"><a class="header" href="#transaction-isolation-levels">Transaction Isolation Levels</a></h1>
+<p>PgREST allows you to configure transaction isolation levels separately for read and write operations, providing control over data consistency and concurrency.</p>
+<h2 id="isolation-levels"><a class="header" href="#isolation-levels">Isolation Levels</a></h2>
+<p>PostgreSQL supports three isolation levels:</p>
+<ul>
+<li><strong>Read Committed</strong> (default) - Each query sees only data committed before it began</li>
+<li><strong>Repeatable Read</strong> - All queries in a transaction see the same snapshot</li>
+<li><strong>Serializable</strong> - Highest isolation, prevents all anomalies</li>
+</ul>
+<h2 id="configuration-3"><a class="header" href="#configuration-3">Configuration</a></h2>
+<h3 id="read-operations"><a class="header" href="#read-operations">Read Operations</a></h3>
+<p>Set isolation level for GET/HEAD requests:</p>
+<pre><code class="language-ini">db-tx-read-isolation = "repeatable-read"
+</code></pre>
+<p>Options:</p>
+<ul>
+<li><code>read-committed</code> (default)</li>
+<li><code>repeatable-read</code></li>
+<li><code>serializable</code></li>
+</ul>
+<h3 id="write-operations"><a class="header" href="#write-operations">Write Operations</a></h3>
+<p>Set isolation level for POST/PATCH/PUT/DELETE requests:</p>
+<pre><code class="language-ini">db-tx-write-isolation = "serializable"
+</code></pre>
+<p>Options:</p>
+<ul>
+<li><code>read-committed</code> (default)</li>
+<li><code>repeatable-read</code></li>
+<li><code>serializable</code></li>
+</ul>
+<h3 id="environment-variables-1"><a class="header" href="#environment-variables-1">Environment Variables</a></h3>
+<pre><code class="language-bash">export PGRST_DB_TX_READ_ISOLATION="repeatable-read"
+export PGRST_DB_TX_WRITE_ISOLATION="serializable"
+</code></pre>
+<h2 id="use-cases-2"><a class="header" href="#use-cases-2">Use Cases</a></h2>
+<h3 id="read-committed-default"><a class="header" href="#read-committed-default">Read Committed (Default)</a></h3>
+<p>Best for:</p>
+<ul>
+<li>High concurrency applications</li>
+<li>When stale reads are acceptable</li>
+<li>Most web applications</li>
+</ul>
+<pre><code class="language-ini">db-tx-read-isolation = "read-committed"
+db-tx-write-isolation = "read-committed"
+</code></pre>
+<h3 id="repeatable-read"><a class="header" href="#repeatable-read">Repeatable Read</a></h3>
+<p>Best for:</p>
+<ul>
+<li>Reports that need consistent snapshots</li>
+<li>Analytics queries</li>
+<li>When you need to prevent non-repeatable reads</li>
+</ul>
+<pre><code class="language-ini">db-tx-read-isolation = "repeatable-read"
+db-tx-write-isolation = "read-committed"
+</code></pre>
+<h3 id="serializable"><a class="header" href="#serializable">Serializable</a></h3>
+<p>Best for:</p>
+<ul>
+<li>Financial transactions</li>
+<li>Critical data integrity requirements</li>
+<li>When you need to prevent all concurrency anomalies</li>
+</ul>
+<pre><code class="language-ini">db-tx-read-isolation = "repeatable-read"
+db-tx-write-isolation = "serializable"
+</code></pre>
+<h2 id="examples-2"><a class="header" href="#examples-2">Examples</a></h2>
+<h3 id="configuration-file"><a class="header" href="#configuration-file">Configuration File</a></h3>
+<pre><code class="language-ini"># Production configuration
+db-tx-read-isolation = "repeatable-read"
+db-tx-write-isolation = "serializable"
+
+# Development configuration (more permissive)
+db-tx-read-isolation = "read-committed"
+db-tx-write-isolation = "read-committed"
+</code></pre>
+<h3 id="different-levels-for-reads-and-writes"><a class="header" href="#different-levels-for-reads-and-writes">Different Levels for Reads and Writes</a></h3>
+<p>Common pattern: stricter isolation for writes, more permissive for reads:</p>
+<pre><code class="language-ini"># Allow concurrent reads, ensure write consistency
+db-tx-read-isolation = "read-committed"
+db-tx-write-isolation = "serializable"
+</code></pre>
+<h2 id="how-it-works"><a class="header" href="#how-it-works">How It Works</a></h2>
+<h3 id="read-operations-1"><a class="header" href="#read-operations-1">Read Operations</a></h3>
+<p>When a GET request is made:</p>
+<ol>
+<li>Transaction starts with <code>SET TRANSACTION ISOLATION LEVEL REPEATABLE READ</code></li>
+<li>Query executes</li>
+<li>Transaction commits</li>
+</ol>
+<h3 id="write-operations-1"><a class="header" href="#write-operations-1">Write Operations</a></h3>
+<p>When a POST/PATCH/PUT/DELETE request is made:</p>
+<ol>
+<li>Transaction starts with <code>SET TRANSACTION ISOLATION LEVEL SERIALIZABLE</code></li>
+<li>Pre-request function executes (if configured)</li>
+<li>Main query executes</li>
+<li>Transaction commits (or rolls back on error)</li>
+</ol>
+<h2 id="performance-impact"><a class="header" href="#performance-impact">Performance Impact</a></h2>
+<h3 id="read-committed"><a class="header" href="#read-committed">Read Committed</a></h3>
+<ul>
+<li><strong>Performance</strong>: Best (lowest overhead)</li>
+<li><strong>Concurrency</strong>: Highest</li>
+<li><strong>Consistency</strong>: Lowest</li>
+</ul>
+<h3 id="repeatable-read-1"><a class="header" href="#repeatable-read-1">Repeatable Read</a></h3>
+<ul>
+<li><strong>Performance</strong>: Good</li>
+<li><strong>Concurrency</strong>: Moderate</li>
+<li><strong>Consistency</strong>: Good</li>
+</ul>
+<h3 id="serializable-1"><a class="header" href="#serializable-1">Serializable</a></h3>
+<ul>
+<li><strong>Performance</strong>: Lower (more locking)</li>
+<li><strong>Concurrency</strong>: Lower (more conflicts)</li>
+<li><strong>Consistency</strong>: Highest</li>
+</ul>
+<h2 id="transaction-conflicts"><a class="header" href="#transaction-conflicts">Transaction Conflicts</a></h2>
+<h3 id="serialization-failures"><a class="header" href="#serialization-failures">Serialization Failures</a></h3>
+<p>With <code>serializable</code> isolation, you may encounter serialization failures:</p>
+<pre><code class="language-json">{
+  "code": "40001",
+  "message": "Serialization failure",
+  "details": "Could not serialize access due to concurrent update"
+}
+</code></pre>
+<p><strong>Solution</strong>: Retry the request (idempotent operations recommended).</p>
+<h3 id="deadlocks"><a class="header" href="#deadlocks">Deadlocks</a></h3>
+<p>Higher isolation levels can lead to deadlocks:</p>
+<pre><code class="language-json">{
+  "code": "40P01",
+  "message": "Deadlock detected",
+  "details": "Process waits for lock"
+}
+</code></pre>
+<p><strong>Solution</strong>: Retry with exponential backoff.</p>
+<h2 id="best-practices-1"><a class="header" href="#best-practices-1">Best Practices</a></h2>
+<ol>
+<li><strong>Start with defaults</strong>: Use <code>read-committed</code> unless you have specific requirements</li>
+<li><strong>Profile first</strong>: Measure performance impact before changing isolation levels</li>
+<li><strong>Use appropriate levels</strong>: Don’t use <code>serializable</code> unless necessary</li>
+<li><strong>Handle conflicts</strong>: Implement retry logic for serialization failures</li>
+<li><strong>Monitor deadlocks</strong>: Watch for deadlock errors in production</li>
+</ol>
+<h2 id="testing-isolation-levels"><a class="header" href="#testing-isolation-levels">Testing Isolation Levels</a></h2>
+<h3 id="test-repeatable-reads"><a class="header" href="#test-repeatable-reads">Test Repeatable Reads</a></h3>
+<pre><code class="language-bash"># Transaction 1: Start read
+curl "http://localhost:3000/users?id=eq.1" &amp;
+
+# Transaction 2: Update (in another terminal)
+curl -X PATCH "http://localhost:3000/users?id=eq.1" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Updated"}'
+
+# Transaction 1: Read again (should see same data with repeatable-read)
+curl "http://localhost:3000/users?id=eq.1"
+</code></pre>
+<h3 id="test-serializable-writes"><a class="header" href="#test-serializable-writes">Test Serializable Writes</a></h3>
+<pre><code class="language-bash"># Concurrent updates (may cause serialization failure)
+curl -X PATCH "http://localhost:3000/users?id=eq.1" \
+  -H "Content-Type: application/json" \
+  -d '{"balance": 100}' &amp;
+
+curl -X PATCH "http://localhost:3000/users?id=eq.1" \
+  -H "Content-Type: application/json" \
+  -d '{"balance": 200}'
+</code></pre>
+<h2 id="configuration-examples-1"><a class="header" href="#configuration-examples-1">Configuration Examples</a></h2>
+<h3 id="e-commerce-application"><a class="header" href="#e-commerce-application">E-Commerce Application</a></h3>
+<pre><code class="language-ini"># Read: Allow concurrent browsing
+db-tx-read-isolation = "read-committed"
+
+# Write: Ensure order consistency
+db-tx-write-isolation = "serializable"
+</code></pre>
+<h3 id="reporting-application"><a class="header" href="#reporting-application">Reporting Application</a></h3>
+<pre><code class="language-ini"># Read: Consistent reports
+db-tx-read-isolation = "repeatable-read"
+
+# Write: Standard consistency
+db-tx-write-isolation = "read-committed"
+</code></pre>
+<h3 id="high-concurrency-api"><a class="header" href="#high-concurrency-api">High-Concurrency API</a></h3>
+<pre><code class="language-ini"># Both: Maximum concurrency
+db-tx-read-isolation = "read-committed"
+db-tx-write-isolation = "read-committed"
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="streaming-large-responses"><a class="header" href="#streaming-large-responses">Streaming Large Responses</a></h1>
+<p>PgREST can stream large result sets to reduce memory usage and improve response times for large datasets.</p>
+<h2 id="how-streaming-works"><a class="header" href="#how-streaming-works">How Streaming Works</a></h2>
+<p>When a response exceeds the configured threshold, PgREST automatically streams the response instead of buffering it in memory.</p>
+<h3 id="benefits"><a class="header" href="#benefits">Benefits</a></h3>
+<ul>
+<li><strong>Lower memory usage</strong>: Large results don’t consume server memory</li>
+<li><strong>Faster time-to-first-byte</strong>: Data starts sending immediately</li>
+<li><strong>Better scalability</strong>: Handle larger datasets without memory issues</li>
+</ul>
+<h2 id="configuration-4"><a class="header" href="#configuration-4">Configuration</a></h2>
+<h3 id="enable-streaming"><a class="header" href="#enable-streaming">Enable Streaming</a></h3>
+<p>Streaming is enabled by default:</p>
+<pre><code class="language-ini">server-streaming-enabled = true
+</code></pre>
+<p>Disable if needed:</p>
+<pre><code class="language-ini">server-streaming-enabled = false
+</code></pre>
+<h3 id="set-threshold"><a class="header" href="#set-threshold">Set Threshold</a></h3>
+<p>Configure the size threshold (in bytes) for streaming:</p>
+<pre><code class="language-ini">server-streaming-threshold = 10485760  # 10MB (default)
+</code></pre>
+<p>For smaller thresholds:</p>
+<pre><code class="language-ini">server-streaming-threshold = 1048576  # 1MB
+</code></pre>
+<p>For larger thresholds:</p>
+<pre><code class="language-ini">server-streaming-threshold = 52428800  # 50MB
+</code></pre>
+<h3 id="environment-variables-2"><a class="header" href="#environment-variables-2">Environment Variables</a></h3>
+<pre><code class="language-bash">export PGRST_SERVER_STREAMING_ENABLED="true"
+export PGRST_SERVER_STREAMING_THRESHOLD="10485760"
+</code></pre>
+<h2 id="when-streaming-occurs"><a class="header" href="#when-streaming-occurs">When Streaming Occurs</a></h2>
+<p>Streaming is triggered when:</p>
+<ol>
+<li>Response size exceeds <code>server-streaming-threshold</code></li>
+<li><code>server-streaming-enabled</code> is <code>true</code></li>
+<li>Response format is JSON (CSV and binary use different handling)</li>
+</ol>
+<h2 id="using-streaming-responses"><a class="header" href="#using-streaming-responses">Using Streaming Responses</a></h2>
+<h3 id="client-side-handling"><a class="header" href="#client-side-handling">Client-Side Handling</a></h3>
+<p>Streaming responses work transparently with most HTTP clients:</p>
+<pre><code class="language-javascript">// Fetch API handles streaming automatically
+fetch('http://localhost:3000/users')
+  .then(response =&gt; response.json())
+  .then(data =&gt; console.log(data));
+</code></pre>
+<h3 id="nodejs-stream-example"><a class="header" href="#nodejs-stream-example">Node.js Stream Example</a></h3>
+<pre><code class="language-javascript">const https = require('https');
+
+const req = https.get('http://localhost:3000/users', (res) =&gt; {
+  let data = '';
+  
+  res.on('data', (chunk) =&gt; {
+    data += chunk;
+    // Process chunks as they arrive
+    console.log('Received chunk:', chunk.length, 'bytes');
+  });
+  
+  res.on('end', () =&gt; {
+    const json = JSON.parse(data);
+    console.log('Complete response:', json);
+  });
+});
+</code></pre>
+<h3 id="python-example"><a class="header" href="#python-example">Python Example</a></h3>
+<pre><code class="language-python">import requests
+import json
+
+response = requests.get(
+    'http://localhost:3000/users',
+    stream=True  # Enable streaming
+)
+
+# Process chunks as they arrive
+for chunk in response.iter_content(chunk_size=8192):
+    if chunk:
+        print(f'Received chunk: {len(chunk)} bytes')
+
+# Parse complete response
+data = response.json()
+</code></pre>
+<h2 id="monitoring-streaming"><a class="header" href="#monitoring-streaming">Monitoring Streaming</a></h2>
+<h3 id="check-response-headers"><a class="header" href="#check-response-headers">Check Response Headers</a></h3>
+<p>Streaming responses include standard headers:</p>
+<pre><code class="language-http">HTTP/1.1 200 OK
+Content-Type: application/json
+Transfer-Encoding: chunked
+</code></pre>
+<p>The <code>Transfer-Encoding: chunked</code> header indicates streaming.</p>
+<h3 id="server-logs"><a class="header" href="#server-logs">Server Logs</a></h3>
+<p>Enable query logging to monitor streaming:</p>
+<pre><code class="language-ini">log-level = "info"
+log-query = true
+</code></pre>
+<h2 id="performance-considerations-1"><a class="header" href="#performance-considerations-1">Performance Considerations</a></h2>
+<h3 id="memory-usage"><a class="header" href="#memory-usage">Memory Usage</a></h3>
+<ul>
+<li><strong>Without streaming</strong>: Entire response buffered in memory</li>
+<li><strong>With streaming</strong>: Only chunks buffered (much lower memory)</li>
+</ul>
+<h3 id="network-efficiency"><a class="header" href="#network-efficiency">Network Efficiency</a></h3>
+<ul>
+<li>Streaming starts sending data immediately</li>
+<li>Client can start processing before response completes</li>
+<li>Better for slow network connections</li>
+</ul>
+<h3 id="cpu-usage"><a class="header" href="#cpu-usage">CPU Usage</a></h3>
+<ul>
+<li>Streaming adds minimal CPU overhead</li>
+<li>Benefits outweigh costs for large responses</li>
+</ul>
+<h2 id="best-practices-2"><a class="header" href="#best-practices-2">Best Practices</a></h2>
+<ol>
+<li><strong>Keep streaming enabled</strong>: Default setting works well for most cases</li>
+<li><strong>Adjust threshold</strong>: Tune based on your typical response sizes</li>
+<li><strong>Monitor memory</strong>: Watch server memory usage with large queries</li>
+<li><strong>Use pagination</strong>: For very large datasets, consider pagination instead</li>
+<li><strong>Client handling</strong>: Ensure clients can handle chunked responses</li>
+</ol>
+<h2 id="limitations-1"><a class="header" href="#limitations-1">Limitations</a></h2>
+<h3 id="not-supported-for"><a class="header" href="#not-supported-for">Not Supported For</a></h3>
+<ul>
+<li>CSV format (uses different streaming mechanism)</li>
+<li>Binary format (handled separately)</li>
+<li>Small responses (below threshold)</li>
+</ul>
+<h3 id="client-requirements"><a class="header" href="#client-requirements">Client Requirements</a></h3>
+<ul>
+<li>Client must support HTTP/1.1 chunked transfer encoding</li>
+<li>Some older clients may not handle streaming correctly</li>
+</ul>
+<h2 id="troubleshooting-2"><a class="header" href="#troubleshooting-2">Troubleshooting</a></h2>
+<h3 id="streaming-not-working"><a class="header" href="#streaming-not-working">Streaming Not Working</a></h3>
+<p><strong>Check configuration</strong>:</p>
+<pre><code class="language-bash"># Verify streaming is enabled
+curl http://localhost:3000/admin/config | jq '.server_streaming_enabled'
+</code></pre>
+<p><strong>Check response size</strong>: Response must exceed threshold</p>
+<p><strong>Check format</strong>: Only JSON responses are streamed</p>
+<h3 id="memory-still-high"><a class="header" href="#memory-still-high">Memory Still High</a></h3>
+<ul>
+<li>Lower <code>server-streaming-threshold</code></li>
+<li>Check for other memory leaks</li>
+<li>Monitor connection pool size</li>
+</ul>
+<h3 id="client-errors"><a class="header" href="#client-errors">Client Errors</a></h3>
+<ul>
+<li>Ensure client supports chunked encoding</li>
+<li>Check for timeout issues</li>
+<li>Verify network stability</li>
+</ul>
+<h2 id="example-large-dataset-export"><a class="header" href="#example-large-dataset-export">Example: Large Dataset Export</a></h2>
+<pre><code class="language-bash"># Export large dataset (automatically streamed)
+curl -H "Accept: application/json" \
+  http://localhost:3000/users &gt; users_export.json
+
+# Monitor streaming
+curl -v -H "Accept: application/json" \
+  http://localhost:3000/users 2&gt;&amp;1 | grep -i "transfer-encoding"
+</code></pre>
+<h2 id="configuration-examples-2"><a class="header" href="#configuration-examples-2">Configuration Examples</a></h2>
+<h3 id="high-memory-server"><a class="header" href="#high-memory-server">High-Memory Server</a></h3>
+<pre><code class="language-ini"># Allow larger buffers before streaming
+server-streaming-threshold = 52428800  # 50MB
+</code></pre>
+<h3 id="low-memory-server"><a class="header" href="#low-memory-server">Low-Memory Server</a></h3>
+<pre><code class="language-ini"># Stream earlier to save memory
+server-streaming-threshold = 1048576  # 1MB
+</code></pre>
+<h3 id="disable-streaming"><a class="header" href="#disable-streaming">Disable Streaming</a></h3>
+<pre><code class="language-ini"># Disable if you have specific requirements
+server-streaming-enabled = false
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="observability"><a class="header" href="#observability">Observability</a></h1>
+<p>PgREST provides several mechanisms for monitoring and observing your API’s behavior, including logging, timing headers, and admin endpoints.</p>
+<h2 id="logging"><a class="header" href="#logging">Logging</a></h2>
+<h3 id="log-levels"><a class="header" href="#log-levels">Log Levels</a></h3>
+<p>Configure the verbosity of logging:</p>
+<pre><code class="language-ini">log-level = "info"
+</code></pre>
+<p>Available levels (from least to most verbose):</p>
+<ul>
+<li><code>crit</code> - Critical errors only</li>
+<li><code>error</code> - Errors (default)</li>
+<li><code>warn</code> - Warnings and errors</li>
+<li><code>info</code> - Informational messages, warnings, and errors</li>
+<li><code>debug</code> - All messages including debug information</li>
+</ul>
+<h3 id="environment-variable"><a class="header" href="#environment-variable">Environment Variable</a></h3>
+<pre><code class="language-bash">export PGRST_LOG_LEVEL="info"
+</code></pre>
+<h3 id="structured-logging"><a class="header" href="#structured-logging">Structured Logging</a></h3>
+<p>PgREST uses structured logging with the <code>tracing</code> crate, providing:</p>
+<ul>
+<li>Timestamps</li>
+<li>Log levels</li>
+<li>Contextual information</li>
+<li>Request tracing</li>
+</ul>
+<h3 id="log-query"><a class="header" href="#log-query">Log Query</a></h3>
+<p>Enable SQL query logging:</p>
+<pre><code class="language-ini">log-query = true
+</code></pre>
+<p>This logs all SQL queries executed by PgREST, useful for debugging and performance analysis.</p>
+<p><strong>Warning</strong>: Enabling query logging can be verbose and may expose sensitive data. Use only in development or with caution in production.</p>
+<h3 id="log-output"><a class="header" href="#log-output">Log Output</a></h3>
+<p>Logs are written to stderr by default. In production, redirect to a log file or logging service:</p>
+<pre><code class="language-bash">./pgrest --config config.toml 2&gt;&amp;1 | tee pgrest.log
+</code></pre>
+<p>Or with systemd, logs go to journald:</p>
+<pre><code class="language-bash">journalctl -u pgrest -f
+</code></pre>
+<h2 id="server-timing-header"><a class="header" href="#server-timing-header">Server-Timing Header</a></h2>
+<p>The Server-Timing header provides performance metrics for each request.</p>
+<h3 id="enable-server-timing"><a class="header" href="#enable-server-timing">Enable Server-Timing</a></h3>
+<pre><code class="language-ini">server-timing-enabled = true
+</code></pre>
+<h3 id="header-format"><a class="header" href="#header-format">Header Format</a></h3>
+<pre><code>Server-Timing: total;dur=123.456
+</code></pre>
+<p>The <code>dur</code> value is in milliseconds and represents the total request processing time.</p>
+<h3 id="example-response-1"><a class="header" href="#example-response-1">Example Response</a></h3>
+<pre><code class="language-http">HTTP/1.1 200 OK
+Server-Timing: total;dur=45.123
+Content-Type: application/json
+</code></pre>
+<h3 id="using-server-timing"><a class="header" href="#using-server-timing">Using Server-Timing</a></h3>
+<h4 id="browser-devtools"><a class="header" href="#browser-devtools">Browser DevTools</a></h4>
+<p>Modern browsers automatically display Server-Timing in the Network tab:</p>
+<ol>
+<li>Open browser DevTools</li>
+<li>Go to Network tab</li>
+<li>Select a request</li>
+<li>View Timing information</li>
+</ol>
+<h4 id="client-side-monitoring"><a class="header" href="#client-side-monitoring">Client-Side Monitoring</a></h4>
+<pre><code class="language-javascript">fetch('http://localhost:3000/users')
+  .then(response =&gt; {
+    const timing = response.headers.get('Server-Timing');
+    if (timing) {
+      const match = timing.match(/total;dur=([\d.]+)/);
+      if (match) {
+        const duration = parseFloat(match[1]);
+        console.log(`Request took ${duration}ms`);
+        // Send to monitoring service
+        sendMetric('request_duration', duration);
+      }
+    }
+    return response.json();
+  });
+</code></pre>
+<h3 id="performance-monitoring"><a class="header" href="#performance-monitoring">Performance Monitoring</a></h3>
+<p>Use Server-Timing to:</p>
+<ul>
+<li>Monitor API performance</li>
+<li>Identify slow endpoints</li>
+<li>Track performance regressions</li>
+<li>Set up alerts for slow requests</li>
+</ul>
+<h2 id="admin-server"><a class="header" href="#admin-server">Admin Server</a></h2>
+<p>The admin server provides endpoints for monitoring and managing PgREST.</p>
+<h3 id="enable-admin-server"><a class="header" href="#enable-admin-server">Enable Admin Server</a></h3>
+<pre><code class="language-ini">admin-server-host = "127.0.0.1"
+admin-server-port = 3001
+</code></pre>
+<p><strong>Security Note</strong>: Only expose the admin server on localhost or a secure network. Never expose it publicly.</p>
+<h3 id="admin-endpoints"><a class="header" href="#admin-endpoints">Admin Endpoints</a></h3>
+<h4 id="configuration-5"><a class="header" href="#configuration-5">Configuration</a></h4>
+<p>Get current configuration:</p>
+<pre><code class="language-bash">curl http://localhost:3001/config
+</code></pre>
+<p>Response includes all configuration values (sensitive values may be redacted).</p>
+<h4 id="health-check"><a class="header" href="#health-check">Health Check</a></h4>
+<p>Check server health:</p>
+<pre><code class="language-bash">curl http://localhost:3001/health
+</code></pre>
+<h4 id="metrics"><a class="header" href="#metrics">Metrics</a></h4>
+<p>Get server metrics (if implemented):</p>
+<pre><code class="language-bash">curl http://localhost:3001/metrics
+</code></pre>
+<h3 id="use-cases-3"><a class="header" href="#use-cases-3">Use Cases</a></h3>
+<ul>
+<li>Health checks for load balancers</li>
+<li>Configuration verification</li>
+<li>Debugging configuration issues</li>
+<li>Monitoring server state</li>
+</ul>
+<h2 id="monitoring-best-practices"><a class="header" href="#monitoring-best-practices">Monitoring Best Practices</a></h2>
+<h3 id="log-aggregation"><a class="header" href="#log-aggregation">Log Aggregation</a></h3>
+<p>Use log aggregation tools:</p>
+<ul>
+<li><strong>ELK Stack</strong> (Elasticsearch, Logstash, Kibana)</li>
+<li><strong>Loki</strong> (Grafana Labs)</li>
+<li><strong>CloudWatch</strong> (AWS)</li>
+<li><strong>Datadog</strong></li>
+<li><strong>Splunk</strong></li>
+</ul>
+<h3 id="metrics-collection"><a class="header" href="#metrics-collection">Metrics Collection</a></h3>
+<p>Collect metrics from:</p>
+<ul>
+<li>Server-Timing headers</li>
+<li>Application metrics</li>
+<li>Database connection pool metrics</li>
+<li>Request/response counts</li>
+</ul>
+<h3 id="alerting"><a class="header" href="#alerting">Alerting</a></h3>
+<p>Set up alerts for:</p>
+<ul>
+<li>High error rates</li>
+<li>Slow requests (using Server-Timing)</li>
+<li>Connection pool exhaustion</li>
+<li>High memory usage</li>
+</ul>
+<h2 id="example-monitoring-setup"><a class="header" href="#example-monitoring-setup">Example Monitoring Setup</a></h2>
+<h3 id="prometheus--grafana"><a class="header" href="#prometheus--grafana">Prometheus + Grafana</a></h3>
+<ol>
+<li>Export metrics from Server-Timing headers</li>
+<li>Scrape with Prometheus</li>
+<li>Visualize in Grafana</li>
+</ol>
+<h3 id="logging-pipeline"><a class="header" href="#logging-pipeline">Logging Pipeline</a></h3>
+<pre><code class="language-bash"># Send logs to centralized logging
+./pgrest --config config.toml 2&gt;&amp;1 | \
+  fluent-bit -i stdin -o http \
+    -p Host=logs.example.com \
+    -p Port=443 \
+    -p TLS=on
+</code></pre>
+<h3 id="health-check-script"><a class="header" href="#health-check-script">Health Check Script</a></h3>
+<pre><code class="language-bash">#!/bin/bash
+# health_check.sh
+
+HEALTH_URL="http://localhost:3001/health"
+TIMEOUT=5
+
+response=$(curl -s -o /dev/null -w "%{http_code}" \
+  --max-time $TIMEOUT $HEALTH_URL)
+
+if [ "$response" = "200" ]; then
+  echo "OK"
+  exit 0
+else
+  echo "FAIL"
+  exit 1
+fi
+</code></pre>
+<h2 id="performance-monitoring-1"><a class="header" href="#performance-monitoring-1">Performance Monitoring</a></h2>
+<h3 id="key-metrics-to-track"><a class="header" href="#key-metrics-to-track">Key Metrics to Track</a></h3>
+<ol>
+<li><strong>Request Rate</strong>: Requests per second</li>
+<li><strong>Response Time</strong>: P50, P95, P99 latencies (from Server-Timing)</li>
+<li><strong>Error Rate</strong>: Percentage of failed requests</li>
+<li><strong>Database Pool</strong>: Connection pool utilization</li>
+<li><strong>Memory Usage</strong>: Server memory consumption</li>
+</ol>
+<h3 id="example-dashboard-queries"><a class="header" href="#example-dashboard-queries">Example Dashboard Queries</a></h3>
+<h4 id="average-response-time"><a class="header" href="#average-response-time">Average Response Time</a></h4>
+<pre><code class="language-promql">avg(server_timing_duration_seconds)
+</code></pre>
+<h4 id="error-rate"><a class="header" href="#error-rate">Error Rate</a></h4>
+<pre><code class="language-promql">rate(http_requests_total{status=~"5.."}[5m]) / 
+rate(http_requests_total[5m])
+</code></pre>
+<h4 id="request-rate"><a class="header" href="#request-rate">Request Rate</a></h4>
+<pre><code class="language-promql">rate(http_requests_total[5m])
+</code></pre>
+<h2 id="troubleshooting-3"><a class="header" href="#troubleshooting-3">Troubleshooting</a></h2>
+<h3 id="high-log-volume"><a class="header" href="#high-log-volume">High Log Volume</a></h3>
+<ul>
+<li>Reduce <code>log-level</code> to <code>warn</code> or <code>error</code></li>
+<li>Disable <code>log-query</code> in production</li>
+<li>Use log sampling for high-traffic endpoints</li>
+</ul>
+<h3 id="missing-server-timing"><a class="header" href="#missing-server-timing">Missing Server-Timing</a></h3>
+<ul>
+<li>Verify <code>server-timing-enabled=true</code></li>
+<li>Check that middleware is properly configured</li>
+<li>Ensure client supports custom headers</li>
+</ul>
+<h3 id="admin-server-not-accessible"><a class="header" href="#admin-server-not-accessible">Admin Server Not Accessible</a></h3>
+<ul>
+<li>Check firewall rules</li>
+<li>Verify <code>admin-server-port</code> is set</li>
+<li>Ensure admin server host is correct</li>
+<li>Check for port conflicts</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="advanced-topics"><a class="header" href="#advanced-topics">Advanced Topics</a></h1>
+<p>This section covers advanced features and configurations for PgREST.</p>
+<h2 id="schema-isolation"><a class="header" href="#schema-isolation">Schema Isolation</a></h2>
+<p>PgREST supports exposing multiple schemas while maintaining isolation between them.</p>
+<h3 id="multiple-schemas"><a class="header" href="#multiple-schemas">Multiple Schemas</a></h3>
+<p>Configure multiple schemas:</p>
+<pre><code class="language-ini">db-schemas = "api,public,analytics"
+</code></pre>
+<p>The first schema (<code>api</code>) becomes the default schema. Resources in other schemas are accessed with schema qualification:</p>
+<pre><code class="language-bash"># Default schema (api)
+curl http://localhost:3000/users
+
+# Other schemas
+curl http://localhost:3000/public.users
+curl http://localhost:3000/analytics.reports
+</code></pre>
+<h3 id="schema-permissions"><a class="header" href="#schema-permissions">Schema Permissions</a></h3>
+<p>Each schema should have appropriate permissions:</p>
+<pre><code class="language-sql">-- Grant access to api schema
+GRANT USAGE ON SCHEMA api TO anon;
+GRANT SELECT ON ALL TABLES IN SCHEMA api TO anon;
+
+-- Grant access to public schema
+GRANT USAGE ON SCHEMA public TO anon;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
+</code></pre>
+<h2 id="pre-request-functions"><a class="header" href="#pre-request-functions">Pre-Request Functions</a></h2>
+<p>Pre-request functions allow you to execute custom logic before each request.</p>
+<h3 id="creating-a-pre-request-function"><a class="header" href="#creating-a-pre-request-function">Creating a Pre-Request Function</a></h3>
+<pre><code class="language-sql">CREATE OR REPLACE FUNCTION api.pre_request()
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Set request-specific variables
+  PERFORM set_config('request.jwt.role', current_setting('request.jwt.role', true), true);
+  
+  -- Log request
+  INSERT INTO api.request_log (path, method, role)
+  VALUES (
+    current_setting('request.path', true),
+    current_setting('request.method', true),
+    current_setting('request.jwt.role', true)
+  );
+END;
+$$;
+</code></pre>
+<h3 id="configuring-pre-request-function"><a class="header" href="#configuring-pre-request-function">Configuring Pre-Request Function</a></h3>
+<pre><code class="language-ini">db-pre-request = "api.pre_request"
+</code></pre>
+<h3 id="available-request-variables"><a class="header" href="#available-request-variables">Available Request Variables</a></h3>
+<p>Pre-request functions can access:</p>
+<ul>
+<li><code>request.path</code> - Request path</li>
+<li><code>request.method</code> - HTTP method</li>
+<li><code>request.jwt.role</code> - JWT role claim</li>
+<li><code>request.jwt.claim.*</code> - Other JWT claims</li>
+<li><code>request.headers.*</code> - Request headers</li>
+</ul>
+<h3 id="use-cases-4"><a class="header" href="#use-cases-4">Use Cases</a></h3>
+<ul>
+<li>Request logging</li>
+<li>Setting session variables</li>
+<li>Custom authorization logic</li>
+<li>Request validation</li>
+<li>Rate limiting</li>
+</ul>
+<h2 id="computed-fields"><a class="header" href="#computed-fields">Computed Fields</a></h2>
+<p>Computed fields are virtual columns calculated from other columns or functions.</p>
+<h3 id="creating-computed-fields"><a class="header" href="#creating-computed-fields">Creating Computed Fields</a></h3>
+<pre><code class="language-sql">-- Add computed field to table
+ALTER TABLE users ADD COLUMN full_name TEXT 
+  GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED;
+
+-- Or use a function
+CREATE FUNCTION user_full_name(u users) 
+RETURNS TEXT AS $$
+  SELECT u.first_name || ' ' || u.last_name;
+$$ LANGUAGE sql STABLE;
+
+ALTER TABLE users ADD COLUMN full_name TEXT;
+COMMENT ON COLUMN users.full_name IS 
+  'Computed field using user_full_name(users) function';
+</code></pre>
+<h3 id="using-computed-fields"><a class="header" href="#using-computed-fields">Using Computed Fields</a></h3>
+<p>Computed fields appear in API responses:</p>
+<pre><code class="language-bash">curl "http://localhost:3000/users?select=id,full_name"
+</code></pre>
+<p>Response:</p>
+<pre><code class="language-json">[
+  {"id": 1, "full_name": "Alice Smith"},
+  {"id": 2, "full_name": "Bob Jones"}
+]
+</code></pre>
+<h3 id="function-based-computed-fields"><a class="header" href="#function-based-computed-fields">Function-Based Computed Fields</a></h3>
+<p>Functions can be used for more complex computations:</p>
+<pre><code class="language-sql">CREATE FUNCTION user_age(u users) 
+RETURNS INTEGER AS $$
+  SELECT EXTRACT(YEAR FROM AGE(u.birth_date))::INTEGER;
+$$ LANGUAGE sql STABLE;
+
+COMMENT ON COLUMN users.age IS 
+  'Computed field using user_age(users) function';
+</code></pre>
+<h2 id="aggregate-functions"><a class="header" href="#aggregate-functions">Aggregate Functions</a></h2>
+<p>Enable aggregate functions for statistical queries:</p>
+<pre><code class="language-ini">db-aggregates-enabled = true
+</code></pre>
+<h3 id="using-aggregates"><a class="header" href="#using-aggregates">Using Aggregates</a></h3>
+<pre><code class="language-bash"># Count
+curl "http://localhost:3000/users?select=count"
+
+# Average
+curl "http://localhost:3000/users?select=avg(age)"
+
+# Sum
+curl "http://localhost:3000/orders?select=sum(total)"
+
+# Multiple aggregates
+curl "http://localhost:3000/users?select=count,avg(age),max(age),min(age)"
+</code></pre>
+<h3 id="grouped-aggregates"><a class="header" href="#grouped-aggregates">Grouped Aggregates</a></h3>
+<pre><code class="language-bash"># Group by column
+curl "http://localhost:3000/users?select=role,count&amp;group=role"
+</code></pre>
+<h2 id="notify-listener"><a class="header" href="#notify-listener">NOTIFY Listener</a></h2>
+<p>PgREST can listen to PostgreSQL NOTIFY events for schema cache invalidation.</p>
+<h3 id="configuration-6"><a class="header" href="#configuration-6">Configuration</a></h3>
+<pre><code class="language-ini">db-channel = "pgrst"
+db-channel-enabled = true
+</code></pre>
+<h3 id="triggering-schema-reload"><a class="header" href="#triggering-schema-reload">Triggering Schema Reload</a></h3>
+<p>Send a NOTIFY from PostgreSQL:</p>
+<pre><code class="language-sql">NOTIFY pgrst, 'reload schema';
+</code></pre>
+<p>This causes PgREST to reload its schema cache without restarting.</p>
+<h3 id="custom-channel"><a class="header" href="#custom-channel">Custom Channel</a></h3>
+<p>Use a custom channel name:</p>
+<pre><code class="language-ini">db-channel = "myapp_schema_reload"
+</code></pre>
+<p>Then notify:</p>
+<pre><code class="language-sql">NOTIFY myapp_schema_reload, 'reload schema';
+</code></pre>
+<h3 id="use-cases-1-2"><a class="header" href="#use-cases-1-2">Use Cases</a></h3>
+<ul>
+<li>Schema changes without restart</li>
+<li>Dynamic schema updates</li>
+<li>Multi-instance coordination</li>
+</ul>
+<h2 id="root-spec-function"><a class="header" href="#root-spec-function">Root Spec Function</a></h2>
+<p>Customize the root endpoint (<code>/</code>) response:</p>
+<pre><code class="language-sql">CREATE OR REPLACE FUNCTION api.root_spec()
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT jsonb_build_object(
+    'name', 'My API',
+    'version', '1.0.0',
+    'description', 'Custom API description'
+  );
+$$;
+</code></pre>
+<p>Configure:</p>
+<pre><code class="language-ini">db-root-spec = "api.root_spec"
+</code></pre>
+<h2 id="extra-search-path"><a class="header" href="#extra-search-path">Extra Search Path</a></h2>
+<p>Add schemas to the search path for function resolution:</p>
+<pre><code class="language-ini">db-extra-search-path = "extensions,utils"
+</code></pre>
+<p>This allows functions in these schemas to be called without schema qualification.</p>
+<h2 id="hoisted-transaction-settings"><a class="header" href="#hoisted-transaction-settings">Hoisted Transaction Settings</a></h2>
+<p>Settings that are “hoisted” to the transaction level:</p>
+<pre><code class="language-ini">db-hoisted-tx-settings = "statement_timeout,plan_filter.statement_cost_limit"
+</code></pre>
+<p>These settings are set at the transaction level and can be overridden per-request.</p>
+<h2 id="pre-config-function"><a class="header" href="#pre-config-function">Pre-Config Function</a></h2>
+<p>Execute a function before loading configuration:</p>
+<pre><code class="language-sql">CREATE OR REPLACE FUNCTION api.pre_config()
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Custom configuration logic
+  PERFORM set_config('app.settings.custom', 'value', false);
+END;
+$$;
+</code></pre>
+<p>Configure:</p>
+<pre><code class="language-ini">db-pre-config = "api.pre_config"
+</code></pre>
+<h2 id="database-configuration"><a class="header" href="#database-configuration">Database Configuration</a></h2>
+<p>Load configuration from the database:</p>
+<pre><code class="language-ini">db-config = true
+</code></pre>
+<p>This allows storing some configuration in the database itself, useful for dynamic configuration.</p>
+<h2 id="unix-socket"><a class="header" href="#unix-socket">Unix Socket</a></h2>
+<p>Use Unix sockets instead of TCP:</p>
+<pre><code class="language-ini">server-unix-socket = "/var/run/pgrest.sock"
+server-unix-socket-mode = 660
+</code></pre>
+<p>Benefits:</p>
+<ul>
+<li>Lower latency</li>
+<li>Better security (file permissions)</li>
+<li>No network overhead</li>
+</ul>
+<h2 id="connection-pool-tuning"><a class="header" href="#connection-pool-tuning">Connection Pool Tuning</a></h2>
+<h3 id="pool-size"><a class="header" href="#pool-size">Pool Size</a></h3>
+<pre><code class="language-ini">db-pool = 20
+</code></pre>
+<p>Adjust based on:</p>
+<ul>
+<li>Concurrent request load</li>
+<li>Database connection limits</li>
+<li>Server resources</li>
+</ul>
+<h3 id="pool-timeouts"><a class="header" href="#pool-timeouts">Pool Timeouts</a></h3>
+<pre><code class="language-ini">db-pool-acquisition-timeout = 10
+db-pool-max-lifetime = 1800
+db-pool-max-idletime = 30
+</code></pre>
+<h3 id="automatic-recovery"><a class="header" href="#automatic-recovery">Automatic Recovery</a></h3>
+<pre><code class="language-ini">db-pool-automatic-recovery = true
+</code></pre>
+<p>Automatically recover from connection failures.</p>
+<h2 id="prepared-statements"><a class="header" href="#prepared-statements">Prepared Statements</a></h2>
+<p>Enable prepared statements for better performance:</p>
+<pre><code class="language-ini">db-prepared-statements = true
+</code></pre>
+<p>Prepared statements:</p>
+<ul>
+<li>Reduce parsing overhead</li>
+<li>Improve performance for repeated queries</li>
+<li>May use more memory</li>
+</ul>
+<h2 id="max-rows-limit"><a class="header" href="#max-rows-limit">Max Rows Limit</a></h2>
+<p>Set a global limit on returned rows:</p>
+<pre><code class="language-ini">db-max-rows = 1000
+</code></pre>
+<p>Prevents accidentally returning huge result sets.</p>
+<h2 id="plan-explanation"><a class="header" href="#plan-explanation">Plan Explanation</a></h2>
+<p>Enable EXPLAIN output for debugging:</p>
+<pre><code class="language-ini">db-plan-enabled = true
+</code></pre>
+<p>Returns query execution plans in responses (development only).</p>
+<h2 id="transaction-end-behavior"><a class="header" href="#transaction-end-behavior">Transaction End Behavior</a></h2>
+<p>Control transaction commit/rollback behavior:</p>
+<pre><code class="language-ini">db-tx-end = "commit"
+</code></pre>
+<p>Options:</p>
+<ul>
+<li><code>commit</code> - Commit transactions (default)</li>
+<li><code>commit-allow-override</code> - Commit but allow Prefer header override</li>
+<li><code>rollback</code> - Rollback all transactions (testing)</li>
+<li><code>rollback-allow-override</code> - Rollback but allow override</li>
+</ul>
+<h2 id="best-practices-3"><a class="header" href="#best-practices-3">Best Practices</a></h2>
+<ol>
+<li><strong>Use pre-request functions</strong> for cross-cutting concerns</li>
+<li><strong>Enable aggregates</strong> only when needed</li>
+<li><strong>Tune connection pool</strong> based on load</li>
+<li><strong>Use Unix sockets</strong> for local connections</li>
+<li><strong>Monitor schema cache</strong> reloads via NOTIFY</li>
+<li><strong>Set max rows</strong> to prevent accidents</li>
+<li><strong>Use computed fields</strong> for derived data</li>
+<li><strong>Configure hoisted settings</strong> for performance</li>
+</ol>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-c2a407aa.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+
+    </div>
+    </body>
+</html>
