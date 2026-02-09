@@ -43,6 +43,6 @@ pub mod types;
 
 // Re-export main types
 pub use error::ConfigError;
-pub use jwt::{extract_from_json, parse_js_path, JsPathExp};
+pub use jwt::{JsPathExp, extract_from_json, parse_js_path};
 pub use parser::{apply_config_value, load_config, parse_bool, validate_config};
 pub use types::{AppConfig, IsolationLevel, LogLevel, OpenApiMode};

@@ -4,7 +4,7 @@
 //! HTTP load testing. Provides type-safe request definitions, configurable
 //! concurrency, rate limiting, and statistical analysis.
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use reqwest::Client;
@@ -27,10 +27,20 @@ pub struct LoadTestConfig {
 
 #[derive(Debug, Clone)]
 pub enum RequestType {
-    Get { path: String },
-    Post { path: String, body: serde_json::Value },
-    Patch { path: String, body: serde_json::Value },
-    Delete { path: String },
+    Get {
+        path: String,
+    },
+    Post {
+        path: String,
+        body: serde_json::Value,
+    },
+    Patch {
+        path: String,
+        body: serde_json::Value,
+    },
+    Delete {
+        path: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -44,6 +54,7 @@ mod load_test;
 pub use load_test::scenarios::{errors_scenario, mixed_scenario, streaming_scenario};
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct RequestResult {
     success: bool,
     latency_ms: f64,
@@ -90,12 +101,7 @@ async fn execute_request(
                 .send()
                 .await
         }
-        RequestType::Delete { path } => {
-            client
-                .delete(format!("{}{}", base_url, path))
-                .send()
-                .await
-        }
+        RequestType::Delete { path } => client.delete(format!("{}{}", base_url, path)).send().await,
     }
 }
 
@@ -207,10 +213,7 @@ fn percentile(sorted_data: &[f64], p: f64) -> f64 {
 // Load Test Runner
 // ============================================================================
 
-async fn run_load_test(
-    config: LoadTestConfig,
-    scenario: LoadTestScenario,
-) -> LoadTestResult {
+async fn run_load_test(config: LoadTestConfig, scenario: LoadTestScenario) -> LoadTestResult {
     let (results_tx, mut results_rx) = mpsc::unbounded_channel::<RequestResult>();
 
     let client = Client::builder()
@@ -273,21 +276,15 @@ fn bench_load_test_mixed(c: &mut Criterion) {
         };
 
         // Warmup run to get actual request count for throughput reporting
-        let warmup = rt
-            .block_on(run_load_test(config.clone(), scenario.clone()));
+        let warmup = rt.block_on(run_load_test(config.clone(), scenario.clone()));
 
         let mut group = c.benchmark_group("load_test_mixed");
         group.throughput(Throughput::Elements(warmup.total_requests));
 
-        group.bench_with_input(
-            BenchmarkId::new("workers", workers),
-            &config,
-            |b, cfg| {
-                b.to_async(&rt).iter(|| async {
-                    run_load_test(cfg.clone(), scenario.clone()).await
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("workers", workers), &config, |b, cfg| {
+            b.to_async(&rt)
+                .iter(|| async { run_load_test(cfg.clone(), scenario.clone()).await });
+        });
         group.finish();
     }
 }
@@ -310,9 +307,8 @@ fn bench_load_test_errors(c: &mut Criterion) {
     group.throughput(Throughput::Elements(warmup.total_requests));
 
     group.bench_function("error_scenarios", |b| {
-        b.to_async(&rt).iter(|| async {
-            run_load_test(config.clone(), scenario.clone()).await
-        });
+        b.to_async(&rt)
+            .iter(|| async { run_load_test(config.clone(), scenario.clone()).await });
     });
 
     group.finish();
@@ -336,9 +332,8 @@ fn bench_load_test_streaming(c: &mut Criterion) {
     group.throughput(Throughput::Elements(warmup.total_requests));
 
     group.bench_function("streaming_large", |b| {
-        b.to_async(&rt).iter(|| async {
-            run_load_test(config.clone(), scenario.clone()).await
-        });
+        b.to_async(&rt)
+            .iter(|| async { run_load_test(config.clone(), scenario.clone()).await });
     });
 
     group.finish();

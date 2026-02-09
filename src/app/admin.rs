@@ -15,12 +15,12 @@
 use std::sync::atomic::Ordering;
 
 use axum::{
+    Router,
     body::Body,
     extract::State,
-    http::{header, StatusCode},
+    http::{StatusCode, header},
     response::{IntoResponse, Response},
     routing::get,
-    Router,
 };
 
 use super::state::AppState;

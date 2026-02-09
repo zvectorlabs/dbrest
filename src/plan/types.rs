@@ -406,12 +406,11 @@ mod tests {
         let leaf = CoercibleLogicTree::Stmnt(CoercibleFilter::NullEmbed(false, "x".into()));
         assert!(matches!(leaf, CoercibleLogicTree::Stmnt(_)));
 
-        let expr = CoercibleLogicTree::Expr(
-            false,
-            LogicOperator::And,
-            vec![leaf],
-        );
-        assert!(matches!(expr, CoercibleLogicTree::Expr(false, LogicOperator::And, _)));
+        let expr = CoercibleLogicTree::Expr(false, LogicOperator::And, vec![leaf]);
+        assert!(matches!(
+            expr,
+            CoercibleLogicTree::Expr(false, LogicOperator::And, _)
+        ));
     }
 
     #[test]
@@ -435,11 +434,7 @@ mod tests {
 
     #[test]
     fn test_coercible_field_from_column_not_computed() {
-        let field = CoercibleField::from_column(
-            "name".into(),
-            Default::default(),
-            "text".into(),
-        );
+        let field = CoercibleField::from_column("name".into(), Default::default(), "text".into());
 
         assert_eq!(field.name.as_str(), "name");
         assert!(!field.is_computed);

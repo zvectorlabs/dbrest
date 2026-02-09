@@ -206,10 +206,7 @@ mod tests {
             "PGRST301"
         );
         assert_eq!(JwtError::TokenRequired.code(), "PGRST302");
-        assert_eq!(
-            JwtError::Claims(JwtClaimsError::Expired).code(),
-            "PGRST303"
-        );
+        assert_eq!(JwtError::Claims(JwtClaimsError::Expired).code(), "PGRST303");
     }
 
     #[test]
@@ -279,6 +276,10 @@ mod tests {
         ));
         assert!(err.details().unwrap().contains("keys"));
 
-        assert!(JwtError::Claims(JwtClaimsError::Expired).details().is_none());
+        assert!(
+            JwtError::Claims(JwtClaimsError::Expired)
+                .details()
+                .is_none()
+        );
     }
 }

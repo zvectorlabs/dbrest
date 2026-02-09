@@ -41,7 +41,7 @@ pub mod request {
     pub const OPENAPI_DISABLED: &str = "PGRST126";
     pub const NOT_IMPLEMENTED: &str = "PGRST127";
     pub const MAX_AFFECTED_RPC_VIOLATION: &str = "PGRST128";
-    
+
     // Legacy/alternative codes for compatibility
     pub const PARSE_ERROR: &str = "PGRST101"; // Alias for INVALID_RPC_METHOD
     pub const INVALID_CONTENT_TYPE: &str = "PGRST103"; // Alias for INVALID_RANGE

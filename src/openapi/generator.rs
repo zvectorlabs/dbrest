@@ -16,16 +16,13 @@ use super::types::*;
 pub struct OpenApiGenerator {
     config: Arc<AppConfig>,
     cache: Arc<SchemaCache>,
+    #[allow(dead_code)] // reserved for future role-scoped OpenAPI
     auth: Option<AuthResult>,
 }
 
 impl OpenApiGenerator {
     /// Create a new OpenAPI generator
-    pub fn new(
-        config: Arc<AppConfig>,
-        cache: Arc<SchemaCache>,
-        auth: Option<AuthResult>,
-    ) -> Self {
+    pub fn new(config: Arc<AppConfig>, cache: Arc<SchemaCache>, auth: Option<AuthResult>) -> Self {
         Self {
             config,
             cache,
@@ -81,10 +78,10 @@ impl OpenApiGenerator {
         for schema in &self.config.db_schemas {
             for table in self.cache.tables_in_schema(schema) {
                 // Check privileges if mode is FollowPrivileges
-                if self.config.openapi_mode == OpenApiMode::FollowPrivileges {
-                    if !self.can_read_table(table)? {
-                        continue;
-                    }
+                if self.config.openapi_mode == OpenApiMode::FollowPrivileges
+                    && !self.can_read_table(table)?
+                {
+                    continue;
                 }
 
                 let path = format!("/{}.{}", table.schema, table.name);
@@ -98,10 +95,10 @@ impl OpenApiGenerator {
             if let Some(routines) = self.cache.get_routines_by_name(schema, "") {
                 // Get all routines in schema
                 for routine in routines {
-                    if self.config.openapi_mode == OpenApiMode::FollowPrivileges {
-                        if !self.can_execute_routine(routine)? {
-                            continue;
-                        }
+                    if self.config.openapi_mode == OpenApiMode::FollowPrivileges
+                        && !self.can_execute_routine(routine)?
+                    {
+                        continue;
                     }
 
                     let path = format!("/rpc/{}", routine.name);
@@ -118,10 +115,10 @@ impl OpenApiGenerator {
             }
 
             for routine in routines {
-                if self.config.openapi_mode == OpenApiMode::FollowPrivileges {
-                    if !self.can_execute_routine(routine)? {
-                        continue;
-                    }
+                if self.config.openapi_mode == OpenApiMode::FollowPrivileges
+                    && !self.can_execute_routine(routine)?
+                {
+                    continue;
                 }
 
                 let path = format!("/rpc/{}", routine.name);
@@ -511,15 +508,15 @@ impl OpenApiGenerator {
         }
 
         // Add enum values if it's an enum
-        if col.is_enum() {
-            if let Schema::Object { enum_values, .. } = &mut schema {
-                *enum_values = Some(
-                    col.enum_values
-                        .iter()
-                        .map(|v| serde_json::Value::String(v.clone()))
-                        .collect(),
-                );
-            }
+        if col.is_enum()
+            && let Schema::Object { enum_values, .. } = &mut schema
+        {
+            *enum_values = Some(
+                col.enum_values
+                    .iter()
+                    .map(|v| serde_json::Value::String(v.clone()))
+                    .collect(),
+            );
         }
 
         Ok(schema)
@@ -550,9 +547,7 @@ impl OpenApiGenerator {
             // Date/time types
             "date" => Schema::string().with_format("date".to_string()),
             "time without time zone" | "time" => Schema::string().with_format("time".to_string()),
-            "time with time zone" | "timetz" => {
-                Schema::string().with_format("time".to_string())
-            }
+            "time with time zone" | "timetz" => Schema::string().with_format("time".to_string()),
             "timestamp without time zone" | "timestamp" => {
                 Schema::string().with_format("date-time".to_string())
             }
@@ -583,10 +578,10 @@ impl OpenApiGenerator {
         // Generate schemas for each table
         for schema in &self.config.db_schemas {
             for table in self.cache.tables_in_schema(schema) {
-                if self.config.openapi_mode == OpenApiMode::FollowPrivileges {
-                    if !self.can_read_table(table)? {
-                        continue;
-                    }
+                if self.config.openapi_mode == OpenApiMode::FollowPrivileges
+                    && !self.can_read_table(table)?
+                {
+                    continue;
                 }
 
                 let schema_name = format!("{}_{}", table.schema, table.name);
@@ -623,10 +618,10 @@ impl OpenApiGenerator {
         let mut schema = Schema::object(properties, required);
 
         // Add description
-        if let Some(ref desc) = table.description {
-            if let Schema::Object { description, .. } = &mut schema {
-                *description = Some(desc.clone());
-            }
+        if let Some(ref desc) = table.description
+            && let Schema::Object { description, .. } = &mut schema
+        {
+            *description = Some(desc.clone());
         }
 
         Ok(schema)
@@ -779,7 +774,10 @@ impl OpenApiGenerator {
         Ok(Responses { responses })
     }
 
-    fn routine_param_to_schema(&self, param: &crate::schema_cache::RoutineParam) -> Result<Schema, Error> {
+    fn routine_param_to_schema(
+        &self,
+        param: &crate::schema_cache::RoutineParam,
+    ) -> Result<Schema, Error> {
         // Use type_max_length which includes length info, or fall back to pg_type
         let type_str = if param.type_max_length != param.pg_type {
             &param.type_max_length
@@ -806,12 +804,18 @@ impl OpenApiGenerator {
             ReturnType::Single(PgType::Composite(qi, _)) => {
                 // Single composite (table row)
                 let schema_name = format!("{}_{}", qi.schema, qi.name);
-                Ok(Schema::ref_(&format!("#/components/schemas/{}", schema_name)))
+                Ok(Schema::ref_(&format!(
+                    "#/components/schemas/{}",
+                    schema_name
+                )))
             }
             ReturnType::SetOf(PgType::Composite(qi, _)) => {
                 // Array of composites
                 let schema_name = format!("{}_{}", qi.schema, qi.name);
-                Ok(Schema::array(Schema::ref_(&format!("#/components/schemas/{}", schema_name))))
+                Ok(Schema::array(Schema::ref_(&format!(
+                    "#/components/schemas/{}",
+                    schema_name
+                ))))
             }
         }
     }
@@ -821,7 +825,7 @@ impl OpenApiGenerator {
         if self.config.openapi_mode == OpenApiMode::IgnorePrivileges {
             return Ok(true);
         }
-        
+
         // Check actual PostgreSQL SELECT privilege
         Ok(table.readable)
     }
@@ -831,7 +835,7 @@ impl OpenApiGenerator {
         if self.config.openapi_mode == OpenApiMode::IgnorePrivileges {
             return Ok(true);
         }
-        
+
         // Check actual PostgreSQL EXECUTE privilege
         Ok(routine.executable)
     }

@@ -507,7 +507,10 @@ fn payload_to_bytes(payload: &Payload) -> Vec<u8> {
         Payload::ProcessedUrlEncoded { params, .. } => {
             // Convert URL-encoded params to JSON for json_to_recordset
             let json = serde_json::json!(
-                params.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect::<std::collections::HashMap<_, _>>()
+                params
+                    .iter()
+                    .map(|(k, v)| (k.as_str(), v.as_str()))
+                    .collect::<std::collections::HashMap<_, _>>()
             );
             json.to_string().into_bytes()
         }
@@ -805,14 +808,8 @@ mod tests {
     #[test]
     fn test_call_plan_named_args() {
         let mut args = HashMap::new();
-        args.insert(
-            CompactString::from("a"),
-            RpcParamValue::Fixed("1".into()),
-        );
-        args.insert(
-            CompactString::from("b"),
-            RpcParamValue::Fixed("2".into()),
-        );
+        args.insert(CompactString::from("a"), RpcParamValue::Fixed("1".into()));
+        args.insert(CompactString::from("b"), RpcParamValue::Fixed("2".into()));
 
         let plan = CallPlan {
             qi: QualifiedIdentifier::new("public", "add_numbers"),
@@ -887,15 +884,13 @@ mod tests {
 
         let plan = CallPlan {
             qi: QualifiedIdentifier::new("public", "concat_vals"),
-            params: CallParams::KeyParams(vec![
-                crate::schema_cache::routine::RoutineParam {
-                    name: "vals".into(),
-                    pg_type: "text".into(),
-                    type_max_length: "text".into(),
-                    required: true,
-                    is_variadic: true,
-                },
-            ]),
+            params: CallParams::KeyParams(vec![crate::schema_cache::routine::RoutineParam {
+                name: "vals".into(),
+                pg_type: "text".into(),
+                type_max_length: "text".into(),
+                required: true,
+                is_variadic: true,
+            }]),
             args: CallArgs::DirectArgs(args),
             scalar: true,
             set_of_scalar: false,

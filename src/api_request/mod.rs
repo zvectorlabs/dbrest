@@ -186,10 +186,9 @@ fn get_action(resource: &Resource, schema: &str, method: &str) -> Result<Action,
             qi: qi(name),
             inv_method: InvokeMethod::Inv,
         })),
-        (Resource::Routine(name), "OPTIONS") => Ok(Action::RoutineInfo(
-            qi(name),
-            InvokeMethod::InvRead(true),
-        )),
+        (Resource::Routine(name), "OPTIONS") => {
+            Ok(Action::RoutineInfo(qi(name), InvokeMethod::InvRead(true)))
+        }
 
         // Relations
         (Resource::Relation(name), "HEAD") => Ok(Action::Db(DbAction::RelationRead {
@@ -310,10 +309,7 @@ fn get_ranges(
         limit_range.convert_to_limit_zero(&header_and_limit),
     );
 
-    let top_level = ranges
-        .get("limit")
-        .copied()
-        .unwrap_or_else(Range::all);
+    let top_level = ranges.get("limit").copied().unwrap_or_else(Range::all);
 
     // Validate range
     if top_level.is_empty_range() && !limit_range.has_limit_zero() {
@@ -360,9 +356,7 @@ fn get_accept_media_types(headers: &[(String, String)]) -> Vec<MediaType> {
 /// Headers list: (name, value) pairs
 type HeaderList = Vec<(String, String)>;
 
-fn extract_headers_and_cookies(
-    headers: &[(String, String)],
-) -> (HeaderList, HeaderList) {
+fn extract_headers_and_cookies(headers: &[(String, String)]) -> (HeaderList, HeaderList) {
     let mut req_headers = Vec::new();
     let mut cookies = Vec::new();
 
@@ -433,37 +427,73 @@ mod tests {
     #[test]
     fn test_get_action_get_table() {
         let action = get_action(&Resource::Relation("items".into()), "public", "GET").unwrap();
-        assert!(matches!(action, Action::Db(DbAction::RelationRead { headers_only: false, .. })));
+        assert!(matches!(
+            action,
+            Action::Db(DbAction::RelationRead {
+                headers_only: false,
+                ..
+            })
+        ));
     }
 
     #[test]
     fn test_get_action_head_table() {
         let action = get_action(&Resource::Relation("items".into()), "public", "HEAD").unwrap();
-        assert!(matches!(action, Action::Db(DbAction::RelationRead { headers_only: true, .. })));
+        assert!(matches!(
+            action,
+            Action::Db(DbAction::RelationRead {
+                headers_only: true,
+                ..
+            })
+        ));
     }
 
     #[test]
     fn test_get_action_post_table() {
         let action = get_action(&Resource::Relation("items".into()), "public", "POST").unwrap();
-        assert!(matches!(action, Action::Db(DbAction::RelationMut { mutation: Mutation::MutationCreate, .. })));
+        assert!(matches!(
+            action,
+            Action::Db(DbAction::RelationMut {
+                mutation: Mutation::MutationCreate,
+                ..
+            })
+        ));
     }
 
     #[test]
     fn test_get_action_put_table() {
         let action = get_action(&Resource::Relation("items".into()), "public", "PUT").unwrap();
-        assert!(matches!(action, Action::Db(DbAction::RelationMut { mutation: Mutation::MutationSingleUpsert, .. })));
+        assert!(matches!(
+            action,
+            Action::Db(DbAction::RelationMut {
+                mutation: Mutation::MutationSingleUpsert,
+                ..
+            })
+        ));
     }
 
     #[test]
     fn test_get_action_patch_table() {
         let action = get_action(&Resource::Relation("items".into()), "public", "PATCH").unwrap();
-        assert!(matches!(action, Action::Db(DbAction::RelationMut { mutation: Mutation::MutationUpdate, .. })));
+        assert!(matches!(
+            action,
+            Action::Db(DbAction::RelationMut {
+                mutation: Mutation::MutationUpdate,
+                ..
+            })
+        ));
     }
 
     #[test]
     fn test_get_action_delete_table() {
         let action = get_action(&Resource::Relation("items".into()), "public", "DELETE").unwrap();
-        assert!(matches!(action, Action::Db(DbAction::RelationMut { mutation: Mutation::MutationDelete, .. })));
+        assert!(matches!(
+            action,
+            Action::Db(DbAction::RelationMut {
+                mutation: Mutation::MutationDelete,
+                ..
+            })
+        ));
     }
 
     #[test]
@@ -475,13 +505,25 @@ mod tests {
     #[test]
     fn test_get_action_get_rpc() {
         let action = get_action(&Resource::Routine("func".into()), "public", "GET").unwrap();
-        assert!(matches!(action, Action::Db(DbAction::Routine { inv_method: InvokeMethod::InvRead(false), .. })));
+        assert!(matches!(
+            action,
+            Action::Db(DbAction::Routine {
+                inv_method: InvokeMethod::InvRead(false),
+                ..
+            })
+        ));
     }
 
     #[test]
     fn test_get_action_post_rpc() {
         let action = get_action(&Resource::Routine("func".into()), "public", "POST").unwrap();
-        assert!(matches!(action, Action::Db(DbAction::Routine { inv_method: InvokeMethod::Inv, .. })));
+        assert!(matches!(
+            action,
+            Action::Db(DbAction::Routine {
+                inv_method: InvokeMethod::Inv,
+                ..
+            })
+        ));
     }
 
     #[test]
@@ -578,10 +620,7 @@ mod tests {
             find_header(&headers, "content-type").as_deref(),
             Some("application/json")
         );
-        assert_eq!(
-            find_header(&headers, "accept").as_deref(),
-            Some("text/csv")
-        );
+        assert_eq!(find_header(&headers, "accept").as_deref(), Some("text/csv"));
         assert!(find_header(&headers, "nonexistent").is_none());
     }
 
@@ -596,7 +635,10 @@ mod tests {
 
     #[test]
     fn test_get_accept_media_types() {
-        let headers = vec![("accept".to_string(), "text/csv, application/json;q=0.5".to_string())];
+        let headers = vec![(
+            "accept".to_string(),
+            "text/csv, application/json;q=0.5".to_string(),
+        )];
         let types = get_accept_media_types(&headers);
         assert_eq!(types.len(), 2);
         // Sorted by quality
@@ -627,9 +669,21 @@ mod tests {
         let headers = vec![("accept".to_string(), "application/json".to_string())];
         let body = Bytes::new();
 
-        let req = from_request(&config, &prefs, "GET", "/items", "select=id,name", &headers, body).unwrap();
+        let req = from_request(
+            &config,
+            &prefs,
+            "GET",
+            "/items",
+            "select=id,name",
+            &headers,
+            body,
+        )
+        .unwrap();
 
-        assert!(matches!(req.action, Action::Db(DbAction::RelationRead { .. })));
+        assert!(matches!(
+            req.action,
+            Action::Db(DbAction::RelationRead { .. })
+        ));
         assert_eq!(req.query_params.select.len(), 2);
         assert_eq!(req.schema.as_str(), "public");
         assert_eq!(req.method, "GET");
@@ -640,9 +694,7 @@ mod tests {
     fn test_from_request_post() {
         let config = test_config();
         let prefs = Preferences::default();
-        let headers = vec![
-            ("content-type".to_string(), "application/json".to_string()),
-        ];
+        let headers = vec![("content-type".to_string(), "application/json".to_string())];
         let body = Bytes::from(r#"{"id":1,"name":"test"}"#);
 
         let req = from_request(&config, &prefs, "POST", "/items", "", &headers, body).unwrap();
@@ -665,7 +717,16 @@ mod tests {
         let headers: Vec<(String, String)> = vec![];
         let body = Bytes::new();
 
-        let req = from_request(&config, &prefs, "GET", "/rpc/my_func", "id=5", &headers, body).unwrap();
+        let req = from_request(
+            &config,
+            &prefs,
+            "GET",
+            "/rpc/my_func",
+            "id=5",
+            &headers,
+            body,
+        )
+        .unwrap();
 
         assert!(matches!(
             req.action,
@@ -687,7 +748,10 @@ mod tests {
 
         let req = from_request(&config, &prefs, "GET", "/", "", &headers, body).unwrap();
 
-        assert!(matches!(req.action, Action::Db(DbAction::SchemaRead { .. })));
+        assert!(matches!(
+            req.action,
+            Action::Db(DbAction::SchemaRead { .. })
+        ));
     }
 
     #[test]
@@ -723,7 +787,16 @@ mod tests {
         let headers: Vec<(String, String)> = vec![];
         let body = Bytes::new();
 
-        let req = from_request(&config, &prefs, "GET", "/items", "id=eq.5&name=like.*john*", &headers, body).unwrap();
+        let req = from_request(
+            &config,
+            &prefs,
+            "GET",
+            "/items",
+            "id=eq.5&name=like.*john*",
+            &headers,
+            body,
+        )
+        .unwrap();
 
         assert_eq!(req.query_params.filters_root.len(), 2);
     }
@@ -735,7 +808,10 @@ mod tests {
         let headers: Vec<(String, String)> = vec![];
         let body = Bytes::new();
 
-        let req = from_request(&config, &prefs, "DELETE", "/items", "id=eq.1", &headers, body).unwrap();
+        let req = from_request(
+            &config, &prefs, "DELETE", "/items", "id=eq.1", &headers, body,
+        )
+        .unwrap();
 
         assert!(matches!(
             req.action,

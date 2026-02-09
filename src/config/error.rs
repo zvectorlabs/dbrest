@@ -26,10 +26,7 @@ pub enum ConfigError {
     InvalidBool(String),
 
     /// Invalid integer value
-    InvalidInt {
-        key: String,
-        error: ParseIntError,
-    },
+    InvalidInt { key: String, error: ParseIntError },
 
     /// Invalid JSPath expression for JWT role claim
     InvalidJsPath(String),

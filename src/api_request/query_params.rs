@@ -336,7 +336,7 @@ fn parse_spread_relation(input: &str) -> Result<(SelectItem, &str), Error> {
     // Parse: name!hint!jointype(children)
     let (name, rest) = parse_field_name(input)?;
 
-    // Check that name is not "count" 
+    // Check that name is not "count"
     let (hint, join_type, rest) = parse_embed_params(rest);
 
     // Must have opening paren
@@ -396,10 +396,7 @@ fn try_parse_relation(
     )))
 }
 
-fn parse_field_select(
-    input: &str,
-    alias: Option<Alias>,
-) -> Result<(SelectItem, &str), Error> {
+fn parse_field_select(input: &str, alias: Option<Alias>) -> Result<(SelectItem, &str), Error> {
     // Handle star
     if let Some(rest) = input.strip_prefix('*') {
         // Star can't have anything after it except delimiter
@@ -628,8 +625,7 @@ fn parse_json_operand(input: &str) -> Result<(JsonOperand, &str), Error> {
     while end < bytes.len() {
         let ch = bytes[end] as char;
         // Stop at delimiters
-        if ch == '(' || ch == '-' || ch == ':' || ch == '.' || ch == ',' || ch == '>' || ch == ')'
-        {
+        if ch == '(' || ch == '-' || ch == ':' || ch == '.' || ch == ',' || ch == '>' || ch == ')' {
             break;
         }
         end += 1;
@@ -698,17 +694,19 @@ fn parse_embed_params(input: &str) -> (Option<Hint>, Option<JoinType>, &str) {
     for _ in 0..2 {
         if let Some(after_bang) = rest.strip_prefix('!') {
             if let Some(r) = after_bang.strip_prefix("left")
-                && !r.starts_with(|c: char| c.is_alphanumeric() || c == '_') {
-                    join_type = join_type.or(Some(JoinType::Left));
-                    rest = r;
-                    continue;
-                }
+                && !r.starts_with(|c: char| c.is_alphanumeric() || c == '_')
+            {
+                join_type = join_type.or(Some(JoinType::Left));
+                rest = r;
+                continue;
+            }
             if let Some(r) = after_bang.strip_prefix("inner")
-                && !r.starts_with(|c: char| c.is_alphanumeric() || c == '_') {
-                    join_type = join_type.or(Some(JoinType::Inner));
-                    rest = r;
-                    continue;
-                }
+                && !r.starts_with(|c: char| c.is_alphanumeric() || c == '_')
+            {
+                join_type = join_type.or(Some(JoinType::Inner));
+                rest = r;
+                continue;
+            }
             // It's a hint
             if let Ok((name, r)) = parse_field_name(after_bang) {
                 hint = hint.or(Some(name));
@@ -919,10 +917,7 @@ fn parse_fts_args(input: &str) -> Result<(Option<Language>, SingleVal), Error> {
             let lang = &input[1..close];
             let rest = &input[close + 1..];
             if let Some(val) = rest.strip_prefix('.') {
-                return Ok((
-                    Some(CompactString::from(lang)),
-                    CompactString::from(val),
-                ));
+                return Ok((Some(CompactString::from(lang)), CompactString::from(val)));
             }
         }
         return Err(Error::ParseError {
@@ -1043,22 +1038,23 @@ pub fn parse_order(input: &str) -> Result<Vec<OrderTerm>, Error> {
 fn parse_order_term(input: &str) -> Result<OrderTerm, Error> {
     // Check for relation order: relation(field).dir.nulls
     if let Some(paren_pos) = input.find('(')
-        && let Some(close_pos) = input.find(')') {
-            let relation = CompactString::from(input[..paren_pos].trim());
-            let field_str = &input[paren_pos + 1..close_pos];
-            let (name, rest_in_paren) = parse_field_name(field_str)?;
-            let (json_path, _) = parse_json_path(rest_in_paren);
+        && let Some(close_pos) = input.find(')')
+    {
+        let relation = CompactString::from(input[..paren_pos].trim());
+        let field_str = &input[paren_pos + 1..close_pos];
+        let (name, rest_in_paren) = parse_field_name(field_str)?;
+        let (json_path, _) = parse_json_path(rest_in_paren);
 
-            let after_paren = &input[close_pos + 1..];
-            let (direction, nulls) = parse_order_modifiers(after_paren);
+        let after_paren = &input[close_pos + 1..];
+        let (direction, nulls) = parse_order_modifiers(after_paren);
 
-            return Ok(OrderTerm::RelationTerm {
-                relation,
-                field: (name, json_path),
-                direction,
-                nulls,
-            });
-        }
+        return Ok(OrderTerm::RelationTerm {
+            relation,
+            field: (name, json_path),
+            direction,
+            nulls,
+        });
+    }
 
     // Regular order: field.dir.nulls
     let (name, rest) = parse_field_name(input)?;
@@ -1084,10 +1080,11 @@ fn parse_order_modifiers(input: &str) -> (Option<OrderDirection>, Option<OrderNu
             rest = r;
         }
     } else if let Some(r) = rest.strip_prefix(".desc")
-        && !r.starts_with(|c: char| c.is_alphanumeric()) {
-            direction = Some(OrderDirection::Desc);
-            rest = r;
-        }
+        && !r.starts_with(|c: char| c.is_alphanumeric())
+    {
+        direction = Some(OrderDirection::Desc);
+        rest = r;
+    }
 
     // Parse nulls
     if let Some(r) = rest.strip_prefix(".nullsfirst") {
@@ -1095,9 +1092,10 @@ fn parse_order_modifiers(input: &str) -> (Option<OrderDirection>, Option<OrderNu
             nulls = Some(OrderNulls::First);
         }
     } else if let Some(r) = rest.strip_prefix(".nullslast")
-        && !r.starts_with(|c: char| c.is_alphanumeric()) {
-            nulls = Some(OrderNulls::Last);
-        }
+        && !r.starts_with(|c: char| c.is_alphanumeric())
+    {
+        nulls = Some(OrderNulls::Last);
+    }
 
     (direction, nulls)
 }
@@ -1208,12 +1206,10 @@ fn parse_logic_filter(input: &str) -> Result<Filter, Error> {
     let (name, rest) = parse_field_name(input)?;
     let (json_path, rest) = parse_json_path(rest);
 
-    let rest = rest
-        .strip_prefix('.')
-        .ok_or_else(|| Error::ParseError {
-            location: "logic filter".to_string(),
-            message: format!("expected '.' after field name '{}'", name),
-        })?;
+    let rest = rest.strip_prefix('.').ok_or_else(|| Error::ParseError {
+        location: "logic filter".to_string(),
+        message: format!("expected '.' after field name '{}'", name),
+    })?;
 
     let op_expr = try_parse_op_expr(rest)?;
 
@@ -1352,7 +1348,9 @@ mod tests {
             assert_eq!(field.0.as_str(), "data");
             assert_eq!(field.1.len(), 2);
             assert!(matches!(&field.1[0], JsonOperation::Arrow(JsonOperand::Key(k)) if k == "key"));
-            assert!(matches!(&field.1[1], JsonOperation::Arrow2(JsonOperand::Key(k)) if k == "value"));
+            assert!(
+                matches!(&field.1[1], JsonOperation::Arrow2(JsonOperand::Key(k)) if k == "value")
+            );
         }
     }
 
@@ -1360,7 +1358,10 @@ mod tests {
     fn test_parse_select_with_aggregate() {
         let items = parse_select("amount.sum()").unwrap();
         assert_eq!(items.len(), 1);
-        if let SelectItem::Field { field, aggregate, .. } = &items[0] {
+        if let SelectItem::Field {
+            field, aggregate, ..
+        } = &items[0]
+        {
             assert_eq!(field.0.as_str(), "amount");
             assert_eq!(*aggregate, Some(AggregateFunction::Sum));
         }
@@ -1384,9 +1385,7 @@ mod tests {
         let items = parse_select("posts(id,title)").unwrap();
         assert_eq!(items.len(), 1);
         if let SelectItem::Relation {
-            relation,
-            children,
-            ..
+            relation, children, ..
         } = &items[0]
         {
             assert_eq!(relation.as_str(), "posts");
@@ -1433,9 +1432,7 @@ mod tests {
         let items = parse_select("...details(*)").unwrap();
         assert_eq!(items.len(), 1);
         if let SelectItem::Spread {
-            relation,
-            children,
-            ..
+            relation, children, ..
         } = &items[0]
         {
             assert_eq!(relation.as_str(), "details");
@@ -1449,7 +1446,9 @@ mod tests {
         assert_eq!(items.len(), 2);
         if let SelectItem::Relation { children, .. } = &items[1] {
             assert_eq!(children.len(), 2);
-            assert!(matches!(&children[1], SelectItem::Relation { relation, .. } if relation == "projects"));
+            assert!(
+                matches!(&children[1], SelectItem::Relation { relation, .. } if relation == "projects")
+            );
         }
     }
 
@@ -1612,7 +1611,11 @@ mod tests {
             expr,
             OpExpr::Expr {
                 negated: false,
-                operation: Operation::Quant(QuantOperator::Equal, Some(OpQuantifier::Any), "5".into())
+                operation: Operation::Quant(
+                    QuantOperator::Equal,
+                    Some(OpQuantifier::Any),
+                    "5".into()
+                )
             }
         );
     }
@@ -1690,7 +1693,12 @@ mod tests {
     fn test_parse_order_simple() {
         let terms = parse_order("name").unwrap();
         assert_eq!(terms.len(), 1);
-        if let OrderTerm::Term { field, direction, nulls } = &terms[0] {
+        if let OrderTerm::Term {
+            field,
+            direction,
+            nulls,
+        } = &terms[0]
+        {
             assert_eq!(field.0.as_str(), "name");
             assert!(direction.is_none());
             assert!(nulls.is_none());
@@ -1730,7 +1738,9 @@ mod tests {
     fn test_parse_order_relation() {
         let terms = parse_order("clients(name).desc.nullsfirst").unwrap();
         assert_eq!(terms.len(), 1);
-        assert!(matches!(&terms[0], OrderTerm::RelationTerm { relation, .. } if relation == "clients"));
+        assert!(
+            matches!(&terms[0], OrderTerm::RelationTerm { relation, .. } if relation == "clients")
+        );
     }
 
     // ---------- Logic tree tests ----------
@@ -1763,7 +1773,13 @@ mod tests {
         let tree = parse_logic_tree("and(name.eq.John,or(id.eq.1,id.eq.2))").unwrap();
         if let LogicTree::Expr { children, .. } = &tree {
             assert_eq!(children.len(), 2);
-            assert!(matches!(&children[1], LogicTree::Expr { operator: LogicOperator::Or, .. }));
+            assert!(matches!(
+                &children[1],
+                LogicTree::Expr {
+                    operator: LogicOperator::Or,
+                    ..
+                }
+            ));
         }
     }
 
@@ -1850,12 +1866,19 @@ mod tests {
 
     #[test]
     fn test_parse_all_simple_operators() {
-        for op in [
-            "neq", "cs", "cd", "ov", "sl", "sr", "nxr", "nxl", "adj",
-        ] {
+        for op in ["neq", "cs", "cd", "ov", "sl", "sr", "nxr", "nxl", "adj"] {
             let expr = try_parse_op_expr(&format!("{}.value", op)).unwrap();
-            assert!(matches!(expr, OpExpr::Expr { operation: Operation::Simple(..), .. }),
-                "operator {} should parse as Simple", op);
+            assert!(
+                matches!(
+                    expr,
+                    OpExpr::Expr {
+                        operation: Operation::Simple(..),
+                        ..
+                    }
+                ),
+                "operator {} should parse as Simple",
+                op
+            );
         }
     }
 
@@ -1865,8 +1888,17 @@ mod tests {
             "eq", "gte", "gt", "lte", "lt", "like", "ilike", "match", "imatch",
         ] {
             let expr = try_parse_op_expr(&format!("{}.value", op)).unwrap();
-            assert!(matches!(expr, OpExpr::Expr { operation: Operation::Quant(..), .. }),
-                "operator {} should parse as Quant", op);
+            assert!(
+                matches!(
+                    expr,
+                    OpExpr::Expr {
+                        operation: Operation::Quant(..),
+                        ..
+                    }
+                ),
+                "operator {} should parse as Quant",
+                op
+            );
         }
     }
 
@@ -1874,8 +1906,17 @@ mod tests {
     fn test_parse_all_fts_operators() {
         for op in ["fts", "plfts", "phfts", "wfts"] {
             let expr = try_parse_op_expr(&format!("{}.term", op)).unwrap();
-            assert!(matches!(expr, OpExpr::Expr { operation: Operation::Fts(..), .. }),
-                "operator {} should parse as Fts", op);
+            assert!(
+                matches!(
+                    expr,
+                    OpExpr::Expr {
+                        operation: Operation::Fts(..),
+                        ..
+                    }
+                ),
+                "operator {} should parse as Fts",
+                op
+            );
         }
     }
 
@@ -1895,7 +1936,8 @@ mod tests {
                     negated: false,
                     operation: Operation::Is(expected)
                 },
-                "is value {} should parse", val
+                "is value {} should parse",
+                val
             );
         }
     }

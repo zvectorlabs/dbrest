@@ -158,6 +158,7 @@ pub struct Header {
 /// JSON Schema (simplified for OpenAPI)
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 pub enum Schema {
     /// Reference to another schema
     Ref {
@@ -307,7 +308,10 @@ impl Schema {
 
     /// Set description
     pub fn with_description(mut self, description: String) -> Self {
-        if let Schema::Object { description: desc, .. } = &mut self {
+        if let Schema::Object {
+            description: desc, ..
+        } = &mut self
+        {
             *desc = Some(description);
         }
         self

@@ -18,13 +18,12 @@
 //! ```
 
 use crate::api_request::types::{
-    FtsOperator, IsValue, JsonOperand, JsonOperation, LogicOperator,
-    OpExpr, Operation, OrderDirection, OrderNulls, QuantOperator, SimpleOperator,
+    FtsOperator, IsValue, JsonOperand, JsonOperation, LogicOperator, OpExpr, Operation,
+    OrderDirection, OrderNulls, QuantOperator, SimpleOperator,
 };
 use crate::plan::read_plan::JoinCondition;
 use crate::plan::types::{
-    CoercibleField, CoercibleFilter, CoercibleLogicTree, CoercibleOrderTerm,
-    CoercibleSelectField,
+    CoercibleField, CoercibleFilter, CoercibleLogicTree, CoercibleOrderTerm, CoercibleSelectField,
 };
 use crate::types::identifiers::QualifiedIdentifier;
 
@@ -65,18 +64,14 @@ pub fn fmt_column(b: &mut SqlBuilder, qi: &QualifiedIdentifier, col: &str) {
 /// full_name("people")
 /// "schema"."full_name"("people")
 /// ```
-pub fn fmt_computed_field(
-    b: &mut SqlBuilder,
-    qi: &QualifiedIdentifier,
-    field: &CoercibleField,
-) {
+pub fn fmt_computed_field(b: &mut SqlBuilder, qi: &QualifiedIdentifier, field: &CoercibleField) {
     if let Some(ref func_qi) = field.computed_function {
         // Emit function_schema.function_name(table_name)
         // PostgreSQL computed field functions expect the table name (unqualified) or alias
         // Use just the table name part, not the full qualified identifier
         b.push_qi(func_qi);
         b.push("(");
-        b.push_ident(&qi.name);  // Use just the table name, not the full QualifiedIdentifier
+        b.push_ident(&qi.name); // Use just the table name, not the full QualifiedIdentifier
         b.push(")");
     } else {
         // This should never happen - computed fields should always have computed_function set
@@ -155,11 +150,7 @@ pub fn fmt_field(b: &mut SqlBuilder, qi: &QualifiedIdentifier, field: &Coercible
 /// ```sql
 /// my_parser("users"."bio")
 /// ```
-pub fn fmt_table_coerce(
-    b: &mut SqlBuilder,
-    qi: &QualifiedIdentifier,
-    field: &CoercibleField,
-) {
+pub fn fmt_table_coerce(b: &mut SqlBuilder, qi: &QualifiedIdentifier, field: &CoercibleField) {
     if let Some(ref transform) = field.transform {
         // Wrap in transform function
         b.push(&transform.function);
@@ -185,11 +176,7 @@ pub fn fmt_table_coerce(
 /// COUNT("id")::bigint AS "total"
 /// "name"::text AS "user_name"
 /// ```
-pub fn fmt_select_item(
-    b: &mut SqlBuilder,
-    qi: &QualifiedIdentifier,
-    sel: &CoercibleSelectField,
-) {
+pub fn fmt_select_item(b: &mut SqlBuilder, qi: &QualifiedIdentifier, sel: &CoercibleSelectField) {
     // Aggregate wrapper
     if let Some(ref agg) = sel.agg_function {
         b.push(&agg.to_string().to_uppercase());
@@ -217,10 +204,7 @@ pub fn fmt_select_item(
     }
 
     // Alias
-    let alias = sel
-        .alias
-        .as_ref()
-        .unwrap_or(&sel.field.name);
+    let alias = sel.alias.as_ref().unwrap_or(&sel.field.name);
     b.push(" AS ");
     b.push_ident(alias);
 }
@@ -362,11 +346,7 @@ pub fn fts_operator(b: &mut SqlBuilder, op: FtsOperator, lang: &Option<String>, 
 /// -- negated, field=status, op=eq, value=active
 /// NOT "status" = $1
 /// ```
-pub fn fmt_filter(
-    b: &mut SqlBuilder,
-    qi: &QualifiedIdentifier,
-    filter: &CoercibleFilter,
-) {
+pub fn fmt_filter(b: &mut SqlBuilder, qi: &QualifiedIdentifier, filter: &CoercibleFilter) {
     match filter {
         CoercibleFilter::Filter { field, op_expr } => {
             fmt_op_expr(b, qi, field, op_expr);
@@ -418,11 +398,11 @@ fn fmt_op_expr(
     // Store whether JSON paths are present for special handling in IN operations.
     let has_json_path = !field.json_path.is_empty();
     let col_type = if has_json_path {
-        None  // Don't cast when JSON paths are used (for simple operations)
+        None // Don't cast when JSON paths are used (for simple operations)
     } else {
-        field.base_type.as_deref()  // Normal case: use base type
+        field.base_type.as_deref() // Normal case: use base type
     };
-    
+
     match op_expr {
         OpExpr::Expr { negated, operation } => {
             if *negated {
@@ -575,11 +555,7 @@ fn fmt_operation(b: &mut SqlBuilder, op: &Operation, col_type: Option<&str>, has
 /// ("a" = $1 AND "b" > $2)
 /// NOT ("status" = $1 OR "status" = $2)
 /// ```
-pub fn fmt_logic_tree(
-    b: &mut SqlBuilder,
-    qi: &QualifiedIdentifier,
-    tree: &CoercibleLogicTree,
-) {
+pub fn fmt_logic_tree(b: &mut SqlBuilder, qi: &QualifiedIdentifier, tree: &CoercibleLogicTree) {
     match tree {
         CoercibleLogicTree::Expr(negated, op, children) => {
             if *negated {
@@ -670,11 +646,7 @@ pub fn fmt_order_term(b: &mut SqlBuilder, qi: &QualifiedIdentifier, term: &Coerc
 /// ```sql
 /// ORDER BY "name" ASC, "id" DESC NULLS LAST
 /// ```
-pub fn order_clause(
-    b: &mut SqlBuilder,
-    qi: &QualifiedIdentifier,
-    terms: &[CoercibleOrderTerm],
-) {
+pub fn order_clause(b: &mut SqlBuilder, qi: &QualifiedIdentifier, terms: &[CoercibleOrderTerm]) {
     if terms.is_empty() {
         return;
     }
@@ -739,11 +711,7 @@ pub fn fmt_join_condition(b: &mut SqlBuilder, jc: &JoinCondition) {
 /// ```sql
 /// WHERE "id" = $1 AND "status" = $2
 /// ```
-pub fn where_clause(
-    b: &mut SqlBuilder,
-    qi: &QualifiedIdentifier,
-    trees: &[CoercibleLogicTree],
-) {
+pub fn where_clause(b: &mut SqlBuilder, qi: &QualifiedIdentifier, trees: &[CoercibleLogicTree]) {
     if trees.is_empty() {
         return;
     }
@@ -799,27 +767,25 @@ pub fn returning_clause(
 /// ```sql
 /// json_to_recordset($1) AS _("id" integer, "name" text)
 /// ```
-pub fn from_json_body(
-    b: &mut SqlBuilder,
-    columns: &[CoercibleField],
-    json_body: &[u8],
-) {
+pub fn from_json_body(b: &mut SqlBuilder, columns: &[CoercibleField], json_body: &[u8]) {
     // Choose json_to_recordset (array) or json_to_record (object) based on payload shape.
     let is_array = json_body.first().map(|&c| c == b'[').unwrap_or(false);
-    let func = if is_array { "json_to_recordset" } else { "json_to_record" };
+    let func = if is_array {
+        "json_to_recordset"
+    } else {
+        "json_to_record"
+    };
     b.push(func);
     b.push("(");
     // Bind as Text so PostgreSQL receives a json-compatible string, not bytea.
-    b.push_param(SqlParam::Text(String::from_utf8_lossy(json_body).into_owned()));
+    b.push_param(SqlParam::Text(
+        String::from_utf8_lossy(json_body).into_owned(),
+    ));
     b.push("::json) AS _(");
     b.push_separated(", ", columns, |b, col| {
         b.push_ident(&col.name);
         b.push(" ");
-        b.push(
-            col.base_type
-                .as_deref()
-                .unwrap_or("text"),
-        );
+        b.push(col.base_type.as_deref().unwrap_or("text"));
     });
     b.push(")");
 }
@@ -854,11 +820,7 @@ pub fn count_f(b: &mut SqlBuilder) {
 /// ```sql
 /// GROUP BY "name", "status"
 /// ```
-pub fn group_clause(
-    b: &mut SqlBuilder,
-    qi: &QualifiedIdentifier,
-    select: &[CoercibleSelectField],
-) {
+pub fn group_clause(b: &mut SqlBuilder, qi: &QualifiedIdentifier, select: &[CoercibleSelectField]) {
     let has_agg = select.iter().any(|s| s.agg_function.is_some());
     if !has_agg {
         return;
@@ -907,7 +869,7 @@ pub fn handler_agg_with_media(
     _is_scalar: bool,
 ) {
     use crate::schema_cache::media_handler::MediaHandler;
-    
+
     match handler {
         MediaHandler::BuiltinOvAggJson
         | MediaHandler::BuiltinAggSingleJson(_)
@@ -1090,10 +1052,7 @@ mod tests {
             JsonOperation::Arrow2(JsonOperand::Key("city".into())),
         ]);
         fmt_field(&mut b, &test_qi(), &f);
-        assert_eq!(
-            b.sql(),
-            "\"public\".\"users\".\"data\"->'address'->>'city'"
-        );
+        assert_eq!(b.sql(), "\"public\".\"users\".\"data\"->'address'->>'city'");
     }
 
     #[test]
@@ -1101,10 +1060,7 @@ mod tests {
         let mut b = SqlBuilder::new();
         let sel = select_field("name");
         fmt_select_item(&mut b, &test_qi(), &sel);
-        assert_eq!(
-            b.sql(),
-            "\"public\".\"users\".\"name\" AS \"name\""
-        );
+        assert_eq!(b.sql(), "\"public\".\"users\".\"name\" AS \"name\"");
     }
 
     #[test]
@@ -1198,10 +1154,7 @@ mod tests {
             },
         };
         fmt_filter(&mut b, &test_qi(), &filter);
-        assert_eq!(
-            b.sql(),
-            "NOT \"public\".\"users\".\"status\"=$1"
-        );
+        assert_eq!(b.sql(), "NOT \"public\".\"users\".\"status\"=$1");
     }
 
     #[test]
@@ -1215,10 +1168,7 @@ mod tests {
             },
         };
         fmt_filter(&mut b, &test_qi(), &filter);
-        assert_eq!(
-            b.sql(),
-            "\"public\".\"users\".\"deleted_at\" IS NULL"
-        );
+        assert_eq!(b.sql(), "\"public\".\"users\".\"deleted_at\" IS NULL");
     }
 
     #[test]
@@ -1232,10 +1182,7 @@ mod tests {
             },
         };
         fmt_filter(&mut b, &test_qi(), &filter);
-        assert_eq!(
-            b.sql(),
-            "\"public\".\"users\".\"status\" = ANY($1)"
-        );
+        assert_eq!(b.sql(), "\"public\".\"users\".\"status\" = ANY($1)");
     }
 
     #[test]
@@ -1249,10 +1196,7 @@ mod tests {
             },
         };
         fmt_filter(&mut b, &test_qi(), &filter);
-        assert_eq!(
-            b.sql(),
-            "\"public\".\"users\".\"tags\" @> $1"
-        );
+        assert_eq!(b.sql(), "\"public\".\"users\".\"tags\" @> $1");
     }
 
     #[test]
@@ -1262,7 +1206,11 @@ mod tests {
             field: field("body"),
             op_expr: OpExpr::Expr {
                 negated: false,
-                operation: Operation::Fts(FtsOperator::Fts, Some("english".into()), "search".into()),
+                operation: Operation::Fts(
+                    FtsOperator::Fts,
+                    Some("english".into()),
+                    "search".into(),
+                ),
             },
         };
         fmt_filter(&mut b, &test_qi(), &filter);
@@ -1342,21 +1290,16 @@ mod tests {
         let tree = CoercibleLogicTree::Expr(
             true,
             LogicOperator::Or,
-            vec![
-                CoercibleLogicTree::Stmnt(CoercibleFilter::Filter {
-                    field: field("x"),
-                    op_expr: OpExpr::Expr {
-                        negated: false,
-                        operation: Operation::Quant(QuantOperator::Equal, None, "a".into()),
-                    },
-                }),
-            ],
+            vec![CoercibleLogicTree::Stmnt(CoercibleFilter::Filter {
+                field: field("x"),
+                op_expr: OpExpr::Expr {
+                    negated: false,
+                    operation: Operation::Quant(QuantOperator::Equal, None, "a".into()),
+                },
+            })],
         );
         fmt_logic_tree(&mut b, &test_qi(), &tree);
-        assert_eq!(
-            b.sql(),
-            "NOT (\"public\".\"users\".\"x\"=$1)"
-        );
+        assert_eq!(b.sql(), "NOT (\"public\".\"users\".\"x\"=$1)");
     }
 
     // ------------------------------------------------------------------
@@ -1372,10 +1315,7 @@ mod tests {
             nulls: Some(OrderNulls::Last),
         };
         fmt_order_term(&mut b, &test_qi(), &term);
-        assert_eq!(
-            b.sql(),
-            "\"public\".\"users\".\"name\" ASC NULLS LAST"
-        );
+        assert_eq!(b.sql(), "\"public\".\"users\".\"name\" ASC NULLS LAST");
     }
 
     #[test]
@@ -1448,7 +1388,10 @@ mod tests {
         let mut b = SqlBuilder::new();
         let jc = JoinCondition {
             parent: (QualifiedIdentifier::new("public", "users"), "id".into()),
-            child: (QualifiedIdentifier::new("public", "posts"), "user_id".into()),
+            child: (
+                QualifiedIdentifier::new("public", "posts"),
+                "user_id".into(),
+            ),
         };
         fmt_join_condition(&mut b, &jc);
         assert_eq!(
@@ -1510,10 +1453,7 @@ mod tests {
     #[test]
     fn test_from_json_body() {
         let mut b = SqlBuilder::new();
-        let cols = vec![
-            typed_field("id", "integer"),
-            typed_field("name", "text"),
-        ];
+        let cols = vec![typed_field("id", "integer"), typed_field("name", "text")];
         let json = b"[{\"id\":1,\"name\":\"test\"}]";
         from_json_body(&mut b, &cols, json);
         assert!(b.sql().starts_with("json_to_recordset($1::json) AS _("));
@@ -1547,10 +1487,7 @@ mod tests {
             },
         ];
         group_clause(&mut b, &test_qi(), &select);
-        assert_eq!(
-            b.sql(),
-            " GROUP BY \"public\".\"users\".\"status\""
-        );
+        assert_eq!(b.sql(), " GROUP BY \"public\".\"users\".\"status\"");
     }
 
     // ------------------------------------------------------------------
@@ -1568,7 +1505,10 @@ mod tests {
     fn test_location_f_composite_pk() {
         let mut b = SqlBuilder::new();
         location_f(&mut b, &["id".into(), "name".into()]);
-        assert_eq!(b.sql(), "'/' || \"id\"::text || ',' || '/' || \"name\"::text");
+        assert_eq!(
+            b.sql(),
+            "'/' || \"id\"::text || ',' || '/' || \"name\"::text"
+        );
     }
 
     #[test]
@@ -1586,10 +1526,7 @@ mod tests {
     fn test_handler_agg() {
         let mut b = SqlBuilder::new();
         handler_agg(&mut b, false);
-        assert_eq!(
-            b.sql(),
-            "coalesce(json_agg(\"_pgrest_t\"), '[]')::text"
-        );
+        assert_eq!(b.sql(), "coalesce(json_agg(\"_pgrest_t\"), '[]')::text");
     }
 
     #[test]
@@ -1611,7 +1548,7 @@ mod tests {
         let mut b = SqlBuilder::new();
         let table_qi = QualifiedIdentifier::new("test_api", "users");
         let func_qi = QualifiedIdentifier::new("test_api", "full_name");
-        
+
         let field = CoercibleField::from_computed_field(
             "full_name".into(),
             Default::default(),
@@ -1631,7 +1568,7 @@ mod tests {
         let mut b = SqlBuilder::new();
         let table_qi = QualifiedIdentifier::new("test_api", "users");
         let func_qi = QualifiedIdentifier::new("test_api", "full_name");
-        
+
         let field = CoercibleField::from_computed_field(
             "full_name".into(),
             Default::default(),
@@ -1651,13 +1588,10 @@ mod tests {
         let mut b1 = SqlBuilder::new();
         let mut b2 = SqlBuilder::new();
         let table_qi = QualifiedIdentifier::new("test_api", "users");
-        
+
         // Regular column
-        let col_field = CoercibleField::from_column(
-            "name".into(),
-            Default::default(),
-            "text".into(),
-        );
+        let col_field =
+            CoercibleField::from_column("name".into(), Default::default(), "text".into());
         fmt_field(&mut b1, &table_qi, &col_field);
         assert_eq!(b1.sql(), "\"test_api\".\"users\".\"name\"");
 
@@ -1681,7 +1615,7 @@ mod tests {
         let mut b = SqlBuilder::new();
         let table_qi = QualifiedIdentifier::new("public", "users");
         let func_qi = QualifiedIdentifier::new("extensions", "full_name");
-        
+
         let field = CoercibleField::from_computed_field(
             "full_name".into(),
             Default::default(),
@@ -1701,7 +1635,7 @@ mod tests {
         let mut b = SqlBuilder::new();
         let table_qi = QualifiedIdentifier::new("test_api", "users");
         let func_qi = QualifiedIdentifier::new("test_api", "full_name");
-        
+
         let mut field = CoercibleField::from_computed_field(
             "full_name".into(),
             Default::default(),
@@ -1718,19 +1652,19 @@ mod tests {
 
     #[test]
     fn test_fmt_field_computed_with_json_path() {
+        use crate::api_request::types::{JsonOperand, JsonOperation, JsonPath};
         use crate::plan::types::CoercibleField;
-        use crate::api_request::types::{JsonOperation, JsonOperand, JsonPath};
         use crate::types::QualifiedIdentifier;
         use smallvec::SmallVec;
 
         let mut b = SqlBuilder::new();
         let table_qi = QualifiedIdentifier::new("test_api", "users");
         let func_qi = QualifiedIdentifier::new("test_api", "full_name");
-        
+
         let mut json_path: JsonPath = SmallVec::new();
         json_path.push(JsonOperation::Arrow2(JsonOperand::Key("metadata".into())));
         json_path.push(JsonOperation::Arrow2(JsonOperand::Key("display".into())));
-        
+
         let field = CoercibleField::from_computed_field(
             "full_name".into(),
             json_path,
@@ -1746,17 +1680,17 @@ mod tests {
 
     #[test]
     fn test_fmt_field_composite_with_json_path() {
+        use crate::api_request::types::{JsonOperand, JsonOperation, JsonPath};
         use crate::plan::types::CoercibleField;
-        use crate::api_request::types::{JsonOperation, JsonOperand, JsonPath};
         use crate::types::QualifiedIdentifier;
         use smallvec::SmallVec;
 
         let mut b = SqlBuilder::new();
         let table_qi = QualifiedIdentifier::new("test_api", "countries");
-        
+
         let mut json_path: JsonPath = SmallVec::new();
         json_path.push(JsonOperation::Arrow2(JsonOperand::Key("lat".into())));
-        
+
         let mut field = CoercibleField::from_column(
             "location".into(),
             json_path,
@@ -1765,51 +1699,49 @@ mod tests {
         field.to_json = true; // Composite type needs wrapper
 
         fmt_field(&mut b, &table_qi, &field);
-        assert_eq!(b.sql(), "to_jsonb(\"test_api\".\"countries\".\"location\")->>'lat'");
+        assert_eq!(
+            b.sql(),
+            "to_jsonb(\"test_api\".\"countries\".\"location\")->>'lat'"
+        );
     }
 
     #[test]
     fn test_fmt_field_array_with_json_path() {
+        use crate::api_request::types::{JsonOperand, JsonOperation, JsonPath};
         use crate::plan::types::CoercibleField;
-        use crate::api_request::types::{JsonOperation, JsonOperand, JsonPath};
         use crate::types::QualifiedIdentifier;
         use smallvec::SmallVec;
 
         let mut b = SqlBuilder::new();
         let table_qi = QualifiedIdentifier::new("test_api", "countries");
-        
+
         let mut json_path: JsonPath = SmallVec::new();
         json_path.push(JsonOperation::Arrow(JsonOperand::Idx("0".into())));
-        
-        let mut field = CoercibleField::from_column(
-            "languages".into(),
-            json_path,
-            "text[]".into(),
-        );
+
+        let mut field = CoercibleField::from_column("languages".into(), json_path, "text[]".into());
         field.to_json = true; // Array type needs wrapper
 
         fmt_field(&mut b, &table_qi, &field);
-        assert_eq!(b.sql(), "to_jsonb(\"test_api\".\"countries\".\"languages\")->0");
+        assert_eq!(
+            b.sql(),
+            "to_jsonb(\"test_api\".\"countries\".\"languages\")->0"
+        );
     }
 
     #[test]
     fn test_fmt_field_json_no_wrapper() {
+        use crate::api_request::types::{JsonOperand, JsonOperation, JsonPath};
         use crate::plan::types::CoercibleField;
-        use crate::api_request::types::{JsonOperation, JsonOperand, JsonPath};
         use crate::types::QualifiedIdentifier;
         use smallvec::SmallVec;
 
         let mut b = SqlBuilder::new();
         let table_qi = QualifiedIdentifier::new("test_api", "posts");
-        
+
         let mut json_path: JsonPath = SmallVec::new();
         json_path.push(JsonOperation::Arrow2(JsonOperand::Key("title".into())));
-        
-        let mut field = CoercibleField::from_column(
-            "metadata".into(),
-            json_path,
-            "jsonb".into(),
-        );
+
+        let mut field = CoercibleField::from_column("metadata".into(), json_path, "jsonb".into());
         field.to_json = false; // JSON/JSONB don't need wrapper
 
         fmt_field(&mut b, &table_qi, &field);
@@ -1823,7 +1755,7 @@ mod tests {
 
         let mut b = SqlBuilder::new();
         let table_qi = QualifiedIdentifier::new("test_api", "users");
-        
+
         // First computed field
         let func_qi1 = QualifiedIdentifier::new("test_api", "full_name");
         let field1 = CoercibleField::from_computed_field(
@@ -1834,7 +1766,7 @@ mod tests {
         );
         fmt_computed_field(&mut b, &table_qi, &field1);
         b.push(", ");
-        
+
         // Second computed field
         let func_qi2 = QualifiedIdentifier::new("test_api", "initials");
         let field2 = CoercibleField::from_computed_field(
@@ -1844,7 +1776,7 @@ mod tests {
             "text".into(),
         );
         fmt_computed_field(&mut b, &table_qi, &field2);
-        
+
         assert_eq!(
             b.sql(),
             "\"test_api\".\"full_name\"(\"users\"), \"test_api\".\"initials\"(\"users\")"

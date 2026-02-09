@@ -49,11 +49,8 @@ mod tests {
         };
         map.insert(("bytea".into(), "text".into()), repr.clone());
 
-        assert_eq!(
-            map.get(&("bytea".into(), "text".into())),
-            Some(&repr)
-        );
-        assert!(map.get(&("text".into(), "bytea".into())).is_none());
+        assert_eq!(map.get(&("bytea".into(), "text".into())), Some(&repr));
+        assert!(!map.contains_key(&("text".into(), "bytea".into())));
     }
 
     #[test]

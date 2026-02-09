@@ -60,9 +60,7 @@ impl JwtCache {
     /// Store a validation result, deriving TTL from the `exp` claim.
     pub async fn insert(&self, token: &str, result: AuthResult) {
         let ttl = ttl_from_claims(&result);
-        self.inner
-            .insert(Arc::from(token), Arc::new(result))
-            .await;
+        self.inner.insert(Arc::from(token), Arc::new(result)).await;
 
         // Moka's per-entry TTL is set via `time_to_live` on builder level.
         // For per-entry expiry we use the `policy` approach. Since Moka's
@@ -167,9 +165,7 @@ mod tests {
         let result = make_result("user", Some(chrono::Utc::now().timestamp() + 3600));
 
         for i in 0..5 {
-            cache
-                .insert(&format!("token_{i}"), result.clone())
-                .await;
+            cache.insert(&format!("token_{i}"), result.clone()).await;
         }
 
         // Moka eviction is async, but capacity should be bounded

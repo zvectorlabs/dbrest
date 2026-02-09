@@ -110,10 +110,7 @@ pub async fn auth_middleware(
 }
 
 /// Core authentication logic, separated for testability.
-pub async fn authenticate(
-    state: &AuthState,
-    request: &Request,
-) -> Result<AuthResult, JwtError> {
+pub async fn authenticate(state: &AuthState, request: &Request) -> Result<AuthResult, JwtError> {
     let token = extract_bearer_token(request);
     authenticate_token(state, token).await
 }
@@ -186,12 +183,10 @@ pub fn jwt_error_response(err: JwtError) -> Response {
 
     let mut response = (status, axum::Json(body)).into_response();
 
-    if let Some(www_auth_value) = www_auth {
-        if let Ok(hv) = http::HeaderValue::from_str(&www_auth_value) {
-            response
-                .headers_mut()
-                .insert(header::WWW_AUTHENTICATE, hv);
-        }
+    if let Some(www_auth_value) = www_auth
+        && let Ok(hv) = http::HeaderValue::from_str(&www_auth_value)
+    {
+        response.headers_mut().insert(header::WWW_AUTHENTICATE, hv);
     }
 
     response
@@ -402,10 +397,7 @@ mod tests {
     fn test_jwt_error_response_secret_missing() {
         let err = JwtError::SecretMissing;
         let response = jwt_error_response(err);
-        assert_eq!(
-            response.status(),
-            http::StatusCode::INTERNAL_SERVER_ERROR
-        );
+        assert_eq!(response.status(), http::StatusCode::INTERNAL_SERVER_ERROR);
         assert!(!response.headers().contains_key(header::WWW_AUTHENTICATE));
     }
 

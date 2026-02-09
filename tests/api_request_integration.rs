@@ -10,18 +10,18 @@
 //! HTTP requests into typed ApiRequest structs.
 
 use axum::{
+    Router,
     body::Body,
     extract::Request,
     response::{IntoResponse, Json, Response},
-    Router,
 };
 use bytes::Bytes;
 use compact_str::CompactString;
 use http::StatusCode;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tower::ServiceExt;
 
-use pgrest::api_request::{self, preferences::Preferences, ApiRequest};
+use pgrest::api_request::{self, ApiRequest, preferences::Preferences};
 use pgrest::config::AppConfig;
 use pgrest::types::media::MediaType;
 
@@ -221,7 +221,12 @@ mod tower_tests {
 
         assert!(json["has_payload"].as_bool().unwrap());
         assert_eq!(json["column_count"], 3);
-        assert!(json["action_type"].as_str().unwrap().contains("MutationCreate"));
+        assert!(
+            json["action_type"]
+                .as_str()
+                .unwrap()
+                .contains("MutationCreate")
+        );
     }
 
     #[tokio::test]
@@ -247,7 +252,12 @@ mod tower_tests {
             .unwrap();
         let json: Value = serde_json::from_slice(&body).unwrap();
 
-        assert!(json["action_type"].as_str().unwrap().contains("MutationSingleUpsert"));
+        assert!(
+            json["action_type"]
+                .as_str()
+                .unwrap()
+                .contains("MutationSingleUpsert")
+        );
     }
 
     #[tokio::test]
@@ -273,7 +283,12 @@ mod tower_tests {
             .unwrap();
         let json: Value = serde_json::from_slice(&body).unwrap();
 
-        assert!(json["action_type"].as_str().unwrap().contains("MutationUpdate"));
+        assert!(
+            json["action_type"]
+                .as_str()
+                .unwrap()
+                .contains("MutationUpdate")
+        );
     }
 
     #[tokio::test]
@@ -298,7 +313,12 @@ mod tower_tests {
             .unwrap();
         let json: Value = serde_json::from_slice(&body).unwrap();
 
-        assert!(json["action_type"].as_str().unwrap().contains("MutationDelete"));
+        assert!(
+            json["action_type"]
+                .as_str()
+                .unwrap()
+                .contains("MutationDelete")
+        );
         assert!(!json["has_payload"].as_bool().unwrap());
     }
 
@@ -324,7 +344,12 @@ mod tower_tests {
             .unwrap();
         let json: Value = serde_json::from_slice(&body).unwrap();
 
-        assert!(json["action_type"].as_str().unwrap().contains("RelationRead"));
+        assert!(
+            json["action_type"]
+                .as_str()
+                .unwrap()
+                .contains("RelationRead")
+        );
         assert!(json["action_type"].as_str().unwrap().contains("true")); // headers_only
     }
 
@@ -378,9 +403,17 @@ mod tower_tests {
 
         // InvokeMethod::Inv debug format: "Inv" (no bool parameter unlike InvRead)
         let action = json["action_type"].as_str().unwrap();
-        assert!(action.contains("Routine"), "expected Routine, got: {}", action);
+        assert!(
+            action.contains("Routine"),
+            "expected Routine, got: {}",
+            action
+        );
         assert!(action.contains("Inv"), "expected Inv, got: {}", action);
-        assert!(!action.contains("InvRead"), "should not be InvRead, got: {}", action);
+        assert!(
+            !action.contains("InvRead"),
+            "should not be InvRead, got: {}",
+            action
+        );
         assert!(json["has_payload"].as_bool().unwrap());
     }
 
@@ -389,12 +422,7 @@ mod tower_tests {
         let app = test_router();
 
         let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
             .await
             .unwrap();
 
@@ -724,9 +752,7 @@ mod direct_tests {
     #[test]
     fn test_post_with_body() {
         let config = test_config();
-        let headers = vec![
-            ("content-type".to_string(), "application/json".to_string()),
-        ];
+        let headers = vec![("content-type".to_string(), "application/json".to_string())];
         let body = Bytes::from(r#"{"x":1,"y":2}"#);
 
         let req = build_api_request(&config, "POST", "/items", "", &headers, body).unwrap();
@@ -760,30 +786,23 @@ mod direct_tests {
 
         assert!(matches!(
             req.action,
-            pgrest::api_request::Action::Db(pgrest::api_request::types::DbAction::SchemaRead { .. })
+            pgrest::api_request::Action::Db(
+                pgrest::api_request::types::DbAction::SchemaRead { .. }
+            )
         ));
     }
 
     #[test]
     fn test_invalid_path() {
         let config = test_config();
-        let result = build_api_request(
-            &config,
-            "GET",
-            "/a/b/c",
-            "",
-            &[],
-            Bytes::new(),
-        );
+        let result = build_api_request(&config, "GET", "/a/b/c", "", &[], Bytes::new());
         assert!(result.is_err());
     }
 
     #[test]
     fn test_invalid_schema() {
         let config = test_config();
-        let headers = vec![
-            ("accept-profile".to_string(), "nonexistent".to_string()),
-        ];
+        let headers = vec![("accept-profile".to_string(), "nonexistent".to_string())];
         let result = build_api_request(&config, "GET", "/items", "", &headers, Bytes::new());
         assert!(result.is_err());
     }
@@ -824,9 +843,10 @@ mod direct_tests {
     #[test]
     fn test_accept_header_negotiation() {
         let config = test_config();
-        let headers = vec![
-            ("accept".to_string(), "text/csv, application/json;q=0.5".to_string()),
-        ];
+        let headers = vec![(
+            "accept".to_string(),
+            "text/csv, application/json;q=0.5".to_string(),
+        )];
         let req = build_api_request(&config, "GET", "/items", "", &headers, Bytes::new()).unwrap();
 
         assert_eq!(req.accept_media_types.len(), 2);
@@ -854,9 +874,7 @@ mod direct_tests {
     #[test]
     fn test_cookies_extracted() {
         let config = test_config();
-        let headers = vec![
-            ("cookie".to_string(), "session=abc; lang=en".to_string()),
-        ];
+        let headers = vec![("cookie".to_string(), "session=abc; lang=en".to_string())];
         let req = build_api_request(&config, "GET", "/items", "", &headers, Bytes::new()).unwrap();
 
         assert_eq!(req.cookies.len(), 2);
@@ -884,9 +902,7 @@ mod direct_tests {
     #[test]
     fn test_range_from_header() {
         let config = test_config();
-        let headers = vec![
-            ("range".to_string(), "items=5-19".to_string()),
-        ];
+        let headers = vec![("range".to_string(), "items=5-19".to_string())];
         let req = build_api_request(&config, "GET", "/items", "", &headers, Bytes::new()).unwrap();
 
         assert_eq!(req.top_level_range.offset, 5);
@@ -909,8 +925,8 @@ mod direct_tests {
     #[test]
     fn test_delete_no_payload() {
         let config = test_config();
-        let req = build_api_request(&config, "DELETE", "/items", "id=eq.1", &[], Bytes::new())
-            .unwrap();
+        let req =
+            build_api_request(&config, "DELETE", "/items", "id=eq.1", &[], Bytes::new()).unwrap();
 
         assert!(req.payload.is_none());
         assert!(req.columns.is_empty());
@@ -949,7 +965,8 @@ mod reqwest_tests {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
             .await
             .expect("Failed to bind TCP listener: network access required. Ensure you have permission to bind sockets.");
-        let addr = listener.local_addr()
+        let addr = listener
+            .local_addr()
             .expect("Failed to get listener address");
         let url = format!("http://{}", addr);
 
@@ -1109,7 +1126,12 @@ mod reqwest_tests {
         assert_eq!(resp.status(), 200);
 
         let json: Value = resp.json().await.unwrap();
-        assert!(json["action_type"].as_str().unwrap().contains("MutationDelete"));
+        assert!(
+            json["action_type"]
+                .as_str()
+                .unwrap()
+                .contains("MutationDelete")
+        );
     }
 
     #[tokio::test]
@@ -1173,11 +1195,7 @@ mod reqwest_tests {
         let base_url = start_test_server().await;
         let client = reqwest::Client::new();
 
-        let resp = client
-            .get(format!("{}/", base_url))
-            .send()
-            .await
-            .unwrap();
+        let resp = client.get(format!("{}/", base_url)).send().await.unwrap();
 
         assert_eq!(resp.status(), 200);
 

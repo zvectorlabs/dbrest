@@ -20,13 +20,13 @@ use pgrest::api_request::preferences::{PreferCount, PreferRepresentation, Prefer
 use pgrest::api_request::{self, ApiRequest};
 use pgrest::config::AppConfig;
 use pgrest::error::Error;
-use pgrest::plan::{self, ActionPlan, CrudPlan, DbActionPlan};
-use pgrest::plan::read_plan::ReadPlanTree;
 use pgrest::plan::mutate_plan::MutatePlan;
+use pgrest::plan::read_plan::ReadPlanTree;
+use pgrest::plan::{self, ActionPlan, CrudPlan, DbActionPlan};
 use pgrest::query::{self, SqlBuilder, SqlParam};
 use pgrest::query::{builder, statements};
-use pgrest::schema_cache::db::{ColumnJson, DbIntrospector, RelationshipRow, RoutineRow, TableRow};
 use pgrest::schema_cache::SchemaCache;
+use pgrest::schema_cache::db::{ColumnJson, DbIntrospector, RelationshipRow, RoutineRow, TableRow};
 use sqlx::PgPool;
 use sqlx::Row;
 
@@ -119,7 +119,19 @@ impl<'a> SqlxIntrospector<'a> {
 #[async_trait::async_trait]
 impl DbIntrospector for SqlxIntrospector<'_> {
     async fn query_tables(&self, schemas: &[String]) -> Result<Vec<TableRow>, Error> {
-        let rows = sqlx::query_as::<_, (String, String, Option<String>, bool, bool, bool, bool, Vec<String>)>(
+        let rows = sqlx::query_as::<
+            _,
+            (
+                String,
+                String,
+                Option<String>,
+                bool,
+                bool,
+                bool,
+                bool,
+                Vec<String>,
+            ),
+        >(
             r#"
             SELECT
                 n.nspname AS table_schema,
@@ -203,7 +215,16 @@ impl DbIntrospector for SqlxIntrospector<'_> {
         })?;
 
         let mut result = Vec::new();
-        for (table_schema, table_name, foreign_schema, foreign_name, is_self, constraint, one_to_one) in rows {
+        for (
+            table_schema,
+            table_name,
+            foreign_schema,
+            foreign_name,
+            is_self,
+            constraint,
+            one_to_one,
+        ) in rows
+        {
             let cols = self.get_fk_columns(&constraint).await?;
             result.push(RelationshipRow {
                 table_schema,
@@ -262,7 +283,10 @@ impl DbIntrospector for SqlxIntrospector<'_> {
         Ok(result)
     }
 
-    async fn query_computed_fields(&self, _schemas: &[String]) -> Result<Vec<pgrest::schema_cache::ComputedFieldRow>, Error> {
+    async fn query_computed_fields(
+        &self,
+        _schemas: &[String],
+    ) -> Result<Vec<pgrest::schema_cache::ComputedFieldRow>, Error> {
         Ok(Vec::new())
     }
 
@@ -282,11 +306,7 @@ impl DbIntrospector for SqlxIntrospector<'_> {
 
 impl SqlxIntrospector<'_> {
     /// Fetch column metadata (name, type, nullable, default, etc.) for a table.
-    async fn get_columns(
-        &self,
-        schema: &str,
-        table: &str,
-    ) -> Result<Vec<ColumnJson>, Error> {
+    async fn get_columns(&self, schema: &str, table: &str) -> Result<Vec<ColumnJson>, Error> {
         let rows = sqlx::query_as::<_, (String, Option<String>, bool, String, String, Option<i32>, Option<String>)>(
             r#"
             SELECT
@@ -323,23 +343,29 @@ impl SqlxIntrospector<'_> {
 
         Ok(rows
             .into_iter()
-            .map(|(name, desc, nullable, data_type, default, max_length, _enum_info)| ColumnJson {
-                name,
-                description: desc,
-                nullable,
-                data_type: data_type.clone(),
-                nominal_type: data_type,
-                default: if default.is_empty() { None } else { Some(default) },
-                max_length,
-                enum_values: if _enum_info.is_some() {
-                    vec!["(enum)".to_string()]
-                } else {
-                    vec![]
+            .map(
+                |(name, desc, nullable, data_type, default, max_length, _enum_info)| ColumnJson {
+                    name,
+                    description: desc,
+                    nullable,
+                    data_type: data_type.clone(),
+                    nominal_type: data_type,
+                    default: if default.is_empty() {
+                        None
+                    } else {
+                        Some(default)
+                    },
+                    max_length,
+                    enum_values: if _enum_info.is_some() {
+                        vec!["(enum)".to_string()]
+                    } else {
+                        vec![]
+                    },
+                    is_composite: false,
+                    composite_type_schema: None,
+                    composite_type_name: None,
                 },
-                is_composite: false,
-                composite_type_schema: None,
-                composite_type_name: None,
-            })
+            )
             .collect())
     }
 
@@ -404,11 +430,12 @@ fn expect_wrapped_read(plan: &ActionPlan) -> &ReadPlanTree {
 fn expect_mutate_read(plan: &ActionPlan) -> (&MutatePlan, &ReadPlanTree) {
     match plan {
         ActionPlan::Db(DbActionPlan::DbCrud {
-            plan: CrudPlan::MutateReadPlan {
-                mutate_plan,
-                read_plan,
-                ..
-            },
+            plan:
+                CrudPlan::MutateReadPlan {
+                    mutate_plan,
+                    read_plan,
+                    ..
+                },
             ..
         }) => (mutate_plan, read_plan),
         other => panic!("Expected MutateReadPlan, got {other:?}"),
@@ -566,16 +593,26 @@ async fn test_read_all_users() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
     let stmt = statements::main_read(read_tree, None, None, false, None);
     let result = execute_statement(db.pool(), &stmt).await;
 
-    assert!(result.body.is_array(), "Expected JSON array, got: {:?}", result.body);
+    assert!(
+        result.body.is_array(),
+        "Expected JSON array, got: {:?}",
+        result.body
+    );
     assert_eq!(result.page_total, 4, "Expected 4 users from seed data");
     assert_eq!(result.body.as_array().unwrap().len(), 4);
 }
@@ -591,9 +628,15 @@ async fn test_read_select_columns() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "select=id,name",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "select=id,name",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -606,8 +649,14 @@ async fn test_read_select_columns() {
     assert!(first.get("id").is_some(), "Expected 'id' column");
     assert!(first.get("name").is_some(), "Expected 'name' column");
     // Only id and name should be present
-    assert!(first.get("email").is_none(), "Should not have 'email' column");
-    assert!(first.get("status").is_none(), "Should not have 'status' column");
+    assert!(
+        first.get("email").is_none(),
+        "Should not have 'email' column"
+    );
+    assert!(
+        first.get("status").is_none(),
+        "Should not have 'status' column"
+    );
 }
 
 /// GET /users?name=eq.Alice Johnson — equality filter.
@@ -621,9 +670,15 @@ async fn test_read_filter_eq() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "name=eq.Alice Johnson",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "name=eq.Alice Johnson",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -646,9 +701,15 @@ async fn test_read_order_asc() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "order=name.asc",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "order=name.asc",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -672,9 +733,15 @@ async fn test_read_order_desc() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "order=name.desc",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "order=name.desc",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -698,9 +765,15 @@ async fn test_read_limit_offset() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "limit=2&offset=1",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "limit=2&offset=1",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -721,9 +794,15 @@ async fn test_read_filter_in() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "status=in.(active,inactive)",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "status=in.(active,inactive)",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -745,9 +824,15 @@ async fn test_read_filter_is_null() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "bio=is.null",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "bio=is.null",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -769,9 +854,15 @@ async fn test_read_negated_filter() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "status=not.eq.pending",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "status=not.eq.pending",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -793,9 +884,15 @@ async fn test_read_filter_gte() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "id=gte.2",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "id=gte.2",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -817,9 +914,15 @@ async fn test_read_multiple_filters() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "status=eq.active&name=like.*Alice*",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "status=eq.active&name=like.*Alice*",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -847,9 +950,15 @@ async fn test_head_request() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "HEAD", "/users", "",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "HEAD",
+        "/users",
+        "",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     assert!(is_headers_only(&plan), "HEAD should set headers_only=true");
@@ -879,9 +988,15 @@ async fn test_exact_count() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &count_prefs(), "GET", "/users", "",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &count_prefs(),
+        "GET",
+        "/users",
+        "",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -903,9 +1018,15 @@ async fn test_exact_count_with_limit() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &count_prefs(), "GET", "/users", "limit=2",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &count_prefs(),
+        "GET",
+        "/users",
+        "limit=2",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -931,9 +1052,15 @@ async fn test_max_rows() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -958,10 +1085,15 @@ async fn test_read_posts_filtered_ordered() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/posts",
+        &config,
+        &default_prefs(),
+        "GET",
+        "/posts",
         "select=id,title&published=eq.true&order=title.asc",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -991,9 +1123,15 @@ async fn test_read_view() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/active_users", "",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/active_users",
+        "",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -1019,9 +1157,15 @@ async fn test_read_tasks() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/tasks", "select=id,title,priority",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/tasks",
+        "select=id,title,priority",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -1047,10 +1191,15 @@ async fn test_sql_generation_read_structure() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users",
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
         "select=id,name&name=eq.Alice Johnson&order=name.asc&limit=10",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -1058,7 +1207,10 @@ async fn test_sql_generation_read_structure() {
     let sql = inner.sql().to_string();
 
     assert!(sql.contains("SELECT "), "SQL must contain SELECT");
-    assert!(sql.contains("\"test_api\".\"users\""), "SQL must reference table");
+    assert!(
+        sql.contains("\"test_api\".\"users\""),
+        "SQL must reference table"
+    );
     assert!(sql.contains("WHERE"), "SQL must have WHERE clause");
     assert!(sql.contains("ORDER BY"), "SQL must have ORDER BY");
     assert!(sql.contains("LIMIT"), "SQL must have LIMIT");
@@ -1075,20 +1227,35 @@ async fn test_sql_generation_cte_wrapper() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
     let stmt = statements::main_read(read_tree, None, None, false, None);
     let sql = stmt.sql().to_string();
 
-    assert!(sql.starts_with("WITH pgrst_source AS ("), "Must start with CTE");
-    assert!(sql.contains("total_result_set"), "Must have total_result_set");
+    assert!(
+        sql.starts_with("WITH pgrst_source AS ("),
+        "Must start with CTE"
+    );
+    assert!(
+        sql.contains("total_result_set"),
+        "Must have total_result_set"
+    );
     assert!(sql.contains("page_total"), "Must have page_total");
     assert!(sql.contains("body"), "Must have body");
-    assert!(sql.contains("response_headers"), "Must have response_headers");
+    assert!(
+        sql.contains("response_headers"),
+        "Must have response_headers"
+    );
     assert!(sql.contains("response_status"), "Must have response_status");
     assert!(sql.contains("_pgrest_t"), "Must use _pgrest_t alias");
 }
@@ -1104,9 +1271,15 @@ async fn test_sql_generation_count_query() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -1120,9 +1293,7 @@ async fn test_sql_generation_count_query() {
 #[test]
 fn test_sql_generation_tx_vars() {
     let config = test_config();
-    let b = query::pre_query::tx_var_query(
-        &config, "GET", "/users", None, None, None, None,
-    );
+    let b = query::pre_query::tx_var_query(&config, "GET", "/users", None, None, None, None);
     let sql = b.sql().to_string();
 
     assert!(sql.starts_with("SELECT set_config("), "Must use set_config");
@@ -1146,17 +1317,24 @@ async fn test_main_query_bundle_executes() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
-    let mq = query::main_query(
-        &plan, &config, "GET", "/users", None, None, None, None,
-    );
+    let mq = query::main_query(&plan, &config, "GET", "/users", None, None, None, None);
 
     assert!(mq.tx_vars.is_some(), "Should have tx_vars");
-    assert!(mq.pre_req.is_none(), "Should not have pre_req (not configured)");
+    assert!(
+        mq.pre_req.is_none(),
+        "Should not have pre_req (not configured)"
+    );
     assert!(mq.main.is_some(), "Should have main query");
 
     // Execute the main query
@@ -1173,13 +1351,14 @@ fn test_main_query_with_pre_request() {
     let mut config = test_config();
     config.db_pre_request = Some(QualifiedIdentifier::new("test_api", "check_request"));
 
-    let mq = query::main_query(
-        &plan, &config, "OPTIONS", "/", None, None, None, None,
-    );
+    let mq = query::main_query(&plan, &config, "OPTIONS", "/", None, None, None, None);
 
     assert!(mq.pre_req.is_some(), "Should have pre_req when configured");
     let pre_sql = mq.pre_req.unwrap().sql().to_string();
-    assert!(pre_sql.contains("check_request"), "Pre-req SQL should reference function");
+    assert!(
+        pre_sql.contains("check_request"),
+        "Pre-req SQL should reference function"
+    );
 }
 
 // ==========================================================================
@@ -1201,9 +1380,15 @@ async fn test_write_insert_increases_count() {
 
     // Count before
     let read_req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
     let read_plan = plan::action_plan(&config, &read_req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&read_plan);
     let read_stmt = statements::main_read(read_tree, None, None, false, None);
@@ -1218,7 +1403,10 @@ async fn test_write_insert_increases_count() {
 
     // Count after
     let after = execute_statement(db.pool(), &read_stmt).await;
-    assert_eq!(after.page_total, 5, "Should have one more user after insert");
+    assert_eq!(
+        after.page_total, 5,
+        "Should have one more user after insert"
+    );
 }
 
 /// DELETE a user and verify the row count decreases.
@@ -1233,9 +1421,15 @@ async fn test_write_delete_decreases_count() {
 
     // Count before
     let read_req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
     let read_plan = plan::action_plan(&config, &read_req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&read_plan);
     let read_stmt = statements::main_read(read_tree, None, None, false, None);
@@ -1250,7 +1444,10 @@ async fn test_write_delete_decreases_count() {
 
     // Count after
     let after = execute_statement(db.pool(), &read_stmt).await;
-    assert_eq!(after.page_total, 3, "Should have one fewer user after delete");
+    assert_eq!(
+        after.page_total, 3,
+        "Should have one fewer user after delete"
+    );
 }
 
 /// UPDATE a user's name and verify the change is reflected in reads.
@@ -1271,9 +1468,15 @@ async fn test_write_update_reflected_in_read() {
 
     // Read back the updated user
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "id=eq.1",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "id=eq.1",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -1352,9 +1555,15 @@ async fn test_error_nonexistent_table() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/nonexistent", "",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/nonexistent",
+        "",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let result = plan::action_plan(&config, &req, &cache);
     assert!(result.is_err(), "Should fail for nonexistent table");
@@ -1371,9 +1580,15 @@ async fn test_error_nonexistent_embed() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "select=id,fake_relation(id)",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "select=id,fake_relation(id)",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let result = plan::action_plan(&config, &req, &cache);
     assert!(result.is_err(), "Should fail for nonexistent embed");
@@ -1394,9 +1609,15 @@ async fn test_read_empty_result() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "name=eq.Nobody",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "name=eq.Nobody",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -1405,7 +1626,10 @@ async fn test_read_empty_result() {
 
     assert_eq!(result.page_total, 0, "Should have no results");
     assert!(result.body.is_array(), "Should still return an array");
-    assert!(result.body.as_array().unwrap().is_empty(), "Array should be empty");
+    assert!(
+        result.body.as_array().unwrap().is_empty(),
+        "Array should be empty"
+    );
 }
 
 /// GET /users?name=eq.Nobody with Prefer: count=exact — count should be 0.
@@ -1419,9 +1643,15 @@ async fn test_read_empty_with_exact_count() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &count_prefs(), "GET", "/users", "name=eq.Nobody",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &count_prefs(),
+        "GET",
+        "/users",
+        "name=eq.Nobody",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -1450,10 +1680,15 @@ async fn test_join_o2m_users_with_posts() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users",
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
         "select=id,name,posts(id,title)",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -1487,10 +1722,15 @@ async fn test_join_o2m_filtered_parent() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users",
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
         "select=id,name,posts(id,title)&id=eq.1",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -1522,10 +1762,15 @@ async fn test_join_o2m_posts_with_comments() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/posts",
+        &config,
+        &default_prefs(),
+        "GET",
+        "/posts",
         "select=id,title,comments(id,body)",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -1560,10 +1805,15 @@ async fn test_join_m2o_posts_with_author() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/posts",
+        &config,
+        &default_prefs(),
+        "GET",
+        "/posts",
         "select=id,title,users(id,name)",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -1592,10 +1842,15 @@ async fn test_join_nested_three_levels() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users",
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
         "select=id,name,posts(id,title,comments(id,body))&id=eq.1",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -1630,10 +1885,15 @@ async fn test_join_multiple_embeds() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users",
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
         "select=id,name,posts(id,title),profiles(avatar_url)&id=eq.1",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -1648,7 +1908,10 @@ async fn test_join_multiple_embeds() {
     assert!(alice.get("posts").is_some(), "Should have posts embed");
 
     // Profiles embed should be present (O2O — Alice has a profile)
-    assert!(alice.get("profiles").is_some(), "Should have profiles embed");
+    assert!(
+        alice.get("profiles").is_some(),
+        "Should have profiles embed"
+    );
 }
 
 /// GET /users?select=id,name,posts(id,title)&order=name.asc — embed with ordering.
@@ -1664,10 +1927,15 @@ async fn test_join_embed_with_parent_ordering() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users",
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
         "select=id,name,posts(id,title)&order=name.asc",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -1684,7 +1952,10 @@ async fn test_join_embed_with_parent_ordering() {
 
     // All rows should have a posts embed (even if empty array)
     for row in arr {
-        assert!(row.get("posts").is_some(), "Each user should have a posts embed");
+        assert!(
+            row.get("posts").is_some(),
+            "Each user should have a posts embed"
+        );
     }
 }
 
@@ -1702,10 +1973,15 @@ async fn test_join_embed_with_pagination() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users",
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
         "select=id,name,posts(id,title)&limit=2",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -1718,7 +1994,10 @@ async fn test_join_embed_with_pagination() {
 
     // Both rows should have posts embed
     for row in arr {
-        assert!(row.get("posts").is_some(), "Each user should have a posts embed");
+        assert!(
+            row.get("posts").is_some(),
+            "Each user should have a posts embed"
+        );
     }
 }
 
@@ -1733,10 +2012,15 @@ async fn test_join_sql_contains_lateral() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users",
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
         "select=id,name,posts(id,title)",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -1745,9 +2029,15 @@ async fn test_join_sql_contains_lateral() {
     let inner = builder::read_plan_to_query(read_tree);
     let sql = inner.sql().to_string();
 
-    assert!(sql.contains("JOIN LATERAL"), "Embed query must use LATERAL JOIN");
+    assert!(
+        sql.contains("JOIN LATERAL"),
+        "Embed query must use LATERAL JOIN"
+    );
     assert!(sql.contains("ON TRUE"), "LATERAL JOIN must have ON TRUE");
-    assert!(sql.contains("json_agg"), "O2M embed must use json_agg for aggregation");
+    assert!(
+        sql.contains("json_agg"),
+        "O2M embed must use json_agg for aggregation"
+    );
     assert!(sql.contains("\"posts\""), "Must reference the posts table");
 }
 
@@ -1762,19 +2052,33 @@ async fn test_join_cte_wrapper_with_embed() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &default_prefs(), "GET", "/users",
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
         "select=id,name,posts(id,title)",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
     let stmt = statements::main_read(read_tree, None, None, false, None);
     let sql = stmt.sql().to_string();
 
-    assert!(sql.starts_with("WITH pgrst_source AS ("), "Must start with CTE");
-    assert!(sql.contains("JOIN LATERAL"), "CTE source must contain LATERAL JOIN");
-    assert!(sql.contains("total_result_set"), "CTE must have total_result_set");
+    assert!(
+        sql.starts_with("WITH pgrst_source AS ("),
+        "Must start with CTE"
+    );
+    assert!(
+        sql.contains("JOIN LATERAL"),
+        "CTE source must contain LATERAL JOIN"
+    );
+    assert!(
+        sql.contains("total_result_set"),
+        "CTE must have total_result_set"
+    );
     assert!(sql.contains("page_total"), "CTE must have page_total");
     assert!(sql.contains("body"), "CTE must have body");
 }
@@ -1794,10 +2098,15 @@ async fn test_join_embed_with_exact_count() {
     let config = test_config();
 
     let req = build_api_request(
-        &config, &count_prefs(), "GET", "/users",
+        &config,
+        &count_prefs(),
+        "GET",
+        "/users",
         "select=id,name,posts(id,title)",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
@@ -1805,7 +2114,11 @@ async fn test_join_embed_with_exact_count() {
     let result = execute_statement(db.pool(), &stmt).await;
 
     // Count should be parent rows (4 users), not joined rows
-    assert_eq!(result.total, Some(4), "Exact count should be 4 users, not joined row count");
+    assert_eq!(
+        result.total,
+        Some(4),
+        "Exact count should be 4 users, not joined row count"
+    );
     assert_eq!(result.page_total, 4);
 }
 
@@ -1827,11 +2140,18 @@ async fn test_insert_post_then_verify_embed() {
     let config = test_config();
 
     // 1. Insert a new post for Alice (user_id=1) via the API pipeline
-    let body = Bytes::from(r#"{"user_id":1,"title":"New Post","body":"Fresh content","published":true}"#);
+    let body =
+        Bytes::from(r#"{"user_id":1,"title":"New Post","body":"Fresh content","published":true}"#);
     let insert_req = build_api_request(
-        &config, &return_rep_prefs(), "POST", "/posts", "",
-        &json_ct_headers(), body,
-    ).unwrap();
+        &config,
+        &return_rep_prefs(),
+        "POST",
+        "/posts",
+        "",
+        &json_ct_headers(),
+        body,
+    )
+    .unwrap();
 
     let insert_plan = plan::action_plan(&config, &insert_req, &cache).unwrap();
     let (mutate, read) = expect_mutate_read(&insert_plan);
@@ -1849,10 +2169,15 @@ async fn test_insert_post_then_verify_embed() {
 
     // 2. Now read Alice with her posts embedded — should have 3 posts (was 2)
     let read_req = build_api_request(
-        &config, &default_prefs(), "GET", "/users",
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
         "select=id,name,posts(id,title)&id=eq.1",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let read_plan = plan::action_plan(&config, &read_req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&read_plan);
@@ -1862,9 +2187,16 @@ async fn test_insert_post_then_verify_embed() {
     assert_eq!(read_result.page_total, 1);
     let alice = &read_result.body.as_array().unwrap()[0];
     let posts = parse_embed(&alice["posts"]);
-    assert_eq!(posts.len(), 3, "Alice should now have 3 posts (2 original + 1 new)");
+    assert_eq!(
+        posts.len(),
+        3,
+        "Alice should now have 3 posts (2 original + 1 new)"
+    );
     let titles: Vec<&str> = posts.iter().map(|p| p["title"].as_str().unwrap()).collect();
-    assert!(titles.contains(&"New Post"), "New post should appear in embed");
+    assert!(
+        titles.contains(&"New Post"),
+        "New post should appear in embed"
+    );
 }
 
 /// PATCH /posts?id=eq.1 — update a post's title, then verify the user embed still works.
@@ -1883,9 +2215,15 @@ async fn test_update_post_then_verify_author_embed() {
     // 1. Update post 1's title
     let body = Bytes::from(r#"{"title":"Hello Updated"}"#);
     let update_req = build_api_request(
-        &config, &return_rep_prefs(), "PATCH", "/posts", "id=eq.1",
-        &json_ct_headers(), body,
-    ).unwrap();
+        &config,
+        &return_rep_prefs(),
+        "PATCH",
+        "/posts",
+        "id=eq.1",
+        &json_ct_headers(),
+        body,
+    )
+    .unwrap();
 
     let update_plan = plan::action_plan(&config, &update_req, &cache).unwrap();
     let (mutate, read) = expect_mutate_read(&update_plan);
@@ -1901,10 +2239,15 @@ async fn test_update_post_then_verify_author_embed() {
 
     // 2. Read posts with author embed — updated post should have same author
     let read_req = build_api_request(
-        &config, &default_prefs(), "GET", "/posts",
+        &config,
+        &default_prefs(),
+        "GET",
+        "/posts",
         "select=id,title,users(id,name)&id=eq.1",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let read_plan = plan::action_plan(&config, &read_req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&read_plan);
@@ -1915,7 +2258,10 @@ async fn test_update_post_then_verify_author_embed() {
     let post = &read_result.body.as_array().unwrap()[0];
     assert_eq!(post["title"], "Hello Updated");
     let author = parse_embed_one(&post["users"]);
-    assert_eq!(author["name"], "Alice Johnson", "Author should still be Alice");
+    assert_eq!(
+        author["name"], "Alice Johnson",
+        "Author should still be Alice"
+    );
 }
 
 /// DELETE /posts?user_id=eq.2 — delete all of Bob's posts, then verify his embed is empty.
@@ -1933,9 +2279,15 @@ async fn test_delete_posts_then_verify_empty_embed() {
 
     // 1. Delete all of Bob's posts (user_id=2)
     let delete_req = build_api_request(
-        &config, &default_prefs(), "DELETE", "/posts", "user_id=eq.2",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "DELETE",
+        "/posts",
+        "user_id=eq.2",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let delete_plan = plan::action_plan(&config, &delete_req, &cache).unwrap();
     let (mutate, read) = expect_mutate_read(&delete_plan);
@@ -1946,10 +2298,15 @@ async fn test_delete_posts_then_verify_empty_embed() {
 
     // 2. Read Bob with posts embed — should now be empty
     let read_req = build_api_request(
-        &config, &default_prefs(), "GET", "/users",
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
         "select=id,name,posts(id,title)&id=eq.2",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let read_plan = plan::action_plan(&config, &read_req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&read_plan);
@@ -1979,9 +2336,15 @@ async fn test_insert_comment_verify_relationships() {
     // 1. Insert a new comment on post 2 ("Advanced Topics") by Bob (user_id=2)
     let body = Bytes::from(r#"{"post_id":2,"user_id":2,"body":"Nice advanced topics!"}"#);
     let insert_req = build_api_request(
-        &config, &return_rep_prefs(), "POST", "/comments", "",
-        &json_ct_headers(), body,
-    ).unwrap();
+        &config,
+        &return_rep_prefs(),
+        "POST",
+        "/comments",
+        "",
+        &json_ct_headers(),
+        body,
+    )
+    .unwrap();
 
     let insert_plan = plan::action_plan(&config, &insert_req, &cache).unwrap();
     let (mutate, read) = expect_mutate_read(&insert_plan);
@@ -1992,10 +2355,15 @@ async fn test_insert_comment_verify_relationships() {
 
     // 2. Read post 2 with comments embed — should now have 1 comment
     let read_req = build_api_request(
-        &config, &default_prefs(), "GET", "/posts",
+        &config,
+        &default_prefs(),
+        "GET",
+        "/posts",
         "select=id,title,comments(id,body)&id=eq.2",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let read_plan = plan::action_plan(&config, &read_req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&read_plan);
@@ -2024,11 +2392,18 @@ async fn test_insert_user_then_post_verify_chain() {
     let config = test_config();
 
     // 1. Insert a new user
-    let user_body = Bytes::from(r#"{"email":"eve@example.com","name":"Eve Wilson","status":"active"}"#);
+    let user_body =
+        Bytes::from(r#"{"email":"eve@example.com","name":"Eve Wilson","status":"active"}"#);
     let user_req = build_api_request(
-        &config, &return_rep_prefs(), "POST", "/users", "",
-        &json_ct_headers(), user_body,
-    ).unwrap();
+        &config,
+        &return_rep_prefs(),
+        "POST",
+        "/users",
+        "",
+        &json_ct_headers(),
+        user_body,
+    )
+    .unwrap();
 
     let user_plan = plan::action_plan(&config, &user_req, &cache).unwrap();
     let (mutate, read) = expect_mutate_read(&user_plan);
@@ -2038,8 +2413,13 @@ async fn test_insert_user_then_post_verify_chain() {
     assert_eq!(user_result.page_total, 1);
 
     // Extract the new user's id from the returned representation
-    let new_user_id = user_result.body.as_array().unwrap()[0]["id"].as_i64().unwrap();
-    assert!(new_user_id > 4, "New user id should be > 4 (auto-increment)");
+    let new_user_id = user_result.body.as_array().unwrap()[0]["id"]
+        .as_i64()
+        .unwrap();
+    assert!(
+        new_user_id > 4,
+        "New user id should be > 4 (auto-increment)"
+    );
 
     // 2. Insert a post for the new user (using raw SQL for the FK since
     //    POST body can't reference computed values)
@@ -2051,10 +2431,15 @@ async fn test_insert_user_then_post_verify_chain() {
 
     // 3. Read the new user with posts embed
     let read_req = build_api_request(
-        &config, &default_prefs(), "GET", "/users",
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
         &format!("select=id,name,posts(id,title)&id=eq.{}", new_user_id),
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let read_plan = plan::action_plan(&config, &read_req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&read_plan);
@@ -2083,17 +2468,27 @@ async fn test_delete_user_cascades_to_relations() {
     let config = test_config();
 
     // Verify Charlie has a role before deletion
-    let role_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM test_api.user_roles WHERE user_id = 3")
-        .fetch_one(db.pool())
-        .await
-        .unwrap();
-    assert_eq!(role_count.0, 1, "Charlie should have 1 role before deletion");
+    let role_count: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM test_api.user_roles WHERE user_id = 3")
+            .fetch_one(db.pool())
+            .await
+            .unwrap();
+    assert_eq!(
+        role_count.0, 1,
+        "Charlie should have 1 role before deletion"
+    );
 
     // Delete Charlie via API pipeline
     let delete_req = build_api_request(
-        &config, &default_prefs(), "DELETE", "/users", "id=eq.3",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "DELETE",
+        "/users",
+        "id=eq.3",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
 
     let delete_plan = plan::action_plan(&config, &delete_req, &cache).unwrap();
     let (mutate, read) = expect_mutate_read(&delete_plan);
@@ -2102,17 +2497,27 @@ async fn test_delete_user_cascades_to_relations() {
     assert_eq!(delete_result.page_total, 1, "Should delete exactly 1 user");
 
     // Verify CASCADE: Charlie's role should be gone
-    let role_count_after: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM test_api.user_roles WHERE user_id = 3")
-        .fetch_one(db.pool())
-        .await
-        .unwrap();
-    assert_eq!(role_count_after.0, 0, "Charlie's roles should be cascaded away");
+    let role_count_after: (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM test_api.user_roles WHERE user_id = 3")
+            .fetch_one(db.pool())
+            .await
+            .unwrap();
+    assert_eq!(
+        role_count_after.0, 0,
+        "Charlie's roles should be cascaded away"
+    );
 
     // Verify Charlie is no longer in the users read
     let read_req = build_api_request(
-        &config, &default_prefs(), "GET", "/users", "id=eq.3",
-        &json_headers(), Bytes::new(),
-    ).unwrap();
+        &config,
+        &default_prefs(),
+        "GET",
+        "/users",
+        "id=eq.3",
+        &json_headers(),
+        Bytes::new(),
+    )
+    .unwrap();
     let read_plan = plan::action_plan(&config, &read_req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&read_plan);
     let read_stmt = statements::main_read(read_tree, None, None, false, None);

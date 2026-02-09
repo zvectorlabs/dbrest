@@ -48,7 +48,9 @@ fn should_parse_payload(action: &Action) -> bool {
     matches!(
         action,
         Action::Db(DbAction::RelationMut {
-            mutation: Mutation::MutationCreate | Mutation::MutationUpdate | Mutation::MutationSingleUpsert,
+            mutation: Mutation::MutationCreate
+                | Mutation::MutationUpdate
+                | Mutation::MutationSingleUpsert,
             ..
         }) | Action::Db(DbAction::Routine {
             inv_method: InvokeMethod::Inv,
@@ -96,7 +98,12 @@ fn parse_payload(
         (MediaType::ApplicationFormUrlEncoded, true) => {
             // URL-encoded for RPC
             let params: Vec<(CompactString, CompactString)> = form_urlencoded::parse(body)
-                .map(|(k, v)| (CompactString::from(k.as_ref()), CompactString::from(v.as_ref())))
+                .map(|(k, v)| {
+                    (
+                        CompactString::from(k.as_ref()),
+                        CompactString::from(v.as_ref()),
+                    )
+                })
                 .collect();
             let keys: HashSet<CompactString> = params.iter().map(|(k, _)| k.clone()).collect();
             Ok(Some(Payload::ProcessedUrlEncoded { params, keys }))
@@ -104,7 +111,12 @@ fn parse_payload(
         (MediaType::ApplicationFormUrlEncoded, false) => {
             // URL-encoded for non-RPC: convert to JSON-like structure
             let params: Vec<(CompactString, CompactString)> = form_urlencoded::parse(body)
-                .map(|(k, v)| (CompactString::from(k.as_ref()), CompactString::from(v.as_ref())))
+                .map(|(k, v)| {
+                    (
+                        CompactString::from(k.as_ref()),
+                        CompactString::from(v.as_ref()),
+                    )
+                })
                 .collect();
             let keys: HashSet<CompactString> = params.iter().map(|(k, _)| k.clone()).collect();
             // Build JSON from params
@@ -112,16 +124,16 @@ fn parse_payload(
                 .iter()
                 .map(|(k, v)| (k.to_string(), serde_json::Value::String(v.to_string())))
                 .collect();
-            let raw = serde_json::to_vec(&json_map)
-                .map_err(|e| Error::InvalidBody(e.to_string()))?;
+            let raw =
+                serde_json::to_vec(&json_map).map_err(|e| Error::InvalidBody(e.to_string()))?;
             Ok(Some(Payload::ProcessedJSON {
                 raw: Bytes::from(raw),
                 keys,
             }))
         }
-        (MediaType::TextPlain, true) | (MediaType::ApplicationXml, true) | (MediaType::ApplicationOctetStream, true) => {
-            Ok(Some(Payload::RawPayload(body.clone())))
-        }
+        (MediaType::TextPlain, true)
+        | (MediaType::ApplicationXml, true)
+        | (MediaType::ApplicationOctetStream, true) => Ok(Some(Payload::RawPayload(body.clone()))),
         (ct, _) => Err(Error::InvalidContentType(format!(
             "Content-Type not acceptable: {}",
             ct
@@ -143,8 +155,8 @@ fn parse_json_payload(body: &Bytes, is_proc: bool) -> Result<Option<Payload>, Er
         return Err(Error::InvalidBody("Empty or invalid json".to_string()));
     }
 
-    let parsed: serde_json::Value =
-        serde_json::from_slice(body).map_err(|_| Error::InvalidBody("Empty or invalid json".to_string()))?;
+    let parsed: serde_json::Value = serde_json::from_slice(body)
+        .map_err(|_| Error::InvalidBody("Empty or invalid json".to_string()))?;
 
     match &parsed {
         serde_json::Value::Array(arr) => {
@@ -180,14 +192,10 @@ fn parse_json_payload(body: &Bytes, is_proc: bool) -> Result<Option<Payload>, Er
                         keys: canonical_keys,
                     }))
                 } else {
-                    Err(Error::InvalidBody(
-                        "All object keys must match".to_string(),
-                    ))
+                    Err(Error::InvalidBody("All object keys must match".to_string()))
                 }
             } else {
-                Err(Error::InvalidBody(
-                    "All object keys must match".to_string(),
-                ))
+                Err(Error::InvalidBody("All object keys must match".to_string()))
             }
         }
         serde_json::Value::Object(obj) => {
@@ -248,7 +256,8 @@ mod tests {
     fn test_json_object_payload() {
         let body = Bytes::from(r#"{"id":1,"name":"test"}"#);
         let qp = default_qp();
-        let (payload, cols) = get_payload(body, &MediaType::ApplicationJson, &qp, &create_action()).unwrap();
+        let (payload, cols) =
+            get_payload(body, &MediaType::ApplicationJson, &qp, &create_action()).unwrap();
         let payload = payload.unwrap();
         assert_eq!(cols.len(), 2);
         assert!(cols.contains("id"));
@@ -260,7 +269,8 @@ mod tests {
     fn test_json_array_payload() {
         let body = Bytes::from(r#"[{"id":1,"name":"a"},{"id":2,"name":"b"}]"#);
         let qp = default_qp();
-        let (payload, cols) = get_payload(body, &MediaType::ApplicationJson, &qp, &create_action()).unwrap();
+        let (payload, cols) =
+            get_payload(body, &MediaType::ApplicationJson, &qp, &create_action()).unwrap();
         let payload = payload.unwrap();
         assert_eq!(cols.len(), 2);
         assert!(matches!(payload, Payload::ProcessedJSON { .. }));
@@ -278,7 +288,8 @@ mod tests {
     fn test_empty_json_for_rpc() {
         let body = Bytes::new();
         let qp = default_qp();
-        let (payload, _) = get_payload(body, &MediaType::ApplicationJson, &qp, &rpc_action()).unwrap();
+        let (payload, _) =
+            get_payload(body, &MediaType::ApplicationJson, &qp, &rpc_action()).unwrap();
         assert!(payload.is_some());
     }
 
@@ -302,7 +313,13 @@ mod tests {
     fn test_url_encoded_rpc() {
         let body = Bytes::from("id=1&name=test");
         let qp = default_qp();
-        let (payload, cols) = get_payload(body, &MediaType::ApplicationFormUrlEncoded, &qp, &rpc_action()).unwrap();
+        let (payload, cols) = get_payload(
+            body,
+            &MediaType::ApplicationFormUrlEncoded,
+            &qp,
+            &rpc_action(),
+        )
+        .unwrap();
         let payload = payload.unwrap();
         assert_eq!(cols.len(), 2);
         assert!(matches!(payload, Payload::ProcessedUrlEncoded { .. }));
@@ -312,7 +329,13 @@ mod tests {
     fn test_url_encoded_non_rpc() {
         let body = Bytes::from("id=1&name=test");
         let qp = default_qp();
-        let (payload, cols) = get_payload(body, &MediaType::ApplicationFormUrlEncoded, &qp, &create_action()).unwrap();
+        let (payload, cols) = get_payload(
+            body,
+            &MediaType::ApplicationFormUrlEncoded,
+            &qp,
+            &create_action(),
+        )
+        .unwrap();
         let payload = payload.unwrap();
         assert_eq!(cols.len(), 2);
         assert!(matches!(payload, Payload::ProcessedJSON { .. }));
@@ -330,7 +353,8 @@ mod tests {
     fn test_octet_stream_rpc() {
         let body = Bytes::from(vec![0u8, 1, 2, 3]);
         let qp = default_qp();
-        let (payload, _) = get_payload(body, &MediaType::ApplicationOctetStream, &qp, &rpc_action()).unwrap();
+        let (payload, _) =
+            get_payload(body, &MediaType::ApplicationOctetStream, &qp, &rpc_action()).unwrap();
         assert!(matches!(payload.unwrap(), Payload::RawPayload(_)));
     }
 
@@ -346,7 +370,8 @@ mod tests {
     fn test_no_payload_for_read() {
         let body = Bytes::from("data");
         let qp = default_qp();
-        let (payload, cols) = get_payload(body, &MediaType::ApplicationJson, &qp, &read_action()).unwrap();
+        let (payload, cols) =
+            get_payload(body, &MediaType::ApplicationJson, &qp, &read_action()).unwrap();
         assert!(payload.is_none());
         assert!(cols.is_empty());
     }
@@ -360,7 +385,8 @@ mod tests {
         cols_set.insert(CompactString::from("name"));
         qp.columns = Some(cols_set.clone());
 
-        let (payload, cols) = get_payload(body, &MediaType::ApplicationJson, &qp, &create_action()).unwrap();
+        let (payload, cols) =
+            get_payload(body, &MediaType::ApplicationJson, &qp, &create_action()).unwrap();
         assert!(matches!(payload.unwrap(), Payload::RawJSON(_)));
         assert_eq!(cols.len(), 2);
     }
@@ -369,7 +395,8 @@ mod tests {
     fn test_empty_json_array() {
         let body = Bytes::from("[]");
         let qp = default_qp();
-        let (payload, cols) = get_payload(body, &MediaType::ApplicationJson, &qp, &create_action()).unwrap();
+        let (payload, cols) =
+            get_payload(body, &MediaType::ApplicationJson, &qp, &create_action()).unwrap();
         assert!(payload.is_some());
         assert!(cols.is_empty());
     }
@@ -378,7 +405,8 @@ mod tests {
     fn test_payload_keys() {
         let body = Bytes::from(r#"{"a":1,"b":2,"c":3}"#);
         let qp = default_qp();
-        let (payload, cols) = get_payload(body, &MediaType::ApplicationJson, &qp, &create_action()).unwrap();
+        let (payload, cols) =
+            get_payload(body, &MediaType::ApplicationJson, &qp, &create_action()).unwrap();
         let payload = payload.unwrap();
         assert_eq!(cols.len(), 3);
         assert_eq!(payload.keys().len(), 3);

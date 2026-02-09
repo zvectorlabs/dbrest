@@ -25,8 +25,8 @@
 use compact_str::CompactString;
 use jsonwebtoken::{Algorithm, DecodingKey, TokenData, Validation};
 
-use crate::config::jwt::extract_from_json;
 use crate::config::AppConfig;
+use crate::config::jwt::extract_from_json;
 
 use super::error::{JwtClaimsError, JwtDecodeError, JwtError};
 use super::types::AuthResult;
@@ -94,16 +94,13 @@ fn create_validation_context(
     token: &str,
     config: &AppConfig,
 ) -> Result<(DecodingKey, Validation), JwtError> {
-    let secret_str = config
-        .jwt_secret
-        .as_ref()
-        .ok_or(JwtError::SecretMissing)?;
+    let secret_str = config.jwt_secret.as_ref().ok_or(JwtError::SecretMissing)?;
 
     // Try parsing as JWKS JSON first
-    if secret_str.trim_start().starts_with('{') {
-        if let Ok(jwks) = serde_json::from_str::<jsonwebtoken::jwk::JwkSet>(secret_str) {
-            return create_jwks_context(token, &jwks, config);
-        }
+    if secret_str.trim_start().starts_with('{')
+        && let Ok(jwks) = serde_json::from_str::<jsonwebtoken::jwk::JwkSet>(secret_str)
+    {
+        return create_jwks_context(token, &jwks, config);
     }
 
     // Plain secret (or base64-encoded)
@@ -115,8 +112,7 @@ fn create_validation_context(
     };
 
     // Decode header to find algorithm
-    let header = jsonwebtoken::decode_header(token)
-        .map_err(|e| map_decode_error(e))?;
+    let header = jsonwebtoken::decode_header(token).map_err(map_decode_error)?;
 
     let mut validation = Validation::new(header.alg);
     configure_validation(&mut validation, config);
@@ -130,28 +126,25 @@ fn create_jwks_context(
     jwks: &jsonwebtoken::jwk::JwkSet,
     config: &AppConfig,
 ) -> Result<(DecodingKey, Validation), JwtError> {
-    let header = jsonwebtoken::decode_header(token)
-        .map_err(|e| map_decode_error(e))?;
+    let header = jsonwebtoken::decode_header(token).map_err(map_decode_error)?;
 
     // Find the matching JWK by kid
     let jwk = if let Some(kid) = &header.kid {
-        jwks.find(kid).ok_or_else(|| {
-            JwtDecodeError::KeyError(format!("No JWK found with kid '{kid}'"))
-        })?
+        jwks.find(kid)
+            .ok_or_else(|| JwtDecodeError::KeyError(format!("No JWK found with kid '{kid}'")))?
     } else {
         // No kid — use the first key
-        jwks.keys.first().ok_or_else(|| {
-            JwtDecodeError::KeyError("JWKS contains no keys".to_string())
-        })?
+        jwks.keys
+            .first()
+            .ok_or_else(|| JwtDecodeError::KeyError("JWKS contains no keys".to_string()))?
     };
 
-    let key = DecodingKey::from_jwk(jwk)
-        .map_err(|e| JwtDecodeError::KeyError(e.to_string()))?;
+    let key = DecodingKey::from_jwk(jwk).map_err(|e| JwtDecodeError::KeyError(e.to_string()))?;
 
     let alg = jwk
         .common
         .key_algorithm
-        .and_then(|a| algorithm_from_key_alg(a))
+        .and_then(algorithm_from_key_alg)
         .unwrap_or(header.alg);
 
     let mut validation = Validation::new(alg);
@@ -185,12 +178,8 @@ fn map_decode_error(e: jsonwebtoken::errors::Error) -> JwtError {
         ErrorKind::ImmatureSignature => JwtClaimsError::NotYetValid.into(),
         ErrorKind::InvalidAudience => JwtClaimsError::NotInAudience.into(),
         ErrorKind::InvalidSignature => JwtDecodeError::BadCrypto.into(),
-        ErrorKind::InvalidAlgorithm => {
-            JwtDecodeError::BadAlgorithm(e.to_string()).into()
-        }
-        ErrorKind::InvalidKeyFormat => {
-            JwtDecodeError::KeyError(e.to_string()).into()
-        }
+        ErrorKind::InvalidAlgorithm => JwtDecodeError::BadAlgorithm(e.to_string()).into(),
+        ErrorKind::InvalidKeyFormat => JwtDecodeError::KeyError(e.to_string()).into(),
         ErrorKind::InvalidToken => {
             // Could be bad base64, wrong format, etc.
             JwtDecodeError::BadCrypto.into()
@@ -203,9 +192,7 @@ fn map_decode_error(e: jsonwebtoken::errors::Error) -> JwtError {
 }
 
 /// Convert JWK key algorithm to `jsonwebtoken::Algorithm`.
-fn algorithm_from_key_alg(
-    alg: jsonwebtoken::jwk::KeyAlgorithm,
-) -> Option<Algorithm> {
+fn algorithm_from_key_alg(alg: jsonwebtoken::jwk::KeyAlgorithm) -> Option<Algorithm> {
     use jsonwebtoken::jwk::KeyAlgorithm;
     match alg {
         KeyAlgorithm::HS256 => Some(Algorithm::HS256),
@@ -288,11 +275,7 @@ mod tests {
         .unwrap()
     }
 
-    fn encode_token_with_alg(
-        claims: &serde_json::Value,
-        secret: &str,
-        alg: Algorithm,
-    ) -> String {
+    fn encode_token_with_alg(claims: &serde_json::Value, secret: &str, alg: Algorithm) -> String {
         let header = JwtHeader::new(alg);
         jsonwebtoken::encode(
             &header,
@@ -489,8 +472,7 @@ mod tests {
     fn test_parse_base64_secret() {
         use base64::Engine;
         let raw_secret = "a]gq@2Yr4wLvA#_6!qnMb*X^tbP$I@av";
-        let b64_secret =
-            base64::engine::general_purpose::STANDARD.encode(raw_secret.as_bytes());
+        let b64_secret = base64::engine::general_purpose::STANDARD.encode(raw_secret.as_bytes());
 
         let mut config = AppConfig::default();
         config.jwt_secret = Some(b64_secret);
@@ -533,10 +515,8 @@ mod tests {
     fn test_extract_role_nested() {
         let secret = "a]gq@2Yr4wLvA#_6!qnMb*X^tbP$I@av";
         let mut config = test_config(secret);
-        config.jwt_role_claim_key = vec![
-            JsPathExp::Key("user".into()),
-            JsPathExp::Key("role".into()),
-        ];
+        config.jwt_role_claim_key =
+            vec![JsPathExp::Key("user".into()), JsPathExp::Key("role".into())];
 
         let claims = serde_json::json!({
             "user": { "role": "nested_admin" },
@@ -552,10 +532,7 @@ mod tests {
     fn test_extract_role_array_index() {
         let secret = "a]gq@2Yr4wLvA#_6!qnMb*X^tbP$I@av";
         let mut config = test_config(secret);
-        config.jwt_role_claim_key = vec![
-            JsPathExp::Key("roles".into()),
-            JsPathExp::Index(0),
-        ];
+        config.jwt_role_claim_key = vec![JsPathExp::Key("roles".into()), JsPathExp::Index(0)];
 
         let claims = serde_json::json!({
             "roles": ["first_role", "second_role"],

@@ -265,15 +265,15 @@ pub enum OrderTerm {
 /// Simple operators (always take a single value, no quantifiers)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SimpleOperator {
-    NotEqual,    // neq
-    Contains,    // cs
-    Contained,   // cd
-    Overlap,     // ov
-    StrictlyLeft,     // sl
-    StrictlyRight,    // sr
-    NotExtendsRight,  // nxr
-    NotExtendsLeft,   // nxl
-    Adjacent,    // adj
+    NotEqual,        // neq
+    Contains,        // cs
+    Contained,       // cd
+    Overlap,         // ov
+    StrictlyLeft,    // sl
+    StrictlyRight,   // sr
+    NotExtendsRight, // nxr
+    NotExtendsLeft,  // nxl
+    Adjacent,        // adj
 }
 
 /// Quantifiable operators (can use `any`/`all` modifiers)
@@ -525,16 +525,10 @@ mod tests {
     #[test]
     fn test_json_operations() {
         let op = JsonOperation::Arrow(JsonOperand::Key("name".into()));
-        assert_eq!(
-            op,
-            JsonOperation::Arrow(JsonOperand::Key("name".into()))
-        );
+        assert_eq!(op, JsonOperation::Arrow(JsonOperand::Key("name".into())));
 
         let op2 = JsonOperation::Arrow2(JsonOperand::Idx("+0".into()));
-        assert_eq!(
-            op2,
-            JsonOperation::Arrow2(JsonOperand::Idx("+0".into()))
-        );
+        assert_eq!(op2, JsonOperation::Arrow2(JsonOperand::Idx("+0".into())));
     }
 
     #[test]
@@ -564,7 +558,10 @@ mod tests {
             direction: None,
             nulls: None,
         };
-        if let OrderTerm::RelationTerm { relation, field, .. } = &term {
+        if let OrderTerm::RelationTerm {
+            relation, field, ..
+        } = &term
+        {
             assert_eq!(relation.as_str(), "clients");
             assert_eq!(field.0.as_str(), "name");
         }
@@ -573,10 +570,7 @@ mod tests {
     #[test]
     fn test_operation_simple() {
         let op = Operation::Simple(SimpleOperator::NotEqual, "5".into());
-        assert_eq!(
-            op,
-            Operation::Simple(SimpleOperator::NotEqual, "5".into())
-        );
+        assert_eq!(op, Operation::Simple(SimpleOperator::NotEqual, "5".into()));
     }
 
     #[test]
@@ -599,10 +593,7 @@ mod tests {
     #[test]
     fn test_operation_is() {
         assert_eq!(Operation::Is(IsValue::Null), Operation::Is(IsValue::Null));
-        assert_ne!(
-            Operation::Is(IsValue::True),
-            Operation::Is(IsValue::False)
-        );
+        assert_ne!(Operation::Is(IsValue::True), Operation::Is(IsValue::False));
     }
 
     #[test]
@@ -716,10 +707,7 @@ mod tests {
     #[test]
     fn test_is_distinct_from() {
         let op = Operation::IsDistinctFrom("value".into());
-        assert_eq!(
-            op,
-            Operation::IsDistinctFrom("value".into())
-        );
+        assert_eq!(op, Operation::IsDistinctFrom("value".into()));
     }
 
     #[test]

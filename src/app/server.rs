@@ -28,7 +28,7 @@ use crate::error::Error;
 use super::admin::create_admin_router;
 use super::listener::start_notify_listener;
 use super::router::create_router;
-use super::state::{query_pg_version, AppState};
+use super::state::{AppState, query_pg_version};
 
 /// Start the PgREST server.
 ///
@@ -156,24 +156,28 @@ async fn serve_unix_socket(
     socket_path: &std::path::Path,
     mode: u32,
 ) -> Result<(), Error> {
-    use std::os::unix::fs::PermissionsExt;
     use hyper_util::rt::TokioIo;
+    use std::os::unix::fs::PermissionsExt;
 
     // Remove stale socket file if it exists
     let _ = std::fs::remove_file(socket_path);
 
-    let uds = tokio::net::UnixListener::bind(socket_path)
-        .map_err(|e| Error::Internal(format!(
+    let uds = tokio::net::UnixListener::bind(socket_path).map_err(|e| {
+        Error::Internal(format!(
             "Failed to bind Unix socket '{}': {}",
-            socket_path.display(), e
-        )))?;
+            socket_path.display(),
+            e
+        ))
+    })?;
 
     // Set file permissions
-    std::fs::set_permissions(socket_path, std::fs::Permissions::from_mode(mode))
-        .map_err(|e| Error::Internal(format!(
+    std::fs::set_permissions(socket_path, std::fs::Permissions::from_mode(mode)).map_err(|e| {
+        Error::Internal(format!(
             "Failed to set socket permissions on '{}': {}",
-            socket_path.display(), e
-        )))?;
+            socket_path.display(),
+            e
+        ))
+    })?;
 
     tracing::info!(path = %socket_path.display(), "PgREST server listening (Unix socket)");
 
@@ -236,11 +240,9 @@ pub fn parse_address(host: &str) -> Result<IpAddr, Error> {
         "!4" | "*" | "*4" => Ok(IpAddr::V4(Ipv4Addr::UNSPECIFIED)),
         "!6" | "*6" => Ok(IpAddr::V6(Ipv6Addr::UNSPECIFIED)),
         "localhost" => Ok(IpAddr::V4(Ipv4Addr::LOCALHOST)),
-        other => other
-            .parse::<IpAddr>()
-            .map_err(|_| Error::InvalidConfig {
-                message: format!("Invalid server host: '{other}'"),
-            }),
+        other => other.parse::<IpAddr>().map_err(|_| Error::InvalidConfig {
+            message: format!("Invalid server host: '{other}'"),
+        }),
     }
 }
 
@@ -275,32 +277,50 @@ mod tests {
 
     #[test]
     fn test_parse_address_ipv4_any() {
-        assert_eq!(parse_address("!4").unwrap(), IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+        assert_eq!(
+            parse_address("!4").unwrap(),
+            IpAddr::V4(Ipv4Addr::UNSPECIFIED)
+        );
     }
 
     #[test]
     fn test_parse_address_ipv6_any() {
-        assert_eq!(parse_address("!6").unwrap(), IpAddr::V6(Ipv6Addr::UNSPECIFIED));
+        assert_eq!(
+            parse_address("!6").unwrap(),
+            IpAddr::V6(Ipv6Addr::UNSPECIFIED)
+        );
     }
 
     #[test]
     fn test_parse_address_star() {
-        assert_eq!(parse_address("*").unwrap(), IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+        assert_eq!(
+            parse_address("*").unwrap(),
+            IpAddr::V4(Ipv4Addr::UNSPECIFIED)
+        );
     }
 
     #[test]
     fn test_parse_address_star4() {
-        assert_eq!(parse_address("*4").unwrap(), IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+        assert_eq!(
+            parse_address("*4").unwrap(),
+            IpAddr::V4(Ipv4Addr::UNSPECIFIED)
+        );
     }
 
     #[test]
     fn test_parse_address_star6() {
-        assert_eq!(parse_address("*6").unwrap(), IpAddr::V6(Ipv6Addr::UNSPECIFIED));
+        assert_eq!(
+            parse_address("*6").unwrap(),
+            IpAddr::V6(Ipv6Addr::UNSPECIFIED)
+        );
     }
 
     #[test]
     fn test_parse_address_localhost() {
-        assert_eq!(parse_address("localhost").unwrap(), IpAddr::V4(Ipv4Addr::LOCALHOST));
+        assert_eq!(
+            parse_address("localhost").unwrap(),
+            IpAddr::V4(Ipv4Addr::LOCALHOST)
+        );
     }
 
     #[test]

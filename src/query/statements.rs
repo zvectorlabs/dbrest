@@ -28,9 +28,9 @@
 //! ```
 
 use crate::api_request::preferences::PreferCount;
-use crate::plan::read_plan::ReadPlanTree;
-use crate::plan::mutate_plan::MutatePlan;
 use crate::plan::call_plan::CallPlan;
+use crate::plan::mutate_plan::MutatePlan;
+use crate::plan::read_plan::ReadPlanTree;
 
 use super::builder;
 use super::fragment;
@@ -297,12 +297,10 @@ pub fn main_call(
     if call_plan.scalar {
         // Scalar function: select the scalar value directly and wrap in row_to_json
         b.push("row_to_json(pgrst_source.*)::text");
+    } else if let Some(h) = handler {
+        fragment::handler_agg_with_media(&mut b, h, false);
     } else {
-        if let Some(h) = handler {
-            fragment::handler_agg_with_media(&mut b, h, false);
-        } else {
-            fragment::handler_agg(&mut b, false);
-        }
+        fragment::handler_agg(&mut b, false);
     }
     b.push(" AS body");
 
@@ -336,11 +334,11 @@ pub fn main_call(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::plan::read_plan::{ReadPlan, ReadPlanTree};
-    use crate::plan::mutate_plan::{InsertPlan, MutatePlan};
-    use crate::plan::call_plan::{CallArgs, CallParams, CallPlan};
-    use crate::plan::types::*;
     use crate::api_request::types::Payload;
+    use crate::plan::call_plan::{CallArgs, CallParams, CallPlan};
+    use crate::plan::mutate_plan::{InsertPlan, MutatePlan};
+    use crate::plan::read_plan::{ReadPlan, ReadPlanTree};
+    use crate::plan::types::*;
     use crate::types::identifiers::QualifiedIdentifier;
     use bytes::Bytes;
     use smallvec::SmallVec;

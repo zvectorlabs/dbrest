@@ -104,12 +104,12 @@ impl JsonArrayStream {
             if self.buffer.len() >= 8192 || self.current_index >= self.items.len() {
                 let chunk = Bytes::from(self.buffer.clone());
                 self.buffer.clear();
-                
+
                 // If this was the last item, we need to close the array next
                 if self.current_index >= self.items.len() {
                     // Don't mark as done yet - we still need to send the closing bracket
                 }
-                
+
                 return Some(chunk);
             }
         }
@@ -175,10 +175,10 @@ mod tests {
     fn test_should_stream() {
         // Should stream if enabled and size exceeds threshold
         assert!(should_stream(11 * 1024 * 1024, true, 10 * 1024 * 1024));
-        
+
         // Should not stream if disabled
         assert!(!should_stream(11 * 1024 * 1024, false, 10 * 1024 * 1024));
-        
+
         // Should not stream if size is below threshold
         assert!(!should_stream(5 * 1024 * 1024, true, 10 * 1024 * 1024));
     }

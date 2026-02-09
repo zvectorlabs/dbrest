@@ -107,17 +107,36 @@ impl Relationship {
     /// Column pairs are swapped so `(src, tgt)` becomes `(tgt, src)`.
     pub fn reverse(&self) -> Self {
         let rev_cardinality = match &self.cardinality {
-            Cardinality::M2O { constraint, columns } => Cardinality::O2M {
+            Cardinality::M2O {
+                constraint,
+                columns,
+            } => Cardinality::O2M {
                 constraint: constraint.clone(),
-                columns: columns.iter().map(|(a, b)| (b.clone(), a.clone())).collect(),
+                columns: columns
+                    .iter()
+                    .map(|(a, b)| (b.clone(), a.clone()))
+                    .collect(),
             },
-            Cardinality::O2M { constraint, columns } => Cardinality::M2O {
+            Cardinality::O2M {
+                constraint,
+                columns,
+            } => Cardinality::M2O {
                 constraint: constraint.clone(),
-                columns: columns.iter().map(|(a, b)| (b.clone(), a.clone())).collect(),
+                columns: columns
+                    .iter()
+                    .map(|(a, b)| (b.clone(), a.clone()))
+                    .collect(),
             },
-            Cardinality::O2O { constraint, columns, is_parent } => Cardinality::O2O {
+            Cardinality::O2O {
+                constraint,
+                columns,
+                is_parent,
+            } => Cardinality::O2O {
                 constraint: constraint.clone(),
-                columns: columns.iter().map(|(a, b)| (b.clone(), a.clone())).collect(),
+                columns: columns
+                    .iter()
+                    .map(|(a, b)| (b.clone(), a.clone()))
+                    .collect(),
                 is_parent: !is_parent,
             },
             Cardinality::M2M(j) => Cardinality::M2M(j.clone()), // M2M is symmetric
@@ -137,7 +156,10 @@ impl Relationship {
     pub fn is_o2o_parent(&self) -> bool {
         matches!(
             &self.cardinality,
-            Cardinality::O2O { is_parent: true, .. }
+            Cardinality::O2O {
+                is_parent: true,
+                ..
+            }
         )
     }
 
@@ -447,9 +469,7 @@ mod tests {
 
     #[test]
     fn test_relationship_uses_column() {
-        let rel = test_relationship()
-            .m2o("fk", &[("user_id", "id")])
-            .build();
+        let rel = test_relationship().m2o("fk", &[("user_id", "id")]).build();
 
         assert!(rel.uses_column("user_id"));
         assert!(rel.uses_column("id"));
@@ -468,9 +488,7 @@ mod tests {
 
     #[test]
     fn test_relationship_junction() {
-        let junction = test_junction()
-            .table("public", "user_roles")
-            .build();
+        let junction = test_junction().table("public", "user_roles").build();
         let rel = test_relationship().m2m(junction).build();
 
         let j = rel.junction().unwrap();
@@ -560,9 +578,7 @@ mod tests {
 
     #[test]
     fn test_junction_source_columns() {
-        let junction = test_junction()
-            .cols_source(&[("user_id", "id")])
-            .build();
+        let junction = test_junction().cols_source(&[("user_id", "id")]).build();
 
         let cols: Vec<_> = junction.source_columns().collect();
         assert_eq!(cols, vec!["id"]);
@@ -570,9 +586,7 @@ mod tests {
 
     #[test]
     fn test_junction_target_columns() {
-        let junction = test_junction()
-            .cols_target(&[("role_id", "id")])
-            .build();
+        let junction = test_junction().cols_target(&[("role_id", "id")]).build();
 
         let cols: Vec<_> = junction.target_columns().collect();
         assert_eq!(cols, vec!["id"]);
@@ -597,18 +611,13 @@ mod tests {
 
     #[test]
     fn test_any_relationship_table() {
-        let fk_rel: AnyRelationship = test_relationship()
-            .table("api", "posts")
-            .build()
-            .into();
+        let fk_rel: AnyRelationship = test_relationship().table("api", "posts").build().into();
 
         assert_eq!(fk_rel.table().schema.as_str(), "api");
         assert_eq!(fk_rel.table().name.as_str(), "posts");
 
-        let computed_rel: AnyRelationship = test_computed_rel()
-            .table("api", "users")
-            .build()
-            .into();
+        let computed_rel: AnyRelationship =
+            test_computed_rel().table("api", "users").build().into();
 
         assert_eq!(computed_rel.table().schema.as_str(), "api");
         assert_eq!(computed_rel.table().name.as_str(), "users");
@@ -635,16 +644,10 @@ mod tests {
 
     #[test]
     fn test_any_relationship_is_to_one() {
-        let m2o: AnyRelationship = test_relationship()
-            .m2o("fk", &[("a", "b")])
-            .build()
-            .into();
+        let m2o: AnyRelationship = test_relationship().m2o("fk", &[("a", "b")]).build().into();
         assert!(m2o.is_to_one());
 
-        let o2m: AnyRelationship = test_relationship()
-            .o2m("fk", &[("a", "b")])
-            .build()
-            .into();
+        let o2m: AnyRelationship = test_relationship().o2m("fk", &[("a", "b")]).build().into();
         assert!(!o2m.is_to_one());
 
         let computed_single: AnyRelationship = test_computed_rel().single_row(true).build().into();

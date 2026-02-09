@@ -277,9 +277,9 @@ dev-setup: ## Setup development environment (check Docker, install deps)
 	@rustc --version || (echo "$(YELLOW)Error: Rust is not installed$(NC)" && exit 1)
 	@echo "$(GREEN)Development environment ready$(NC)"
 
-ci: fmt-check clippy test-all ## Run CI checks (format, lint, test)
+ci: check fmt-check clippy test-all ## Run CI checks (check, format, lint, test)
 
-pre-commit: fmt clippy test ## Run pre-commit checks (format, lint, test unit)
+pre-commit: fmt check clippy test ## Run pre-commit checks (format, check, lint, test unit)
 
 ##@ Quick Commands
 

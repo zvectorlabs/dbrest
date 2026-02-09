@@ -132,13 +132,13 @@ mod tests {
             .param(test_param().name("name").pg_type("text").build())
             .build();
 
-        let params = vec![
-            ("id".into(), "42".into()),
-            ("name".into(), "alice".into()),
-        ];
+        let params = vec![("id".into(), "42".into()), ("name".into(), "alice".into())];
 
         let rpc_params = to_rpc_params(&routine, &params);
-        assert_eq!(rpc_params.get("id"), Some(&RpcParamValue::Fixed("42".into())));
+        assert_eq!(
+            rpc_params.get("id"),
+            Some(&RpcParamValue::Fixed("42".into()))
+        );
         assert_eq!(
             rpc_params.get("name"),
             Some(&RpcParamValue::Fixed("alice".into()))
@@ -148,7 +148,13 @@ mod tests {
     #[test]
     fn test_to_rpc_params_variadic() {
         let routine = test_routine()
-            .param(test_param().name("ids").pg_type("integer").is_variadic(true).build())
+            .param(
+                test_param()
+                    .name("ids")
+                    .pg_type("integer")
+                    .is_variadic(true)
+                    .build(),
+            )
             .is_variadic(true)
             .build();
 

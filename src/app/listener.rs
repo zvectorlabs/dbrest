@@ -27,10 +27,7 @@ use super::state::AppState;
 ///
 /// If the connection drops, the listener waits 5 seconds and retries.
 /// This loop runs until the provided cancellation token is triggered.
-pub async fn start_notify_listener(
-    state: AppState,
-    cancel: tokio::sync::watch::Receiver<bool>,
-) {
+pub async fn start_notify_listener(state: AppState, cancel: tokio::sync::watch::Receiver<bool>) {
     let channel = {
         let config = state.config.load();
         config.db_channel.clone()
@@ -75,27 +72,23 @@ async fn listen_loop(
         }
 
         // Wait for a notification with a timeout so we can check cancellation
-        let notification = tokio::time::timeout(
-            Duration::from_secs(30),
-            listener.recv(),
-        )
-        .await;
+        let notification = tokio::time::timeout(Duration::from_secs(30), listener.recv()).await;
 
         match notification {
             Ok(Ok(msg)) => {
                 let payload = msg.payload();
                 tracing::info!(payload = payload, "Received NOTIFY");
 
-                if payload.contains("schema") || payload.contains("reload") {
-                    if let Err(e) = state.reload_schema_cache().await {
-                        tracing::error!(error = %e, "Failed to reload schema cache");
-                    }
+                if (payload.contains("schema") || payload.contains("reload"))
+                    && let Err(e) = state.reload_schema_cache().await
+                {
+                    tracing::error!(error = %e, "Failed to reload schema cache");
                 }
 
-                if payload.contains("config") {
-                    if let Err(e) = state.reload_config().await {
-                        tracing::error!(error = %e, "Failed to reload config");
-                    }
+                if payload.contains("config")
+                    && let Err(e) = state.reload_config().await
+                {
+                    tracing::error!(error = %e, "Failed to reload config");
                 }
             }
             Ok(Err(e)) => {

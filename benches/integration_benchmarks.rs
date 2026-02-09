@@ -3,7 +3,7 @@
 //! These benchmarks require a running PgREST server on localhost:3000
 //! with the test database schema loaded and seeded with benchmark data.
 
-use criterion::{criterion_group, criterion_main, Criterion, Throughput};
+use criterion::{Criterion, Throughput, criterion_group, criterion_main};
 use reqwest::Client;
 use serde_json::json;
 use std::time::Duration;
@@ -90,7 +90,10 @@ fn bench_embedded_get(c: &mut Criterion) {
     group.bench_function("depth_1", |b| {
         b.to_async(&rt).iter(|| async {
             client
-                .get(format!("{}/users?select=id,name,posts(*)&limit=10", BASE_URL))
+                .get(format!(
+                    "{}/users?select=id,name,posts(*)&limit=10",
+                    BASE_URL
+                ))
                 .send()
                 .await
                 .unwrap()
@@ -286,7 +289,10 @@ fn bench_computed_fields(c: &mut Criterion) {
     group.bench_function("computed_in_select", |b| {
         b.to_async(&rt).iter(|| async {
             client
-                .get(format!("{}/users?select=id,name,full_name&limit=10", BASE_URL))
+                .get(format!(
+                    "{}/users?select=id,name,full_name&limit=10",
+                    BASE_URL
+                ))
                 .send()
                 .await
                 .unwrap()
@@ -297,7 +303,10 @@ fn bench_computed_fields(c: &mut Criterion) {
     group.bench_function("computed_in_filter", |b| {
         b.to_async(&rt).iter(|| async {
             client
-                .get(format!("{}/users?full_name=like.*@example.com*&limit=10", BASE_URL))
+                .get(format!(
+                    "{}/users?full_name=like.*@example.com*&limit=10",
+                    BASE_URL
+                ))
                 .send()
                 .await
                 .unwrap()
@@ -308,7 +317,10 @@ fn bench_computed_fields(c: &mut Criterion) {
     group.bench_function("computed_in_order", |b| {
         b.to_async(&rt).iter(|| async {
             client
-                .get(format!("{}/users?select=name,full_name&order=full_name.asc&limit=10", BASE_URL))
+                .get(format!(
+                    "{}/users?select=name,full_name&order=full_name.asc&limit=10",
+                    BASE_URL
+                ))
                 .send()
                 .await
                 .unwrap()

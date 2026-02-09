@@ -256,8 +256,7 @@ mod tests {
         let handlers = empty_handlers();
         let rel_id = RelIdentifier::any_element();
 
-        let result =
-            negotiate_content(&accepted, &handlers, &rel_id, &read_action(), false);
+        let result = negotiate_content(&accepted, &handlers, &rel_id, &read_action(), false);
         assert!(result.is_err());
     }
 
@@ -283,12 +282,11 @@ mod tests {
         });
         let accepted = vec![MediaType::ApplicationJson];
         let handlers = empty_handlers();
-        let rel_id = RelIdentifier::Table(
-            crate::types::identifiers::QualifiedIdentifier::new("api", "items"),
-        );
+        let rel_id = RelIdentifier::Table(crate::types::identifiers::QualifiedIdentifier::new(
+            "api", "items",
+        ));
 
-        let (_, media) =
-            negotiate_content(&accepted, &handlers, &rel_id, &action, false).unwrap();
+        let (_, media) = negotiate_content(&accepted, &handlers, &rel_id, &action, false).unwrap();
         assert_eq!(media, MediaType::ApplicationJson);
     }
 
@@ -320,9 +318,9 @@ mod tests {
         );
 
         // Request as a specific table
-        let rel_id = RelIdentifier::Table(
-            crate::types::identifiers::QualifiedIdentifier::new("public", "items"),
-        );
+        let rel_id = RelIdentifier::Table(crate::types::identifiers::QualifiedIdentifier::new(
+            "public", "items",
+        ));
         let accepted = vec![MediaType::TextCsv];
 
         let (handler, media) =

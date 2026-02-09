@@ -191,36 +191,34 @@ pub fn apply_config_value(
         "db-plan-enabled" => {
             config.db_plan_enabled = parse_bool(value)?;
         }
-        "db-tx-end" => {
-            match value {
-                "commit" => {
-                    config.db_tx_rollback_all = false;
-                    config.db_tx_allow_override = false;
-                }
-                "commit-allow-override" => {
-                    config.db_tx_rollback_all = false;
-                    config.db_tx_allow_override = true;
-                }
-                "rollback" => {
-                    config.db_tx_rollback_all = true;
-                    config.db_tx_allow_override = false;
-                }
-                "rollback-allow-override" => {
-                    config.db_tx_rollback_all = true;
-                    config.db_tx_allow_override = true;
-                }
-                _ => {
-                    return Err(ConfigError::InvalidValue {
-                        key: key.to_string(),
-                        value: value.to_string(),
-                        expected: Some(
-                            "commit, commit-allow-override, rollback, rollback-allow-override"
-                                .to_string(),
-                        ),
-                    });
-                }
+        "db-tx-end" => match value {
+            "commit" => {
+                config.db_tx_rollback_all = false;
+                config.db_tx_allow_override = false;
             }
-        }
+            "commit-allow-override" => {
+                config.db_tx_rollback_all = false;
+                config.db_tx_allow_override = true;
+            }
+            "rollback" => {
+                config.db_tx_rollback_all = true;
+                config.db_tx_allow_override = false;
+            }
+            "rollback-allow-override" => {
+                config.db_tx_rollback_all = true;
+                config.db_tx_allow_override = true;
+            }
+            _ => {
+                return Err(ConfigError::InvalidValue {
+                    key: key.to_string(),
+                    value: value.to_string(),
+                    expected: Some(
+                        "commit, commit-allow-override, rollback, rollback-allow-override"
+                            .to_string(),
+                    ),
+                });
+            }
+        },
         "db-tx-read-isolation" => {
             config.db_tx_read_isolation = parse_isolation_level(value)?;
         }
@@ -357,13 +355,14 @@ pub fn apply_config_value(
             config.server_streaming_enabled = parse_bool(value)?;
         }
         "server-streaming-threshold" => {
-            config.server_streaming_threshold = value
-                .parse::<u64>()
-                .map_err(|_| ConfigError::InvalidValue {
-                    key: key.to_string(),
-                    value: value.to_string(),
-                    expected: Some("positive integer (bytes)".to_string()),
-                })?;
+            config.server_streaming_threshold =
+                value
+                    .parse::<u64>()
+                    .map_err(|_| ConfigError::InvalidValue {
+                        key: key.to_string(),
+                        value: value.to_string(),
+                        expected: Some("positive integer (bytes)".to_string()),
+                    })?;
         }
 
         // App settings (app.settings.*)
@@ -398,11 +397,13 @@ fn parse_int<T: std::str::FromStr>(key: &str, value: &str) -> Result<T, ConfigEr
 where
     T::Err: std::fmt::Display,
 {
-    value.parse().map_err(|e: T::Err| ConfigError::InvalidValue {
-        key: key.to_string(),
-        value: value.to_string(),
-        expected: Some(format!("integer ({})", e)),
-    })
+    value
+        .parse()
+        .map_err(|e: T::Err| ConfigError::InvalidValue {
+            key: key.to_string(),
+            value: value.to_string(),
+            expected: Some(format!("integer ({})", e)),
+        })
 }
 
 /// Parse an isolation level
@@ -598,7 +599,10 @@ mod tests {
         let mut config = AppConfig::default();
 
         apply_config_value(&mut config, "app.settings.my-key", "my-value").unwrap();
-        assert_eq!(config.app_settings.get("my-key"), Some(&"my-value".to_string()));
+        assert_eq!(
+            config.app_settings.get("my-key"),
+            Some(&"my-value".to_string())
+        );
     }
 
     #[test]

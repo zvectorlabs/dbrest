@@ -3,16 +3,14 @@
 //! This module provides builder patterns and utilities for creating test data.
 //! Only included in test builds.
 
-#![cfg(test)]
-
 use compact_str::CompactString;
 use indexmap::IndexMap;
 use smallvec::SmallVec;
 use std::sync::Arc;
 
 use crate::schema_cache::{
-    Cardinality, Column, ComputedRelationship, Junction, PgType, Relationship, ReturnType,
-    Routine, RoutineParam, Table, Volatility,
+    Cardinality, Column, ComputedRelationship, Junction, PgType, Relationship, ReturnType, Routine,
+    RoutineParam, Table, Volatility,
 };
 use crate::types::QualifiedIdentifier;
 
@@ -487,9 +485,10 @@ impl RoutineBuilder {
     }
 
     pub fn returns_setof_scalar(mut self, type_name: &str) -> Self {
-        self.return_type = Some(ReturnType::SetOf(PgType::Scalar(
-            QualifiedIdentifier::new("pg_catalog", type_name),
-        )));
+        self.return_type = Some(ReturnType::SetOf(PgType::Scalar(QualifiedIdentifier::new(
+            "pg_catalog",
+            type_name,
+        ))));
         self
     }
 

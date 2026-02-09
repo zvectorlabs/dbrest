@@ -1,7 +1,7 @@
 //! Error handling for PgREST
 //!
 //! This module provides:
-//! - [`Error`] - Main error enum with PGRST-compatible error codes
+//! - [`enum@Error`] - Main error enum with PGRST-compatible error codes
 //! - [`ErrorResponse`] - JSON response format for errors
 //!
 //! # Error Codes
@@ -89,7 +89,9 @@ pub enum Error {
     #[error("Invalid aggregate: {0}")]
     InvalidAggregate(String),
 
-    #[error("response.headers GUC must be a JSON array composed of objects with a single key and a string value")]
+    #[error(
+        "response.headers GUC must be a JSON array composed of objects with a single key and a string value"
+    )]
     GucHeadersError,
 
     #[error("response.status GUC must be a valid status code")]
@@ -134,7 +136,9 @@ pub enum Error {
     #[error("Feature not implemented: {0}")]
     NotImplemented(String),
 
-    #[error("Function must return SETOF or TABLE when max-affected preference is used with handling=strict")]
+    #[error(
+        "Function must return SETOF or TABLE when max-affected preference is used with handling=strict"
+    )]
     MaxAffectedRpcViolation,
 
     // =========================================
@@ -153,13 +157,21 @@ pub enum Error {
     FunctionNotFound { name: String },
 
     #[error("Relationship not found between '{from_table}' and '{to_table}'")]
-    RelationshipNotFound { from_table: String, to_table: String },
+    RelationshipNotFound {
+        from_table: String,
+        to_table: String,
+    },
 
     #[error("Schema cache not ready")]
     SchemaCacheNotReady,
 
-    #[error("Ambiguous relationship: multiple relationships found between '{from_table}' and '{to_table}'")]
-    AmbiguousRelationship { from_table: String, to_table: String },
+    #[error(
+        "Ambiguous relationship: multiple relationships found between '{from_table}' and '{to_table}'"
+    )]
+    AmbiguousRelationship {
+        from_table: String,
+        to_table: String,
+    },
 
     #[error("Ambiguous function: multiple function overloads found for '{name}'")]
     AmbiguousFunction { name: String },
@@ -242,10 +254,7 @@ pub enum Error {
     },
 
     #[error("PostgREST raise: {message}")]
-    PgrstRaise {
-        message: String,
-        status: u16,
-    },
+    PgrstRaise { message: String, status: u16 },
 
     // =========================================
     // Internal Errors
@@ -368,7 +377,7 @@ impl Error {
             | Error::InvalidMediaHandler(_)
             | Error::MediaTypeMismatch(_)
             | Error::UriTooLong(_)
-            |             Error::InvalidAggregate(_)
+            | Error::InvalidAggregate(_)
             | Error::NotNullViolation(_)
             | Error::MaxRowsExceeded { .. }
             | Error::GucHeadersError
@@ -381,7 +390,7 @@ impl Error {
             | Error::UnacceptableFilter { .. }
             | Error::PgrstParseError(_)
             | Error::InvalidPreferencesStrict(_)
-            |             Error::AggregatesNotAllowed
+            | Error::AggregatesNotAllowed
             | Error::MaxAffectedViolation { .. }
             | Error::NotImplemented(_)
             | Error::MaxAffectedRpcViolation => StatusCode::BAD_REQUEST,
@@ -395,8 +404,9 @@ impl Error {
             | Error::OpenApiDisabled => StatusCode::NOT_FOUND,
 
             // Ambiguous errors → 300 Multiple Choices
-            Error::AmbiguousRelationship { .. }
-            | Error::AmbiguousFunction { .. } => StatusCode::MULTIPLE_CHOICES,
+            Error::AmbiguousRelationship { .. } | Error::AmbiguousFunction { .. } => {
+                StatusCode::MULTIPLE_CHOICES
+            }
 
             // Auth errors → 401/403/500
             Error::JwtAuth(e) => e.status(),
@@ -419,11 +429,9 @@ impl Error {
             Error::SingleObjectExpected => StatusCode::NOT_ACCEPTABLE,
 
             // Raised exceptions → use status from error or default to 400
-            Error::RaisedException { status, .. } => {
-                status
-                    .and_then(|s| StatusCode::from_u16(s).ok())
-                    .unwrap_or(StatusCode::BAD_REQUEST)
-            }
+            Error::RaisedException { status, .. } => status
+                .and_then(|s| StatusCode::from_u16(s).ok())
+                .unwrap_or(StatusCode::BAD_REQUEST),
 
             // PGRST raise → use status from error
             Error::PgrstRaise { status, .. } => {
@@ -443,15 +451,15 @@ impl Error {
             }
             Error::ColumnNotFound { table, column } => (
                 Some(format!("Column '{}' does not exist in table '{}'", column, table)),
-                Some(format!("Check the table schema for available columns")),
+                Some("Check the table schema for available columns".to_string()),
             ),
             Error::FunctionNotFound { name } => (
                 Some(format!("Function '{}' does not exist", name)),
-                Some(format!("Check the schema for available functions")),
+                Some("Check the schema for available functions".to_string()),
             ),
             Error::RelationshipNotFound { from_table, to_table } => (
                 Some(format!("No relationship found between '{}' and '{}'", from_table, to_table)),
-                Some(format!("Ensure foreign key constraints exist between these tables")),
+                Some("Ensure foreign key constraints exist between these tables".to_string()),
             ),
             Error::Database { detail, hint, .. } => (detail.clone(), hint.clone()),
             Error::InvalidQueryParam { message, .. } => (Some(message.clone()), None),
@@ -460,7 +468,7 @@ impl Error {
             }
             Error::InvalidFilterOperator { column, op } => (
                 Some(format!("Operator '{}' is not valid for column '{}'", op, column)),
-                Some(format!("Use valid operators: eq, neq, gt, gte, lt, lte, like, ilike, is, in, cs, cd, ov, sl, sr, nxr, nxl, adj")),
+                Some("Use valid operators: eq, neq, gt, gte, lt, lte, like, ilike, is, in, cs, cd, ov, sl, sr, nxr, nxl, adj".to_string()),
             ),
             Error::AmbiguousEmbedding(rel) => (
                 None,
@@ -471,47 +479,47 @@ impl Error {
             ),
             Error::InvalidBody(msg) => (
                 Some(msg.clone()),
-                Some(format!("Ensure the request body is valid JSON")),
+                Some("Ensure the request body is valid JSON".to_string()),
             ),
             Error::InvalidPayload(msg) => (
                 Some(msg.clone()),
-                Some(format!("Check the payload format and required fields")),
+                Some("Check the payload format and required fields".to_string()),
             ),
             Error::MaxRowsExceeded { count, max } => (
                 Some(format!("Affected {} rows, but maximum allowed is {}", count, max)),
-                Some(format!("Reduce the scope of your request or increase the limit")),
+                Some("Reduce the scope of your request or increase the limit".to_string()),
             ),
             Error::NotInsertable { table } => (
                 Some(format!("Table '{}' does not allow INSERT operations", table)),
-                Some(format!("Check table permissions and RLS policies")),
+                Some("Check table permissions and RLS policies".to_string()),
             ),
             Error::NotUpdatable { table } => (
                 Some(format!("Table '{}' does not allow UPDATE operations", table)),
-                Some(format!("Check table permissions and RLS policies")),
+                Some("Check table permissions and RLS policies".to_string()),
             ),
             Error::NotDeletable { table } => (
                 Some(format!("Table '{}' does not allow DELETE operations", table)),
-                Some(format!("Check table permissions and RLS policies")),
+                Some("Check table permissions and RLS policies".to_string()),
             ),
             Error::UniqueViolation(msg) => (
                 Some(msg.clone()),
-                Some(format!("The value violates a unique constraint. Use a different value or update the existing record")),
+                Some("The value violates a unique constraint. Use a different value or update the existing record".to_string()),
             ),
             Error::ForeignKeyViolation(msg) => (
                 Some(msg.clone()),
-                Some(format!("The value references a non-existent record. Ensure the referenced record exists")),
+                Some("The value references a non-existent record. Ensure the referenced record exists".to_string()),
             ),
             Error::CheckViolation(msg) => (
                 Some(msg.clone()),
-                Some(format!("The value violates a check constraint. Check the constraint requirements")),
+                Some("The value violates a check constraint. Check the constraint requirements".to_string()),
             ),
             Error::NotNullViolation(msg) => (
                 Some(msg.clone()),
-                Some(format!("A required field is missing or null. Provide a value for all required fields")),
+                Some("A required field is missing or null. Provide a value for all required fields".to_string()),
             ),
             Error::ExclusionViolation(msg) => (
                 Some(msg.clone()),
-                Some(format!("The value violates an exclusion constraint")),
+                Some("The value violates an exclusion constraint".to_string()),
             ),
             Error::RaisedException { message, .. } => (
                 Some(message.clone()),
@@ -732,7 +740,7 @@ mod tests {
         for err in errs {
             let response = crate::error::ErrorResponse::from(&err);
             let json = serde_json::to_string(&response).unwrap();
-            assert!(json.contains(&err.code()));
+            assert!(json.contains(err.code()));
             assert!(json.contains("code"));
             assert!(json.contains("message"));
         }
@@ -743,15 +751,29 @@ mod tests {
         // Test that every error variant has a valid status code
         let errs = vec![
             Error::DbConnection("test".to_string()),
-            Error::UnsupportedPgVersion { major: 11, minor: 0 },
-            Error::InvalidConfig { message: "test".to_string() },
+            Error::UnsupportedPgVersion {
+                major: 11,
+                minor: 0,
+            },
+            Error::InvalidConfig {
+                message: "test".to_string(),
+            },
             Error::ConnectionRetryTimeout,
-            Error::InvalidQueryParam { param: "test".to_string(), message: "test".to_string() },
-            Error::ParseError { location: "test".to_string(), message: "test".to_string() },
+            Error::InvalidQueryParam {
+                param: "test".to_string(),
+                message: "test".to_string(),
+            },
+            Error::ParseError {
+                location: "test".to_string(),
+                message: "test".to_string(),
+            },
             Error::InvalidRange("test".to_string()),
             Error::InvalidContentType("test".to_string()),
             Error::InvalidPreference("test".to_string()),
-            Error::InvalidFilterOperator { column: "test".to_string(), op: "test".to_string() },
+            Error::InvalidFilterOperator {
+                column: "test".to_string(),
+                op: "test".to_string(),
+            },
             Error::SchemaNotFound("test".to_string()),
             Error::InvalidSpreadColumn("test".to_string()),
             Error::AmbiguousEmbedding("test".to_string()),
@@ -761,31 +783,63 @@ mod tests {
             Error::MediaTypeMismatch("test".to_string()),
             Error::UriTooLong("test".to_string()),
             Error::InvalidAggregate("test".to_string()),
-            Error::TableNotFound { name: "test".to_string(), suggestion: None },
-            Error::ColumnNotFound { table: "test".to_string(), column: "test".to_string() },
-            Error::FunctionNotFound { name: "test".to_string() },
-            Error::RelationshipNotFound { from_table: "test".to_string(), to_table: "test".to_string() },
+            Error::TableNotFound {
+                name: "test".to_string(),
+                suggestion: None,
+            },
+            Error::ColumnNotFound {
+                table: "test".to_string(),
+                column: "test".to_string(),
+            },
+            Error::FunctionNotFound {
+                name: "test".to_string(),
+            },
+            Error::RelationshipNotFound {
+                from_table: "test".to_string(),
+                to_table: "test".to_string(),
+            },
             Error::SchemaCacheNotReady,
             Error::Jwt("test".to_string()),
             Error::NoAnonRole,
-            Error::PermissionDenied { role: "test".to_string() },
-            Error::NotInsertable { table: "test".to_string() },
-            Error::NotUpdatable { table: "test".to_string() },
-            Error::NotDeletable { table: "test".to_string() },
+            Error::PermissionDenied {
+                role: "test".to_string(),
+            },
+            Error::NotInsertable {
+                table: "test".to_string(),
+            },
+            Error::NotUpdatable {
+                table: "test".to_string(),
+            },
+            Error::NotDeletable {
+                table: "test".to_string(),
+            },
             Error::SingleObjectExpected,
             Error::MissingPayload,
             Error::InvalidPayload("test".to_string()),
-            Error::NoPrimaryKey { table: "test".to_string() },
+            Error::NoPrimaryKey {
+                table: "test".to_string(),
+            },
             Error::PutIncomplete,
-            Error::Database { code: None, message: "test".to_string(), detail: None, hint: None },
+            Error::Database {
+                code: None,
+                message: "test".to_string(),
+                detail: None,
+                hint: None,
+            },
             Error::ForeignKeyViolation("test".to_string()),
             Error::UniqueViolation("test".to_string()),
             Error::CheckViolation("test".to_string()),
             Error::NotNullViolation("test".to_string()),
             Error::ExclusionViolation("test".to_string()),
             Error::MaxRowsExceeded { count: 10, max: 5 },
-            Error::RaisedException { message: "test".to_string(), status: None },
-            Error::PgrstRaise { message: "test".to_string(), status: 400 },
+            Error::RaisedException {
+                message: "test".to_string(),
+                status: None,
+            },
+            Error::PgrstRaise {
+                message: "test".to_string(),
+                status: 400,
+            },
             Error::Internal("test".to_string()),
         ];
 
@@ -809,7 +863,10 @@ mod tests {
         assert!(details.unwrap().contains("email"));
         assert!(hint.unwrap().contains("schema"));
 
-        let err = Error::MaxRowsExceeded { count: 100, max: 50 };
+        let err = Error::MaxRowsExceeded {
+            count: 100,
+            max: 50,
+        };
         let (details, hint) = err.details_and_hint();
         assert!(details.is_some());
         assert!(hint.is_some());
@@ -817,7 +874,9 @@ mod tests {
         assert!(details_str.contains("100"));
         assert!(details_str.contains("50"));
 
-        let err = Error::NotInsertable { table: "users".to_string() };
+        let err = Error::NotInsertable {
+            table: "users".to_string(),
+        };
         let (details, hint) = err.details_and_hint();
         assert!(details.is_some());
         assert!(hint.is_some());

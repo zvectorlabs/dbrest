@@ -5,13 +5,15 @@
 //! `reqwest`. This validates the full request→parse→plan→query→execute→respond
 //! pipeline.
 
+#![allow(clippy::field_reassign_with_default)]
+
 mod common;
 
 use pgrest::app::router::create_router;
 use pgrest::app::state::{AppState, PgVersion};
 use pgrest::config::AppConfig;
 use reqwest::{Client, StatusCode};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use sqlx::Executor;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
@@ -126,12 +128,7 @@ impl TestServer {
     }
 
     /// POST request with JSON body, Prefer header, and a JWT token.
-    async fn post_json_with_jwt(
-        &self,
-        path: &str,
-        body: &Value,
-        token: &str,
-    ) -> reqwest::Response {
+    async fn post_json_with_jwt(&self, path: &str, body: &Value, token: &str) -> reqwest::Response {
         self.client
             .post(format!("{}{}", self.base_url, path))
             .header("content-type", "application/json")
@@ -344,10 +341,7 @@ async fn e2e_filter_gt() {
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let users = body.as_array().unwrap();
-    assert!(
-        !users.is_empty(),
-        "Expected at least one user with id > 2"
-    );
+    assert!(!users.is_empty(), "Expected at least one user with id > 2");
     for user in users {
         let id = user["id"].as_i64().unwrap();
         assert!(id > 2, "Expected id > 2, got {}", id);
@@ -401,9 +395,7 @@ async fn e2e_filter_neq() {
 #[tokio::test]
 async fn e2e_filter_in() {
     let server = TestServer::start().await;
-    let resp = server
-        .get("/users?name=in.(Alice Johnson,Bob Smith)")
-        .await;
+    let resp = server.get("/users?name=in.(Alice Johnson,Bob Smith)").await;
 
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
@@ -716,10 +708,7 @@ async fn e2e_schema_root() {
         .collect();
     assert!(names.contains(&"users"), "Should list 'users' table");
     assert!(names.contains(&"posts"), "Should list 'posts' table");
-    assert!(
-        names.contains(&"products"),
-        "Should list 'products' table"
-    );
+    assert!(names.contains(&"products"), "Should list 'products' table");
 }
 
 // ==========================================================================
@@ -889,9 +878,7 @@ async fn e2e_insert_then_read() {
     let created_id = created[0]["id"].as_i64().unwrap();
 
     // Read it back
-    let resp = server
-        .get(&format!("/users?id=eq.{}", created_id))
-        .await;
+    let resp = server.get(&format!("/users?id=eq.{}", created_id)).await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let arr = body.as_array().unwrap();
@@ -993,7 +980,10 @@ async fn e2e_embed_nested_users_posts_comments() {
 
     for user in users {
         assert!(user.get("name").is_some());
-        assert!(user.get("posts").is_some(), "User should have 'posts' embed");
+        assert!(
+            user.get("posts").is_some(),
+            "User should have 'posts' embed"
+        );
     }
 }
 
@@ -1042,7 +1032,7 @@ async fn e2e_rpc_get_active_users() {
             // If it's already a JSON value (not a string), use it directly
             serde_json::from_str(&format!("\"{}\"", body_text)).unwrap_or(json!(body_text))
         });
-        
+
         // Body should be an array for set-returning functions
         if let Some(users) = body.as_array() {
             assert!(
@@ -1054,14 +1044,20 @@ async fn e2e_rpc_get_active_users() {
             // If it's a single object, it might be that only one user is active
             // or the query is not aggregating correctly
             // For now, accept a single object as valid (might be a single result)
-            eprintln!("Warning: get_active_users returned a single object instead of array: {:?}", body);
+            eprintln!(
+                "Warning: get_active_users returned a single object instead of array: {:?}",
+                body
+            );
         } else {
             panic!("Unexpected response format: {:?}", body);
         }
     } else {
         let status = resp.status();
         let body = resp.text().await.unwrap();
-        eprintln!("SKIPPED: RPC get_active_users returned {}: {}", status, body);
+        eprintln!(
+            "SKIPPED: RPC get_active_users returned {}: {}",
+            status, body
+        );
     }
 }
 
@@ -1099,11 +1095,14 @@ async fn e2e_error_response_format() {
     assert!(resp.status().is_client_error() || resp.status().is_server_error());
 
     let json: Value = resp.json().await.unwrap();
-    
+
     // Verify all required fields
     assert!(json.get("code").is_some(), "Error should have 'code' field");
-    assert!(json.get("message").is_some(), "Error should have 'message' field");
-    
+    assert!(
+        json.get("message").is_some(),
+        "Error should have 'message' field"
+    );
+
     // details and hint are optional, but if present should be strings
     if let Some(details) = json.get("details") {
         assert!(details.is_string() || details.is_null());
@@ -1125,7 +1124,7 @@ async fn e2e_constraint_violations() {
     // Try to create duplicate (unique violation)
     let duplicate_resp = server.post_json("/users", &user).await;
     assert_eq!(duplicate_resp.status(), StatusCode::CONFLICT);
-    
+
     let json: Value = duplicate_resp.json().await.unwrap();
     assert!(json["code"].as_str().unwrap().starts_with("PGRST50"));
     assert_eq!(json["code"], "PGRST502"); // UNIQUE_VIOLATION
@@ -1138,7 +1137,7 @@ async fn e2e_invalid_query_params() {
     // Invalid select syntax
     let resp = server.get("/users?select=invalid(").await;
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-    
+
     let json: Value = resp.json().await.unwrap();
     assert!(json["code"].as_str().unwrap().starts_with("PGRST1"));
 }
@@ -1148,8 +1147,9 @@ async fn e2e_jwt_www_authenticate_header() {
     let server = TestServer::start().await;
 
     // Request with invalid JWT token
-    let resp = server.client
-        .get(&format!("{}/users", server.base_url))
+    let resp = server
+        .client
+        .get(format!("{}/users", server.base_url))
         .header("authorization", "Bearer invalid.token.here")
         .send()
         .await
@@ -1159,9 +1159,15 @@ async fn e2e_jwt_www_authenticate_header() {
     if resp.status() == StatusCode::UNAUTHORIZED {
         // Verify WWW-Authenticate header is present
         let www_auth = resp.headers().get("www-authenticate");
-        assert!(www_auth.is_some(), "WWW-Authenticate header should be present for JWT errors");
+        assert!(
+            www_auth.is_some(),
+            "WWW-Authenticate header should be present for JWT errors"
+        );
         let www_auth_str = www_auth.unwrap().to_str().unwrap();
-        assert!(www_auth_str.contains("Bearer"), "WWW-Authenticate should contain 'Bearer'");
+        assert!(
+            www_auth_str.contains("Bearer"),
+            "WWW-Authenticate should contain 'Bearer'"
+        );
 
         // Verify error JSON
         let json: Value = resp.json().await.unwrap();
@@ -1174,8 +1180,11 @@ async fn e2e_response_status_guc() {
     let server = TestServer::start_as_admin().await;
 
     // Create a function that sets response.status to 202
-    server.db.pool().execute(
-        r#"
+    server
+        .db
+        .pool()
+        .execute(
+            r#"
         CREATE OR REPLACE FUNCTION test_api.set_status_202()
         RETURNS json AS $$
         BEGIN
@@ -1183,21 +1192,23 @@ async fn e2e_response_status_guc() {
             RETURN '{"status": "accepted"}'::json;
         END;
         $$ LANGUAGE plpgsql;
-        "#
-    ).await.unwrap();
+        "#,
+        )
+        .await
+        .unwrap();
 
     // Reload schema cache to pick up the new function
     server.state.reload_schema_cache().await.unwrap();
 
     let resp = server.get("/rpc/set_status_202").await;
     let status = resp.status();
-    
+
     // Debug: print response if not 202
     if status != StatusCode::ACCEPTED {
         let body: Value = resp.json().await.unwrap();
         eprintln!("Unexpected status {}: {:?}", status, body);
     }
-    
+
     // Verify status was overridden to 202
     assert_eq!(status, StatusCode::ACCEPTED);
 }
@@ -1208,8 +1219,11 @@ async fn e2e_response_headers_guc() {
 
     // Create a function that sets custom headers
     // PostgREST format: response.headers must be a JSON array of objects
-    server.db.pool().execute(
-        r#"
+    server
+        .db
+        .pool()
+        .execute(
+            r#"
         CREATE OR REPLACE FUNCTION test_api.set_custom_headers()
         RETURNS json AS $$
         BEGIN
@@ -1219,8 +1233,10 @@ async fn e2e_response_headers_guc() {
             RETURN '{"result": "ok"}'::json;
         END;
         $$ LANGUAGE plpgsql;
-        "#
-    ).await.unwrap();
+        "#,
+        )
+        .await
+        .unwrap();
 
     // Reload schema cache to pick up the new function
     server.state.reload_schema_cache().await.unwrap();
@@ -1228,23 +1244,17 @@ async fn e2e_response_headers_guc() {
     let resp = server.get("/rpc/set_custom_headers").await;
     let status = resp.status();
     let headers = resp.headers().clone();
-    
+
     // Debug: print response if headers missing
     if headers.get("X-Custom-Header").is_none() {
         let body: Value = resp.json().await.unwrap();
         eprintln!("Missing headers, status {}: {:?}", status, body);
         eprintln!("All headers: {:?}", headers);
     }
-    
+
     // Verify custom headers are present
-    assert_eq!(
-        headers.get("X-Custom-Header").unwrap(),
-        "custom-value"
-    );
-    assert_eq!(
-        headers.get("X-Another").unwrap(),
-        "another-value"
-    );
+    assert_eq!(headers.get("X-Custom-Header").unwrap(), "custom-value");
+    assert_eq!(headers.get("X-Another").unwrap(), "another-value");
 }
 
 // ==========================================================================
@@ -1268,9 +1278,7 @@ async fn e2e_insert_post_for_user_then_read() {
     let post_id = created[0]["id"].as_i64().unwrap();
 
     // Read it back
-    let resp = server
-        .get(&format!("/posts?id=eq.{}", post_id))
-        .await;
+    let resp = server.get(&format!("/posts?id=eq.{}", post_id)).await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let posts = body.as_array().unwrap();
@@ -1294,9 +1302,7 @@ async fn e2e_insert_comment_then_read() {
     let comment_id = created[0]["id"].as_i64().unwrap();
 
     // Read it back
-    let resp = server
-        .get(&format!("/comments?id=eq.{}", comment_id))
-        .await;
+    let resp = server.get(&format!("/comments?id=eq.{}", comment_id)).await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let comments = body.as_array().unwrap();
@@ -1319,13 +1325,13 @@ async fn e2e_order_items_with_embeds() {
 
     let body: Value = resp.json().await.unwrap();
     let items = body.as_array().unwrap();
-    assert!(
-        !items.is_empty(),
-        "Should have order items from fixtures"
-    );
+    assert!(!items.is_empty(), "Should have order items from fixtures");
 
     for item in items {
-        assert!(item.get("quantity").is_some(), "Item should have 'quantity'");
+        assert!(
+            item.get("quantity").is_some(),
+            "Item should have 'quantity'"
+        );
         assert!(
             item.get("products").is_some(),
             "Item should have 'products' embed"
@@ -1358,9 +1364,7 @@ async fn e2e_insert_order_item_and_verify() {
     let item_id = created[0]["id"].as_i64().unwrap();
 
     // Read it back
-    let resp = server
-        .get(&format!("/order_items?id=eq.{}", item_id))
-        .await;
+    let resp = server.get(&format!("/order_items?id=eq.{}", item_id)).await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let items = body.as_array().unwrap();
@@ -1410,10 +1414,7 @@ async fn e2e_read_view_active_users() {
     let body: Value = resp.json().await.unwrap();
     let users = body.as_array().unwrap();
     // Alice and Bob are active
-    assert!(
-        users.len() >= 2,
-        "Expected at least 2 active users in view"
-    );
+    assert!(users.len() >= 2, "Expected at least 2 active users in view");
 }
 
 #[tokio::test]
@@ -1616,7 +1617,10 @@ async fn e2e_post_location_header() {
         .expect("POST 201 should include Location header")
         .to_str()
         .unwrap();
-    assert_eq!(location, "/users", "Location should point to the resource path");
+    assert_eq!(
+        location, "/users",
+        "Location should point to the resource path"
+    );
 }
 
 // ==========================================================================
@@ -1629,8 +1633,9 @@ async fn e2e_streaming_large_response() {
     let server = TestServer::start_with_role_and_config("admin_user", |config| {
         config.server_streaming_enabled = true;
         config.server_streaming_threshold = 1024; // 1KB threshold
-    }).await;
-    
+    })
+    .await;
+
     // Create a large dataset (enough to exceed 1KB threshold)
     // Insert 100 users with some data
     for i in 0..100 {
@@ -1645,14 +1650,14 @@ async fn e2e_streaming_large_response() {
         .await
         .unwrap();
     }
-    
+
     // Reload schema cache
     server.state.reload_schema_cache().await.unwrap();
-    
+
     // Make a request that should trigger streaming
     let resp = server.get("/users").await;
     assert_eq!(resp.status(), StatusCode::OK);
-    
+
     // Verify the response is valid JSON (streaming should still produce valid JSON)
     let body: Value = resp.json().await.unwrap();
     assert!(body.is_array());
@@ -1664,8 +1669,9 @@ async fn e2e_streaming_disabled() {
     // Disable streaming
     let server = TestServer::start_with_role_and_config("admin_user", |config| {
         config.server_streaming_enabled = false;
-    }).await;
-    
+    })
+    .await;
+
     // Create a large dataset
     for i in 0..100 {
         sqlx::query(
@@ -1679,14 +1685,14 @@ async fn e2e_streaming_disabled() {
         .await
         .unwrap();
     }
-    
+
     // Reload schema cache
     server.state.reload_schema_cache().await.unwrap();
-    
+
     // Make a request - should work normally without streaming
     let resp = server.get("/users").await;
     assert_eq!(resp.status(), StatusCode::OK);
-    
+
     // Verify the response is valid JSON
     let body: Value = resp.json().await.unwrap();
     assert!(body.is_array());
@@ -1698,8 +1704,9 @@ async fn e2e_streaming_small_response() {
     let server = TestServer::start_with_role_and_config("admin_user", |config| {
         config.server_streaming_enabled = true;
         config.server_streaming_threshold = 10 * 1024 * 1024; // 10MB threshold
-    }).await;
-    
+    })
+    .await;
+
     // Create a small dataset (should not trigger streaming)
     for i in 0..5 {
         sqlx::query(
@@ -1712,14 +1719,14 @@ async fn e2e_streaming_small_response() {
         .await
         .unwrap();
     }
-    
+
     // Reload schema cache
     server.state.reload_schema_cache().await.unwrap();
-    
+
     // Make a request - should not stream (below threshold)
     let resp = server.get("/users").await;
     assert_eq!(resp.status(), StatusCode::OK);
-    
+
     // Verify the response is valid JSON
     let body: Value = resp.json().await.unwrap();
     assert!(body.is_array());
@@ -1751,7 +1758,7 @@ async fn e2e_computed_field_in_select() {
     // First verify basic select works
     let resp = server.get("/users?select=id,name").await;
     assert_eq!(resp.status(), StatusCode::OK);
-    
+
     // Test computed field in select
     let resp = server.get("/users?select=id,name,full_name").await;
     assert_eq!(resp.status(), StatusCode::OK);
@@ -1759,17 +1766,23 @@ async fn e2e_computed_field_in_select() {
     let body: Value = resp.json().await.unwrap();
     let users = body.as_array().unwrap();
     assert!(!users.is_empty());
-    
+
     // Find the user we inserted
-    let user = users.iter()
+    let user = users
+        .iter()
         .find(|u| u["name"].as_str() == Some("John Doe"))
         .expect("John Doe user not found in response");
-    
+
     assert!(user["id"].is_number());
     assert_eq!(user["name"].as_str().unwrap(), "John Doe");
     assert!(user["full_name"].is_string());
     assert!(user["full_name"].as_str().unwrap().contains("John Doe"));
-    assert!(user["full_name"].as_str().unwrap().contains("john@example.com"));
+    assert!(
+        user["full_name"]
+            .as_str()
+            .unwrap()
+            .contains("john@example.com")
+    );
 }
 
 #[tokio::test]
@@ -1805,12 +1818,15 @@ async fn e2e_computed_field_in_order() {
     let server = TestServer::start_as_admin().await;
 
     // Insert test data with unique emails
-    let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
     sqlx::query(
         "INSERT INTO test_api.users (name, email, status) VALUES ($1, $2, $3::test_api.user_status)"
     )
     .bind("Alice")
-    .bind(&format!("alice-order-{}@example.com", timestamp))
+    .bind(format!("alice-order-{}@example.com", timestamp))
     .bind("active")
     .execute(server.db.pool())
     .await
@@ -1820,7 +1836,7 @@ async fn e2e_computed_field_in_order() {
         "INSERT INTO test_api.users (name, email, status) VALUES ($1, $2, $3::test_api.user_status)"
     )
     .bind("Bob")
-    .bind(&format!("bob-order-{}@example.com", timestamp))
+    .bind(format!("bob-order-{}@example.com", timestamp))
     .bind("active")
     .execute(server.db.pool())
     .await
@@ -1830,13 +1846,15 @@ async fn e2e_computed_field_in_order() {
     server.state.reload_schema_cache().await.unwrap();
 
     // Test computed field in order
-    let resp = server.get("/users?select=name,full_name&order=full_name.asc").await;
+    let resp = server
+        .get("/users?select=name,full_name&order=full_name.asc")
+        .await;
     assert_eq!(resp.status(), StatusCode::OK);
 
     let body: Value = resp.json().await.unwrap();
     let users = body.as_array().unwrap();
     assert!(users.len() >= 2);
-    
+
     // Verify ordering (Alice should come before Bob alphabetically in full_name)
     let first_name = users[0]["name"].as_str().unwrap();
     assert!(first_name == "Alice" || first_name == "Bob");
@@ -1878,11 +1896,16 @@ async fn e2e_computed_field_not_found() {
     let resp = server.get("/users?select=nonexistent_field").await;
     // Should return 404 Not Found (ColumnNotFound maps to 404)
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-    
+
     let body: Value = resp.json().await.unwrap();
-    assert!(body["message"].as_str().unwrap().contains("column") || 
-            body["message"].as_str().unwrap().contains("field") ||
-            body["message"].as_str().unwrap().contains("nonexistent_field"));
+    assert!(
+        body["message"].as_str().unwrap().contains("column")
+            || body["message"].as_str().unwrap().contains("field")
+            || body["message"]
+                .as_str()
+                .unwrap()
+                .contains("nonexistent_field")
+    );
 }
 
 #[tokio::test]
@@ -1910,12 +1933,13 @@ async fn e2e_computed_field_initials() {
     let body: Value = resp.json().await.unwrap();
     let users = body.as_array().unwrap();
     assert!(!users.is_empty());
-    
+
     // Find the user we inserted
-    let user = users.iter()
+    let user = users
+        .iter()
         .find(|u| u["name"].as_str() == Some("John Doe"))
         .expect("John Doe user not found in response");
-    
+
     assert_eq!(user["name"].as_str().unwrap(), "John Doe");
     assert!(user["initials"].is_string());
     // Initials should be "JD" or similar
@@ -1928,12 +1952,15 @@ async fn e2e_computed_field_multiple() {
     let server = TestServer::start_as_admin().await;
 
     // Insert test data with unique email
-    let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
     sqlx::query(
         "INSERT INTO test_api.users (name, email, status) VALUES ($1, $2, $3::test_api.user_status)"
     )
     .bind("Alice Wonder")
-    .bind(&format!("alice-wonder-{}@example.com", timestamp))
+    .bind(format!("alice-wonder-{}@example.com", timestamp))
     .bind("active")
     .execute(server.db.pool())
     .await
@@ -1949,17 +1976,18 @@ async fn e2e_computed_field_multiple() {
     let body: Value = resp.json().await.unwrap();
     let users = body.as_array().unwrap();
     assert!(!users.is_empty());
-    
+
     // Find the user we inserted
-    let user = users.iter()
+    let user = users
+        .iter()
         .find(|u| u["name"].as_str() == Some("Alice Wonder"))
         .expect("Alice Wonder user not found in response");
-    
+
     assert!(user["id"].is_number());
     assert_eq!(user["name"].as_str().unwrap(), "Alice Wonder");
     assert!(user["full_name"].is_string());
     assert!(user["initials"].is_string());
-    
+
     let full_name = user["full_name"].as_str().unwrap();
     assert!(full_name.contains("Alice Wonder"));
     // Check that it contains the email (which has timestamp)
@@ -1971,9 +1999,12 @@ async fn e2e_computed_field_filter_operators() {
     let server = TestServer::start_as_admin().await;
 
     // Insert test data with unique email (store timestamp to reuse)
-    let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
     let email = format!("bob-builder-{}@example.com", timestamp);
-    
+
     sqlx::query(
         "INSERT INTO test_api.users (name, email, status) VALUES ($1, $2, $3::test_api.user_status)"
     )
@@ -1986,15 +2017,18 @@ async fn e2e_computed_field_filter_operators() {
 
     // Reload schema cache
     server.state.reload_schema_cache().await.unwrap();
-    
+
     // Test LIKE operator with computed field
-    let resp = server.get(&format!("/users?full_name=like.*{}*", email)).await;
+    let resp = server
+        .get(&format!("/users?full_name=like.*{}*", email))
+        .await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let users = body.as_array().unwrap();
     assert!(!users.is_empty());
     // Find the user we inserted
-    let user = users.iter()
+    let user = users
+        .iter()
         .find(|u| u["name"].as_str() == Some("Bob Builder"))
         .expect("Bob Builder user not found in response");
     assert_eq!(user["name"].as_str().unwrap(), "Bob Builder");
@@ -2012,12 +2046,15 @@ async fn e2e_computed_field_order_asc_desc() {
     let server = TestServer::start_as_admin().await;
 
     // Insert multiple test records with unique emails
-    let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
     sqlx::query(
         "INSERT INTO test_api.users (name, email, status) VALUES ($1, $2, $3::test_api.user_status)"
     )
     .bind("Charlie")
-    .bind(&format!("charlie-order-{}@example.com", timestamp))
+    .bind(format!("charlie-order-{}@example.com", timestamp))
     .bind("active")
     .execute(server.db.pool())
     .await
@@ -2027,7 +2064,7 @@ async fn e2e_computed_field_order_asc_desc() {
         "INSERT INTO test_api.users (name, email, status) VALUES ($1, $2, $3::test_api.user_status)"
     )
     .bind("Alice")
-    .bind(&format!("alice-order-{}@example.com", timestamp))
+    .bind(format!("alice-order-{}@example.com", timestamp))
     .bind("active")
     .execute(server.db.pool())
     .await
@@ -2037,19 +2074,23 @@ async fn e2e_computed_field_order_asc_desc() {
     server.state.reload_schema_cache().await.unwrap();
 
     // Test ascending order by computed field
-    let resp = server.get("/users?select=name,full_name&order=full_name.asc").await;
+    let resp = server
+        .get("/users?select=name,full_name&order=full_name.asc")
+        .await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let users = body.as_array().unwrap();
     assert!(users.len() >= 2);
-    
+
     // Verify ordering (should be alphabetical by full_name)
     let first_name = users[0]["name"].as_str().unwrap();
     let second_name = users[1]["name"].as_str().unwrap();
     assert!(first_name < second_name || first_name == "Alice");
 
     // Test descending order by computed field
-    let resp = server.get("/users?select=name,full_name&order=full_name.desc").await;
+    let resp = server
+        .get("/users?select=name,full_name&order=full_name.desc")
+        .await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let users = body.as_array().unwrap();
@@ -2080,26 +2121,30 @@ async fn e2e_computed_field_with_regular_column() {
     let body: Value = resp.json().await.unwrap();
     let users = body.as_array().unwrap();
     assert!(!users.is_empty());
-    
+
     // Find the user we inserted
-    let user = users.iter()
+    let user = users
+        .iter()
         .find(|u| u["name"].as_str() == Some("David"))
         .expect("David user not found in response");
-    
+
     assert!(user["id"].is_number());
     assert_eq!(user["name"].as_str().unwrap(), "David");
     assert_eq!(user["email"].as_str().unwrap(), "david@example.com");
     assert!(user["full_name"].is_string());
-    
+
     // Test mixing regular columns and computed fields in filter
-    let resp = server.get("/users?name=eq.David&full_name=like.*david@example.com*").await;
+    let resp = server
+        .get("/users?name=eq.David&full_name=like.*david@example.com*")
+        .await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let users = body.as_array().unwrap();
     assert!(!users.is_empty());
-    
+
     // Verify we got David
-    let user = users.iter()
+    let user = users
+        .iter()
         .find(|u| u["name"].as_str() == Some("David"))
         .expect("David user not found in filtered response");
     assert_eq!(user["name"].as_str().unwrap(), "David");
@@ -2116,11 +2161,13 @@ async fn e2e_computed_field_error_handling() {
     let resp = server.get("/users?select=nonexistent_computed_field").await;
     // ColumnNotFound maps to 404 Not Found
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-    
+
     let body: Value = resp.json().await.unwrap();
-    assert!(body["message"].as_str().unwrap().contains("column") || 
-            body["message"].as_str().unwrap().contains("field") ||
-            body["message"].as_str().unwrap().contains("nonexistent"));
+    assert!(
+        body["message"].as_str().unwrap().contains("column")
+            || body["message"].as_str().unwrap().contains("field")
+            || body["message"].as_str().unwrap().contains("nonexistent")
+    );
 
     // Test computed field in filter with invalid operator
     let resp = server.get("/users?full_name=invalid_op.value").await;
@@ -2136,15 +2183,17 @@ async fn e2e_computed_field_error_handling() {
 #[ignore = "requires Docker"]
 async fn e2e_composite_column_select() {
     let server = TestServer::start().await;
-    
+
     // Select composite field with JSON path
-    let resp = server.get("/countries?select=id,name,location->>lat,location->>long").await;
-    
+    let resp = server
+        .get("/countries?select=id,name,location->>lat,location->>long")
+        .await;
+
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let countries = body.as_array().unwrap();
     assert!(!countries.is_empty());
-    
+
     // Verify composite field access
     let first = &countries[0];
     assert!(first.get("lat").is_some() || first.get("location").is_some());
@@ -2155,15 +2204,17 @@ async fn e2e_composite_column_select() {
 #[ignore = "requires Docker"]
 async fn e2e_array_column_select() {
     let server = TestServer::start().await;
-    
+
     // Select array element with JSON path
-    let resp = server.get("/countries?select=id,name,primary_language:languages->0").await;
-    
+    let resp = server
+        .get("/countries?select=id,name,primary_language:languages->0")
+        .await;
+
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let countries = body.as_array().unwrap();
     assert!(!countries.is_empty());
-    
+
     // Verify array element access
     let first = &countries[0];
     assert!(first.get("primary_language").is_some() || first.get("languages").is_some());
@@ -2177,16 +2228,19 @@ async fn e2e_array_column_select() {
 #[ignore = "requires Docker"]
 async fn e2e_array_element_filter_eq() {
     let server = TestServer::start().await;
-    
+
     // Filter by array element using ->>
-    let resp = server.get("/countries?select=id,name&languages->>0=eq.en").await;
+    let resp = server
+        .get("/countries?select=id,name&languages->>0=eq.en")
+        .await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let countries = body.as_array().unwrap();
-    
+
     // Should return countries with English as first language (US, Canada)
     assert_eq!(countries.len(), 2);
-    let names: Vec<String> = countries.iter()
+    let names: Vec<String> = countries
+        .iter()
         .map(|c| c["name"].as_str().unwrap().to_string())
         .collect();
     assert!(names.contains(&"United States".to_string()));
@@ -2197,16 +2251,19 @@ async fn e2e_array_element_filter_eq() {
 #[ignore = "requires Docker"]
 async fn e2e_array_element_filter_neq() {
     let server = TestServer::start().await;
-    
+
     // Filter by array element using !=
-    let resp = server.get("/countries?select=id,name&languages->>0=neq.en").await;
+    let resp = server
+        .get("/countries?select=id,name&languages->>0=neq.en")
+        .await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let countries = body.as_array().unwrap();
-    
+
     // Should return countries without English as first language
     assert!(!countries.is_empty());
-    let names: Vec<String> = countries.iter()
+    let names: Vec<String> = countries
+        .iter()
         .map(|c| c["name"].as_str().unwrap().to_string())
         .collect();
     assert!(!names.contains(&"United States".to_string()));
@@ -2217,9 +2274,11 @@ async fn e2e_array_element_filter_neq() {
 #[ignore = "requires Docker"]
 async fn e2e_array_element_filter_in() {
     let server = TestServer::start().await;
-    
+
     // Filter by array element using IN
-    let resp = server.get("/countries?select=id,name&languages->>0=in.(en,fr)").await;
+    let resp = server
+        .get("/countries?select=id,name&languages->>0=in.(en,fr)")
+        .await;
     let status = resp.status();
     let body: Value = resp.json().await.unwrap();
     if status != StatusCode::OK {
@@ -2227,39 +2286,48 @@ async fn e2e_array_element_filter_in() {
     }
     assert_eq!(status, StatusCode::OK);
     let countries = body.as_array().unwrap();
-    
+
     // Should return countries with en or fr as first language
     assert!(!countries.is_empty());
-    let names: Vec<String> = countries.iter()
+    let names: Vec<String> = countries
+        .iter()
         .map(|c| c["name"].as_str().unwrap().to_string())
         .collect();
-    assert!(names.contains(&"United States".to_string()) || 
-            names.contains(&"Canada".to_string()) ||
-            names.contains(&"France".to_string()));
+    assert!(
+        names.contains(&"United States".to_string())
+            || names.contains(&"Canada".to_string())
+            || names.contains(&"France".to_string())
+    );
 }
 
 #[tokio::test]
 #[ignore = "requires Docker"]
 async fn e2e_composite_field_filter_eq() {
     let server = TestServer::start().await;
-    
+
     // Filter by composite field using -> (not ->>) for numeric comparison
     // PostgREST docs show using -> for numeric comparisons, ->> for text
     // Filter by composite field using ->> for text comparison
     // Note: When using ->>, PostgreSQL converts numeric values to text,
     // so exact matches might fail due to formatting. Use gte/lt for numeric ranges instead.
-    let resp = server.get("/countries?select=id,name&location->>lat=gte.37&location->>lat=lt.38").await;
+    let resp = server
+        .get("/countries?select=id,name&location->>lat=gte.37&location->>lat=lt.38")
+        .await;
     let status = resp.status();
     let body: Value = resp.json().await.unwrap();
     if status != StatusCode::OK {
-        eprintln!("Composite EQ filter error: status={}, body={:?}", status, body);
+        eprintln!(
+            "Composite EQ filter error: status={}, body={:?}",
+            status, body
+        );
     }
     assert_eq!(status, StatusCode::OK);
     let countries = body.as_array().unwrap();
-    
+
     // Should return United States (lat between 37 and 38)
     assert!(!countries.is_empty());
-    let names: Vec<String> = countries.iter()
+    let names: Vec<String> = countries
+        .iter()
         .map(|c| c["name"].as_str().unwrap().to_string())
         .collect();
     assert!(names.contains(&"United States".to_string()));
@@ -2269,36 +2337,41 @@ async fn e2e_composite_field_filter_eq() {
 #[ignore = "requires Docker"]
 async fn e2e_composite_field_filter_gte() {
     let server = TestServer::start().await;
-    
+
     // Filter by composite field using >=
-    let resp = server.get("/countries?select=id,name&location->>lat=gte.40").await;
+    let resp = server
+        .get("/countries?select=id,name&location->>lat=gte.40")
+        .await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let countries = body.as_array().unwrap();
-    
+
     // Should return countries with lat >= 40 (Canada: 45.5017, Germany: 52.5200)
     assert!(!countries.is_empty());
-    let names: Vec<String> = countries.iter()
+    let names: Vec<String> = countries
+        .iter()
         .map(|c| c["name"].as_str().unwrap().to_string())
         .collect();
-    assert!(names.contains(&"Canada".to_string()) || 
-            names.contains(&"Germany".to_string()));
+    assert!(names.contains(&"Canada".to_string()) || names.contains(&"Germany".to_string()));
 }
 
 #[tokio::test]
 #[ignore = "requires Docker"]
 async fn e2e_composite_field_filter_lt() {
     let server = TestServer::start().await;
-    
+
     // Filter by composite field using <
-    let resp = server.get("/countries?select=id,name&location->>lat=lt.20").await;
+    let resp = server
+        .get("/countries?select=id,name&location->>lat=lt.20")
+        .await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let countries = body.as_array().unwrap();
-    
+
     // Should return Mexico (lat = 19.4326)
     assert!(!countries.is_empty());
-    let names: Vec<String> = countries.iter()
+    let names: Vec<String> = countries
+        .iter()
         .map(|c| c["name"].as_str().unwrap().to_string())
         .collect();
     assert!(names.contains(&"Mexico".to_string()));
@@ -2308,16 +2381,19 @@ async fn e2e_composite_field_filter_lt() {
 #[ignore = "requires Docker"]
 async fn e2e_composite_field_filter_like() {
     let server = TestServer::start().await;
-    
+
     // Filter by composite field using LIKE (on text representation)
-    let resp = server.get("/countries?select=id,name&location->>lat=like.37.*").await;
+    let resp = server
+        .get("/countries?select=id,name&location->>lat=like.37.*")
+        .await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let countries = body.as_array().unwrap();
-    
+
     // Should return United States (lat starts with 37)
     assert!(!countries.is_empty());
-    let names: Vec<String> = countries.iter()
+    let names: Vec<String> = countries
+        .iter()
         .map(|c| c["name"].as_str().unwrap().to_string())
         .collect();
     assert!(names.contains(&"United States".to_string()));
@@ -2327,13 +2403,15 @@ async fn e2e_composite_field_filter_like() {
 #[ignore = "requires Docker"]
 async fn e2e_composite_field_filter_and() {
     let server = TestServer::start().await;
-    
+
     // Filter by multiple composite fields using AND
-    let resp = server.get("/countries?select=id,name&location->>lat=gte.19&location->>lat=lt.50").await;
+    let resp = server
+        .get("/countries?select=id,name&location->>lat=gte.19&location->>lat=lt.50")
+        .await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let countries = body.as_array().unwrap();
-    
+
     // Should return countries with lat between 19 and 50
     assert!(!countries.is_empty());
 }
@@ -2342,13 +2420,15 @@ async fn e2e_composite_field_filter_and() {
 #[ignore = "requires Docker"]
 async fn e2e_array_element_with_select() {
     let server = TestServer::start().await;
-    
+
     // Select array element and filter by it
-    let resp = server.get("/countries?select=id,name,first_lang:languages->>0&languages->>0=eq.en").await;
+    let resp = server
+        .get("/countries?select=id,name,first_lang:languages->>0&languages->>0=eq.en")
+        .await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let countries = body.as_array().unwrap();
-    
+
     // Should return countries with English as first language
     assert!(!countries.is_empty());
     for country in countries {
@@ -2360,13 +2440,15 @@ async fn e2e_array_element_with_select() {
 #[ignore = "requires Docker"]
 async fn e2e_composite_field_with_select() {
     let server = TestServer::start().await;
-    
+
     // Select composite field and filter by it
-    let resp = server.get("/countries?select=id,name,lat:location->>lat&location->>lat=gte.40").await;
+    let resp = server
+        .get("/countries?select=id,name,lat:location->>lat&location->>lat=gte.40")
+        .await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let countries = body.as_array().unwrap();
-    
+
     // Should return countries with lat >= 40
     assert!(!countries.is_empty());
     for country in countries {
@@ -2380,9 +2462,11 @@ async fn e2e_composite_field_with_select() {
 #[ignore = "requires Docker"]
 async fn e2e_composite_column_filter() {
     let server = TestServer::start().await;
-    
+
     // Filter by composite field
-    let resp = server.get("/countries?select=id,name&location->>lat=gte.19").await;
+    let resp = server
+        .get("/countries?select=id,name&location->>lat=gte.19")
+        .await;
     let status = resp.status();
     let body: Value = resp.json().await.unwrap();
     if status != StatusCode::OK {
@@ -2390,7 +2474,7 @@ async fn e2e_composite_column_filter() {
     }
     assert_eq!(status, StatusCode::OK);
     let countries = body.as_array().unwrap();
-    
+
     // Should return countries with lat >= 19
     assert!(!countries.is_empty());
 }
@@ -2399,9 +2483,11 @@ async fn e2e_composite_column_filter() {
 #[ignore = "requires Docker"]
 async fn e2e_array_column_filter() {
     let server = TestServer::start().await;
-    
+
     // Filter by array element
-    let resp = server.get("/countries?select=id,name&languages->>0=eq.en").await;
+    let resp = server
+        .get("/countries?select=id,name&languages->>0=eq.en")
+        .await;
     let status = resp.status();
     let body: Value = resp.json().await.unwrap();
     if status != StatusCode::OK {
@@ -2409,7 +2495,7 @@ async fn e2e_array_column_filter() {
     }
     assert_eq!(status, StatusCode::OK);
     let countries = body.as_array().unwrap();
-    
+
     // Should return countries with English as first language
     assert!(!countries.is_empty());
 }
@@ -2418,26 +2504,33 @@ async fn e2e_array_column_filter() {
 #[ignore = "requires Docker"]
 async fn e2e_composite_column_order() {
     let server = TestServer::start().await;
-    
+
     // Order by composite field
-    let resp = server.get("/countries?select=id,name,location->>lat&order=location->>lat.desc").await;
-    
+    let resp = server
+        .get("/countries?select=id,name,location->>lat&order=location->>lat.desc")
+        .await;
+
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let countries = body.as_array().unwrap();
-    
-    assert!(countries.len() >= 2, "Need at least 2 countries to test ordering");
-    
+
+    assert!(
+        countries.len() >= 2,
+        "Need at least 2 countries to test ordering"
+    );
+
     // Verify descending order (lat values should be decreasing)
-    let first_lat = countries[0].get("lat")
+    let first_lat = countries[0]
+        .get("lat")
         .or_else(|| countries[0].get("location").and_then(|l| l.get("lat")))
         .and_then(|v| v.as_str())
         .and_then(|s| s.parse::<f64>().ok());
-    let second_lat = countries[1].get("lat")
+    let second_lat = countries[1]
+        .get("lat")
         .or_else(|| countries[1].get("location").and_then(|l| l.get("lat")))
         .and_then(|v| v.as_str())
         .and_then(|s| s.parse::<f64>().ok());
-    
+
     if let (Some(first), Some(second)) = (first_lat, second_lat) {
         assert!(first >= second, "Should be in descending order");
     }
@@ -2451,15 +2544,15 @@ async fn e2e_composite_column_order() {
 #[ignore = "requires Docker"]
 async fn e2e_column_cast_valid() {
     let server = TestServer::start().await;
-    
+
     // Cast id to text
     let resp = server.get("/users?select=id::text,name").await;
-    
+
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let users = body.as_array().unwrap();
     assert!(!users.is_empty());
-    
+
     // Verify id is returned as string
     let first = &users[0];
     let id_value = first.get("id").unwrap();
@@ -2470,13 +2563,14 @@ async fn e2e_column_cast_valid() {
 #[ignore = "requires Docker"]
 async fn e2e_column_cast_invalid() {
     let server = TestServer::start().await;
-    
+
     // Try invalid cast type
     let resp = server.get("/users?select=id::nonexistent_type").await;
-    
+
     // Should return error (either 400 Bad Request from validation or 500 from PostgreSQL)
     assert!(
-        resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
+        resp.status() == StatusCode::BAD_REQUEST
+            || resp.status() == StatusCode::INTERNAL_SERVER_ERROR,
         "Should reject invalid cast type"
     );
 }
@@ -2485,13 +2579,16 @@ async fn e2e_column_cast_invalid() {
 #[ignore = "requires Docker"]
 async fn e2e_column_cast_in_filter() {
     let server = TestServer::start().await;
-    
+
     // Try casting in filter (should be rejected)
     let resp = server.get("/users?id::text=eq.1").await;
     let status = resp.status();
     let body: Value = resp.json().await.unwrap();
     if status != StatusCode::BAD_REQUEST {
-        eprintln!("Cast in filter should be rejected: status={}, body={:?}", status, body);
+        eprintln!(
+            "Cast in filter should be rejected: status={}, body={:?}",
+            status, body
+        );
     }
     assert_eq!(
         status,
@@ -2499,7 +2596,10 @@ async fn e2e_column_cast_in_filter() {
         "Should reject casting in filters"
     );
     assert!(
-        body["message"].as_str().unwrap().contains("casting not allowed in filters"),
+        body["message"]
+            .as_str()
+            .unwrap()
+            .contains("casting not allowed in filters"),
         "Error message should mention casting restriction"
     );
 }
@@ -2508,17 +2608,23 @@ async fn e2e_column_cast_in_filter() {
 #[ignore = "requires Docker"]
 async fn e2e_column_cast_with_alias() {
     let server = TestServer::start().await;
-    
+
     // Cast with alias
     let resp = server.get("/users?select=id,name,id_text:id::text").await;
-    
+
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
     let users = body.as_array().unwrap();
     assert!(!users.is_empty());
-    
+
     // Verify alias and cast
     let first = &users[0];
-    assert!(first.get("id_text").is_some(), "Should have aliased cast field");
-    assert!(first.get("id_text").unwrap().is_string(), "Aliased field should be string");
+    assert!(
+        first.get("id_text").is_some(),
+        "Should have aliased cast field"
+    );
+    assert!(
+        first.get("id_text").unwrap().is_string(),
+        "Aliased field should be string"
+    );
 }

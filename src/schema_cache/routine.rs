@@ -61,7 +61,8 @@ impl Routine {
     pub fn returns_composite(&self) -> bool {
         matches!(
             &self.return_type,
-            ReturnType::Single(PgType::Composite(_, _)) | ReturnType::SetOf(PgType::Composite(_, _))
+            ReturnType::Single(PgType::Composite(_, _))
+                | ReturnType::SetOf(PgType::Composite(_, _))
         )
     }
 
@@ -301,9 +302,7 @@ mod tests {
         assert!(scalar_func.returns_scalar());
         assert!(!scalar_func.returns_composite());
 
-        let composite_func = test_routine()
-            .returns_composite("public", "users")
-            .build();
+        let composite_func = test_routine().returns_composite("public", "users").build();
         assert!(!composite_func.returns_scalar());
         assert!(composite_func.returns_composite());
     }
@@ -335,9 +334,7 @@ mod tests {
         let scalar_func = test_routine().returns_scalar("integer").build();
         assert!(scalar_func.table_name().is_none());
 
-        let composite_func = test_routine()
-            .returns_composite("api", "users")
-            .build();
+        let composite_func = test_routine().returns_composite("api", "users").build();
         assert_eq!(composite_func.table_name(), Some("users"));
     }
 
@@ -419,10 +416,12 @@ mod tests {
     #[test]
     fn test_routine_param_is_text_type() {
         assert!(test_param().pg_type("text").build().is_text_type());
-        assert!(test_param()
-            .pg_type("character varying")
-            .build()
-            .is_text_type());
+        assert!(
+            test_param()
+                .pg_type("character varying")
+                .build()
+                .is_text_type()
+        );
         assert!(!test_param().pg_type("integer").build().is_text_type());
     }
 

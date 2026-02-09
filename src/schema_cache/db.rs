@@ -7,9 +7,9 @@ use async_trait::async_trait;
 
 use crate::error::Error;
 
-use super::table::Table;
 use super::relationship::Relationship;
 use super::routine::Routine;
+use super::table::Table;
 
 /// Row type returned from tables query
 #[derive(Debug, Clone)]
@@ -45,7 +45,7 @@ pub struct RoutineRow {
     pub routine_schema: String,
     pub routine_name: String,
     pub description: Option<String>,
-    pub params_json: String, // JSON array of params
+    pub params_json: String,      // JSON array of params
     pub return_type_json: String, // JSON object
     pub volatility: String,
     pub is_variadic: bool,
@@ -80,7 +80,10 @@ pub trait DbIntrospector: Send + Sync {
     async fn query_routines(&self, schemas: &[String]) -> Result<Vec<RoutineRow>, Error>;
 
     /// Query computed field functions in the specified schemas
-    async fn query_computed_fields(&self, schemas: &[String]) -> Result<Vec<ComputedFieldRow>, Error>;
+    async fn query_computed_fields(
+        &self,
+        schemas: &[String],
+    ) -> Result<Vec<ComputedFieldRow>, Error>;
 
     /// Query available timezones
     async fn query_timezones(&self) -> Result<Vec<String>, Error>;
@@ -133,7 +136,7 @@ pub struct ParamJson {
 /// JSON structure for return type data
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct ReturnTypeJson {
-    pub kind: String, // "single" or "setof"
+    pub kind: String,      // "single" or "setof"
     pub type_kind: String, // "scalar" or "composite"
     pub type_schema: String,
     pub type_name: String,
@@ -161,7 +164,10 @@ impl TableRow {
             if col.name == "location" {
                 tracing::trace!(
                     "Loading 'location' column - is_composite: {}, data_type: {}, composite_type_schema: {:?}, composite_type_name: {:?}",
-                    col.is_composite, col.data_type, col.composite_type_schema, col.composite_type_name
+                    col.is_composite,
+                    col.data_type,
+                    col.composite_type_schema,
+                    col.composite_type_name
                 );
             }
             let column = Column {
@@ -189,7 +195,11 @@ impl TableRow {
             updatable: self.updatable,
             deletable: self.deletable,
             readable: self.readable,
-            pk_cols: self.pk_cols.into_iter().map(|s| s.into()).collect::<SmallVec<_>>(),
+            pk_cols: self
+                .pk_cols
+                .into_iter()
+                .map(|s| s.into())
+                .collect::<SmallVec<_>>(),
             columns: Arc::new(columns),
             computed_fields: HashMap::new(), // Will be populated during schema cache load
         })
@@ -199,13 +209,14 @@ impl TableRow {
 /// Convert RelationshipRow into Relationship
 impl RelationshipRow {
     pub fn into_relationship(self) -> Relationship {
-        use crate::types::QualifiedIdentifier;
         use super::relationship::Cardinality;
+        use crate::types::QualifiedIdentifier;
 
         let cardinality = if self.one_to_one {
             Cardinality::O2O {
                 constraint: self.constraint_name.into(),
-                columns: self.cols_and_fcols
+                columns: self
+                    .cols_and_fcols
                     .into_iter()
                     .map(|(a, b)| (a.into(), b.into()))
                     .collect(),
@@ -214,7 +225,8 @@ impl RelationshipRow {
         } else {
             Cardinality::M2O {
                 constraint: self.constraint_name.into(),
-                columns: self.cols_and_fcols
+                columns: self
+                    .cols_and_fcols
                     .into_iter()
                     .map(|(a, b)| (a.into(), b.into()))
                     .collect(),
@@ -223,7 +235,10 @@ impl RelationshipRow {
 
         Relationship {
             table: QualifiedIdentifier::new(&self.table_schema, &self.table_name),
-            foreign_table: QualifiedIdentifier::new(&self.foreign_table_schema, &self.foreign_table_name),
+            foreign_table: QualifiedIdentifier::new(
+                &self.foreign_table_schema,
+                &self.foreign_table_name,
+            ),
             is_self: self.is_self,
             cardinality,
             table_is_view: false, // Will be set later
@@ -235,8 +250,8 @@ impl RelationshipRow {
 /// Convert RoutineRow into Routine
 impl RoutineRow {
     pub fn into_routine(self) -> Result<Routine, Error> {
-        use crate::types::QualifiedIdentifier;
         use super::routine::{PgType, ReturnType, RoutineParam, Volatility};
+        use crate::types::QualifiedIdentifier;
 
         let params_data: Vec<ParamJson> = parse_params_json(&self.params_json)
             .map_err(|e| Error::Internal(format!("Failed to parse params JSON: {}", e)))?;
@@ -257,12 +272,16 @@ impl RoutineRow {
 
         let pg_type = match return_type_data.type_kind.as_str() {
             "composite" => PgType::Composite(
-                QualifiedIdentifier::new(&return_type_data.type_schema, &return_type_data.type_name),
+                QualifiedIdentifier::new(
+                    &return_type_data.type_schema,
+                    &return_type_data.type_name,
+                ),
                 return_type_data.is_alias,
             ),
-            _ => PgType::Scalar(
-                QualifiedIdentifier::new(&return_type_data.type_schema, &return_type_data.type_name),
-            ),
+            _ => PgType::Scalar(QualifiedIdentifier::new(
+                &return_type_data.type_schema,
+                &return_type_data.type_name,
+            )),
         };
 
         let return_type = match return_type_data.kind.as_str() {
@@ -304,12 +323,19 @@ impl<'a> SqlxIntrospector<'a> {
     }
 
     /// Fetch column metadata for a table.
-    async fn get_columns(
-        &self,
-        schema: &str,
-        table: &str,
-    ) -> Result<Vec<ColumnJson>, Error> {
-        let rows = sqlx::query_as::<_, (String, Option<String>, bool, String, String, Option<i32>, Option<String>)>(
+    async fn get_columns(&self, schema: &str, table: &str) -> Result<Vec<ColumnJson>, Error> {
+        let rows = sqlx::query_as::<
+            _,
+            (
+                String,
+                Option<String>,
+                bool,
+                String,
+                String,
+                Option<i32>,
+                Option<String>,
+            ),
+        >(
             r#"
             SELECT
                 a.attname AS column_name,
@@ -346,8 +372,8 @@ impl<'a> SqlxIntrospector<'a> {
 
         Ok(rows
             .into_iter()
-            .map(|(name, desc, nullable, data_type, default, max_len, enum_info)| {
-                ColumnJson {
+            .map(
+                |(name, desc, nullable, data_type, default, max_len, enum_info)| ColumnJson {
                     is_composite: false,
                     composite_type_schema: None,
                     composite_type_name: None,
@@ -367,16 +393,13 @@ impl<'a> SqlxIntrospector<'a> {
                     } else {
                         vec![]
                     },
-                }
-            })
+                },
+            )
             .collect())
     }
 
     /// Fetch FK column pairs for a constraint.
-    async fn get_fk_columns(
-        &self,
-        constraint_name: &str,
-    ) -> Result<Vec<(String, String)>, Error> {
+    async fn get_fk_columns(&self, constraint_name: &str) -> Result<Vec<(String, String)>, Error> {
         let rows = sqlx::query_as::<_, (String, String)>(
             r#"
             SELECT
@@ -404,7 +427,20 @@ impl<'a> SqlxIntrospector<'a> {
 #[async_trait]
 impl DbIntrospector for SqlxIntrospector<'_> {
     async fn query_tables(&self, schemas: &[String]) -> Result<Vec<TableRow>, Error> {
-        let rows = sqlx::query_as::<_, (String, String, Option<String>, bool, bool, bool, bool, bool, Vec<String>)>(
+        let rows = sqlx::query_as::<
+            _,
+            (
+                String,
+                String,
+                Option<String>,
+                bool,
+                bool,
+                bool,
+                bool,
+                bool,
+                Vec<String>,
+            ),
+        >(
             r#"
             SELECT
                 n.nspname AS table_schema,
@@ -441,7 +477,9 @@ impl DbIntrospector for SqlxIntrospector<'_> {
         })?;
 
         let mut result = Vec::new();
-        for (schema, name, desc, is_view, insertable, updatable, deletable, readable, pk_cols) in rows {
+        for (schema, name, desc, is_view, insertable, updatable, deletable, readable, pk_cols) in
+            rows
+        {
             let columns = self.get_columns(&schema, &name).await?;
             result.push(TableRow {
                 table_schema: schema,
@@ -489,7 +527,16 @@ impl DbIntrospector for SqlxIntrospector<'_> {
         })?;
 
         let mut result = Vec::new();
-        for (table_schema, table_name, foreign_schema, foreign_name, is_self, constraint, one_to_one) in rows {
+        for (
+            table_schema,
+            table_name,
+            foreign_schema,
+            foreign_name,
+            is_self,
+            constraint,
+            one_to_one,
+        ) in rows
+        {
             let cols = self.get_fk_columns(&constraint).await?;
             result.push(RelationshipRow {
                 table_schema,
@@ -547,7 +594,10 @@ impl DbIntrospector for SqlxIntrospector<'_> {
             .collect())
     }
 
-    async fn query_computed_fields(&self, schemas: &[String]) -> Result<Vec<ComputedFieldRow>, Error> {
+    async fn query_computed_fields(
+        &self,
+        schemas: &[String],
+    ) -> Result<Vec<ComputedFieldRow>, Error> {
         use super::queries::computed_fields::COMPUTED_FIELDS_QUERY;
 
         tracing::debug!("Querying computed fields for schemas: {:?}", schemas);
@@ -567,20 +617,33 @@ impl DbIntrospector for SqlxIntrospector<'_> {
 
         let computed_fields: Vec<ComputedFieldRow> = rows
             .into_iter()
-            .map(|(table_schema, table_name, function_schema, function_name, return_type, returns_set)| {
-                tracing::trace!(
-                    "Found computed field: {}.{} for table {}.{} returns {}",
-                    function_schema, function_name, table_schema, table_name, return_type
-                );
-                ComputedFieldRow {
+            .map(
+                |(
                     table_schema,
                     table_name,
                     function_schema,
                     function_name,
                     return_type,
                     returns_set,
-                }
-            })
+                )| {
+                    tracing::trace!(
+                        "Found computed field: {}.{} for table {}.{} returns {}",
+                        function_schema,
+                        function_name,
+                        table_schema,
+                        table_name,
+                        return_type
+                    );
+                    ComputedFieldRow {
+                        table_schema,
+                        table_name,
+                        function_schema,
+                        function_name,
+                        return_type,
+                        returns_set,
+                    }
+                },
+            )
             .collect();
 
         tracing::debug!("Found {} computed fields", computed_fields.len());
@@ -599,10 +662,10 @@ impl DbIntrospector for SqlxIntrospector<'_> {
                     detail: None,
                     hint: None,
                 })?;
-        
+
         // Convert to Vec<String>
         let mut timezones: Vec<String> = rows.into_iter().map(|(name,)| name).collect();
-        
+
         // Ensure UTC is always included (it's commonly used)
         // Check using string slice comparison
         let has_utc = timezones.iter().any(|tz| tz == "UTC");
@@ -615,7 +678,7 @@ impl DbIntrospector for SqlxIntrospector<'_> {
             // Re-sort to maintain alphabetical order
             timezones.sort();
         }
-        
+
         Ok(timezones)
     }
 }

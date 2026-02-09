@@ -74,10 +74,7 @@ mod tests {
     #[test]
     fn test_media_handler_map() {
         let mut map: MediaHandlerMap = HashMap::new();
-        let key = (
-            RelIdentifier::any_element(),
-            MediaType::ApplicationJson,
-        );
+        let key = (RelIdentifier::any_element(), MediaType::ApplicationJson);
         let handler = (MediaHandler::BuiltinOvAggJson, MediaType::ApplicationJson);
         map.insert(key.clone(), handler);
 
@@ -87,8 +84,14 @@ mod tests {
 
     #[test]
     fn test_media_handler_equality() {
-        assert_eq!(MediaHandler::BuiltinOvAggJson, MediaHandler::BuiltinOvAggJson);
-        assert_ne!(MediaHandler::BuiltinOvAggJson, MediaHandler::BuiltinOvAggCsv);
+        assert_eq!(
+            MediaHandler::BuiltinOvAggJson,
+            MediaHandler::BuiltinOvAggJson
+        );
+        assert_ne!(
+            MediaHandler::BuiltinOvAggJson,
+            MediaHandler::BuiltinOvAggCsv
+        );
         assert_eq!(
             MediaHandler::BuiltinAggSingleJson(true),
             MediaHandler::BuiltinAggSingleJson(true)

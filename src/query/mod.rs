@@ -125,10 +125,7 @@ pub fn main_query(
     ));
 
     // Pre-request function
-    let pre_req = config
-        .db_pre_request
-        .as_ref()
-        .map(pre_query::pre_req_query);
+    let pre_req = config.db_pre_request.as_ref().map(pre_query::pre_req_query);
 
     // Main query based on action plan type
     let main = match action_plan {
@@ -190,7 +187,12 @@ fn build_crud_query(plan: &CrudPlan, config: &AppConfig) -> SqlBuilder {
         } => {
             // Default to returning representation (will be controlled by Prefer header)
             let return_representation = !mutate_plan.returning().is_empty();
-            statements::main_write(mutate_plan, read_plan, return_representation, Some(&handler.0))
+            statements::main_write(
+                mutate_plan,
+                read_plan,
+                return_representation,
+                Some(&handler.0),
+            )
         }
         CrudPlan::CallReadPlan {
             call_plan, handler, ..
@@ -205,12 +207,12 @@ fn build_crud_query(plan: &CrudPlan, config: &AppConfig) -> SqlBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api_request::types::{InvokeMethod, Mutation, Payload};
+    use crate::plan::TxMode;
     use crate::plan::call_plan::{CallArgs, CallParams, CallPlan};
     use crate::plan::mutate_plan::{InsertPlan, MutatePlan};
     use crate::plan::read_plan::{ReadPlan, ReadPlanTree};
     use crate::plan::types::*;
-    use crate::plan::TxMode;
-    use crate::api_request::types::{InvokeMethod, Mutation, Payload};
     use crate::schema_cache::media_handler::{MediaHandler, ResolvedHandler};
     use crate::types::identifiers::QualifiedIdentifier;
     use crate::types::media::MediaType;
@@ -345,16 +347,7 @@ mod tests {
         let plan = make_read_plan();
         let config = test_config();
 
-        let mq = main_query(
-            &plan,
-            &config,
-            "GET",
-            "/users",
-            None,
-            None,
-            None,
-            None,
-        );
+        let mq = main_query(&plan, &config, "GET", "/users", None, None, None, None);
 
         assert!(mq.tx_vars.is_some());
         assert!(mq.pre_req.is_none()); // No pre-request configured
@@ -370,16 +363,7 @@ mod tests {
         let plan = make_mutate_plan();
         let config = test_config();
 
-        let mq = main_query(
-            &plan,
-            &config,
-            "POST",
-            "/users",
-            None,
-            None,
-            None,
-            None,
-        );
+        let mq = main_query(&plan, &config, "POST", "/users", None, None, None, None);
 
         assert!(mq.main.is_some());
         let main_sql = mq.main.unwrap().sql().to_string();
@@ -413,16 +397,7 @@ mod tests {
         let mut config = test_config();
         config.db_pre_request = Some(QualifiedIdentifier::new("test_api", "check_request"));
 
-        let mq = main_query(
-            &plan,
-            &config,
-            "GET",
-            "/users",
-            None,
-            None,
-            None,
-            None,
-        );
+        let mq = main_query(&plan, &config, "GET", "/users", None, None, None, None);
 
         assert!(mq.pre_req.is_some());
         let pre_sql = mq.pre_req.unwrap().sql().to_string();
@@ -434,16 +409,7 @@ mod tests {
         let plan = ActionPlan::NoDb(crate::plan::InfoPlan::SchemaInfoPlan);
         let config = test_config();
 
-        let mq = main_query(
-            &plan,
-            &config,
-            "OPTIONS",
-            "/",
-            None,
-            None,
-            None,
-            None,
-        );
+        let mq = main_query(&plan, &config, "OPTIONS", "/", None, None, None, None);
 
         // Info plans have no main SQL
         assert!(mq.main.is_none());

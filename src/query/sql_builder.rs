@@ -167,8 +167,7 @@ impl SqlBuilder {
     /// The placeholder index is `self.params.len() + 1` (1-based).
     pub fn push_param(&mut self, param: SqlParam) {
         self.params.push(param);
-        self.buffer
-            .push_str(&format!("${}", self.params.len()));
+        self.buffer.push_str(&format!("${}", self.params.len()));
     }
 
     /// Current number of bind parameters.
@@ -229,8 +228,7 @@ impl SqlBuilder {
                     .unwrap_or(rest.len());
                 if num_end > 0 {
                     let n: usize = rest[..num_end].parse().unwrap_or(0);
-                    self.buffer
-                        .push_str(&format!("${}", n + offset));
+                    self.buffer.push_str(&format!("${}", n + offset));
                     rest = &rest[num_end..];
                 } else {
                     self.buffer.push('$');

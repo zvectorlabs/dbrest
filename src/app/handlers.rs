@@ -14,17 +14,17 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use axum::{
+    Extension,
     body::Body,
     extract::{Path, State},
-    http::{header, HeaderMap, Method, StatusCode},
+    http::{HeaderMap, Method, StatusCode, header},
     response::{IntoResponse, Response},
-    Extension,
 };
 use bytes::Bytes;
 use sqlx::Row;
 
-use crate::api_request::preferences::{PreferRepresentation, Preferences};
 use crate::api_request;
+use crate::api_request::preferences::{PreferRepresentation, Preferences};
 use crate::auth::types::AuthResult;
 use crate::error::Error;
 use crate::plan::{self, ActionPlan, CrudPlan, DbActionPlan};
@@ -50,8 +50,8 @@ fn parse_prefer(headers: &HeaderMap) -> Preferences {
         })
         .collect();
     Preferences::from_headers(
-        false,              // allow_tx_override
-        &HashSet::new(),    // valid_timezones (empty for now)
+        false,           // allow_tx_override
+        &HashSet::new(), // valid_timezones (empty for now)
         &flat,
     )
 }
@@ -91,17 +91,17 @@ async fn execute_main_query(
 
     // 1. Set session variables
     if let Some(ref tv) = mq.tx_vars {
-        exec_raw(&mut *tx, tv).await?;
+        exec_raw(&mut tx, tv).await?;
     }
 
     // 2. Call pre-request function
     if let Some(ref pr) = mq.pre_req {
-        exec_raw(&mut *tx, pr).await?;
+        exec_raw(&mut tx, pr).await?;
     }
 
     // 3. Execute the main query
     let result = if let Some(ref main) = mq.main {
-        exec_statement(&mut *tx, main).await?
+        exec_statement(&mut tx, main).await?
     } else {
         StatementResult::empty()
     };
@@ -213,15 +213,17 @@ fn map_db_error(e: sqlx::Error) -> Error {
             let code = db_err.code().map(|c| c.to_string());
             let message = db_err.message().to_string();
             let detail = db_err.constraint().map(|c| c.to_string());
-            
+
             // Try to downcast to PgDatabaseError to get hint
             // We need to use the concrete type, not the trait
-            let hint = if let Some(pg_err) = db_err.try_downcast_ref::<sqlx::postgres::PgDatabaseError>() {
+            let hint = if let Some(pg_err) =
+                db_err.try_downcast_ref::<sqlx::postgres::PgDatabaseError>()
+            {
                 pg_err.hint().map(|s| s.to_string())
             } else {
                 None
             };
-            
+
             (code, message, detail, hint)
         }
         _ => {
@@ -234,9 +236,8 @@ fn map_db_error(e: sqlx::Error) -> Error {
             };
         }
     };
-    
-    if code.is_some() || !message.is_empty() {
 
+    if code.is_some() || !message.is_empty() {
         // Map PostgreSQL error codes to specific Error variants
         match code.as_deref() {
             // Constraint violations
@@ -249,7 +250,8 @@ fn map_db_error(e: sqlx::Error) -> Error {
             // Permission errors
             Some("42501") => {
                 // Extract role from message if possible, otherwise use "unknown"
-                let role = extract_role_from_message(&message).unwrap_or_else(|| "unknown".to_string());
+                let role =
+                    extract_role_from_message(&message).unwrap_or_else(|| "unknown".to_string());
                 return Error::PermissionDenied { role };
             }
 
@@ -268,15 +270,20 @@ fn map_db_error(e: sqlx::Error) -> Error {
                     };
                 }
                 // Otherwise, it's a function error
-                let func_name = extract_name_from_message(&message, "function").unwrap_or_else(|| {
-                    tracing::debug!("Could not extract function name from PostgreSQL error: {}", message);
-                    "unknown".to_string()
-                });
+                let func_name =
+                    extract_name_from_message(&message, "function").unwrap_or_else(|| {
+                        tracing::debug!(
+                            "Could not extract function name from PostgreSQL error: {}",
+                            message
+                        );
+                        "unknown".to_string()
+                    });
                 return Error::FunctionNotFound { name: func_name };
             }
             Some("42P01") => {
                 // undefined_table
-                let table_name = extract_name_from_message(&message, "relation").unwrap_or_else(|| "unknown".to_string());
+                let table_name = extract_name_from_message(&message, "relation")
+                    .unwrap_or_else(|| "unknown".to_string());
                 return Error::TableNotFound {
                     name: table_name,
                     suggestion: None,
@@ -292,7 +299,7 @@ fn map_db_error(e: sqlx::Error) -> Error {
                     // Find the next space or "does"
                     let col_end = after_col.find(" does").unwrap_or(after_col.len());
                     let col_ref = after_col[..col_end].trim();
-                    
+
                     // Parse "table.column" or just "column"
                     let (table_name, col_name) = if let Some(dot_pos) = col_ref.find('.') {
                         // Format: "table.column"
@@ -327,13 +334,10 @@ fn map_db_error(e: sqlx::Error) -> Error {
             // PostgREST custom codes (PT***)
             Some(code) if code.starts_with("PT") => {
                 // Extract status code from PT code (e.g., PT400 -> 400)
-                if let Some(status_str) = code.strip_prefix("PT") {
-                    if let Ok(status) = status_str.parse::<u16>() {
-                        return Error::PgrstRaise {
-                            message,
-                            status,
-                        };
-                    }
+                if let Some(status_str) = code.strip_prefix("PT")
+                    && let Ok(status) = status_str.parse::<u16>()
+                {
+                    return Error::PgrstRaise { message, status };
                 }
             }
 
@@ -363,7 +367,7 @@ fn extract_role_from_message(msg: &str) -> Option<String> {
     // PostgreSQL messages often have format like "permission denied for role <role>"
     if let Some(start) = msg.find("role ") {
         let rest = &msg[start + 5..];
-        if let Some(end) = rest.find(|c: char| c == ' ' || c == '\n' || c == '\r') {
+        if let Some(end) = rest.find([' ', '\n', '\r']) {
             return Some(rest[..end].to_string());
         }
         return Some(rest.to_string());
@@ -379,14 +383,18 @@ fn extract_name_from_message(msg: &str, keyword: &str) -> Option<String> {
         // Skip whitespace
         let rest = rest.trim_start();
         // Find the name (up to space, comma, or parenthesis)
-        if let Some(end) = rest.find(|c: char| c == ' ' || c == ',' || c == '(' || c == '\n' || c == '\r') {
+        if let Some(end) = rest.find([' ', ',', '(', '\n', '\r']) {
             let name = rest[..end].trim_matches('"').to_string();
             if !name.is_empty() {
                 return Some(name);
             }
         }
         // If no delimiter, try to extract quoted or unquoted name
-        let name = rest.split_whitespace().next()?.trim_matches('"').to_string();
+        let name = rest
+            .split_whitespace()
+            .next()?
+            .trim_matches('"')
+            .to_string();
         if !name.is_empty() {
             return Some(name);
         }
@@ -414,6 +422,7 @@ struct StatementResult {
 /// If `response_headers` is set (as a JSON array), it adds those headers to the response.
 ///
 /// Returns the builder, or an error response if GUC values are invalid.
+#[allow(clippy::result_large_err)]
 fn apply_guc_overrides(
     mut builder: http::response::Builder,
     result: &StatementResult,
@@ -427,7 +436,10 @@ fn apply_guc_overrides(
         } else {
             // Invalid status code - return error response (PGRST112)
             return Err(Error::InvalidConfig {
-                message: format!("response.status GUC must be a valid status code, got: {}", status_code),
+                message: format!(
+                    "response.status GUC must be a valid status code, got: {}",
+                    status_code
+                ),
             }
             .into_response());
         }
@@ -442,12 +454,16 @@ fn apply_guc_overrides(
                     // Each object should have exactly one key-value pair
                     if obj.len() == 1 {
                         for (key, value) in obj {
-                            if let Some(header_value) = value.as_str() {
-                                if let Ok(hv) = http::HeaderValue::from_str(header_value) {
-                                    // Only add header if not already present (PostgREST behavior)
-                                    if builder.headers_ref().map(|h| !h.contains_key(key.as_str())).unwrap_or(true) {
-                                        builder = builder.header(key.as_str(), hv);
-                                    }
+                            if let Some(header_value) = value.as_str()
+                                && let Ok(hv) = http::HeaderValue::from_str(header_value)
+                            {
+                                // Only add header if not already present (PostgREST behavior)
+                                if builder
+                                    .headers_ref()
+                                    .map(|h| !h.contains_key(key.as_str()))
+                                    .unwrap_or(true)
+                                {
+                                    builder = builder.header(key.as_str(), hv);
                                 }
                             }
                         }
@@ -497,20 +513,24 @@ async fn process_request(
     let config = state.config();
     let cache_guard = state.schema_cache_guard();
     let cache_ref: &Option<SchemaCache> = &cache_guard;
-    let cache = cache_ref
-        .as_ref()
-        .ok_or(Error::SchemaCacheNotReady)?;
+    let cache = cache_ref.as_ref().ok_or(Error::SchemaCacheNotReady)?;
 
     let prefs = parse_prefer(headers);
     let flat_headers = flatten_headers(headers);
 
     // 1. Parse the API request
     let api_req = api_request::from_request(
-        &config, &prefs, method, path, query_str, &flat_headers, body,
+        &config,
+        &prefs,
+        method,
+        path,
+        query_str,
+        &flat_headers,
+        body,
     )?;
 
     // 2. Build the action plan
-    let action_plan = plan::action_plan(&config, &api_req, &cache)?;
+    let action_plan = plan::action_plan(&config, &api_req, cache)?;
 
     // 3. Build the full SQL query bundle
     let role_name = auth.role.as_str();
@@ -535,10 +555,9 @@ async fn process_request(
         path,
         Some(role_name),
         headers_json.as_deref(),
-        None,  // cookies
+        None, // cookies
         claims_json.as_deref(),
     );
-
 
     // 4. Extract media type from action plan for response Content-Type
     let media_type = match &action_plan {
@@ -573,13 +592,21 @@ pub async fn read_handler(
     let query_str = raw_query.as_deref().unwrap_or("");
     let is_head = method == Method::HEAD;
 
-    match process_request(&state, &auth, method.as_str(), &path, query_str, &headers, Bytes::new())
-        .await
+    match process_request(
+        &state,
+        &auth,
+        method.as_str(),
+        &path,
+        query_str,
+        &headers,
+        Bytes::new(),
+    )
+    .await
     {
         Ok((result, prefs, media)) => {
             let config = state.config();
             build_read_response(&result, &prefs, is_head, &config, &media)
-        },
+        }
         Err(e) => e.into_response(),
     }
 }
@@ -604,7 +631,7 @@ pub async fn create_handler(
         Ok((result, prefs, media)) => {
             let config = state.config();
             build_mutate_response(&result, &prefs, "POST", &path, &config, &media)
-        },
+        }
         Err(e) => e.into_response(),
     }
 }
@@ -629,7 +656,7 @@ pub async fn update_handler(
         Ok((result, prefs, media)) => {
             let config = state.config();
             build_mutate_response(&result, &prefs, "PATCH", &path, &config, &media)
-        },
+        }
         Err(e) => e.into_response(),
     }
 }
@@ -649,12 +676,21 @@ pub async fn delete_handler(
     let path = format!("/{}", resource);
     let query_str = raw_query.as_deref().unwrap_or("");
 
-    match process_request(&state, &auth, "DELETE", &path, query_str, &headers, Bytes::new()).await
+    match process_request(
+        &state,
+        &auth,
+        "DELETE",
+        &path,
+        query_str,
+        &headers,
+        Bytes::new(),
+    )
+    .await
     {
         Ok((result, prefs, media)) => {
             let config = state.config();
             build_mutate_response(&result, &prefs, "DELETE", &path, &config, &media)
-        },
+        }
         Err(e) => e.into_response(),
     }
 }
@@ -679,7 +715,7 @@ pub async fn upsert_handler(
         Ok((result, prefs, media)) => {
             let config = state.config();
             build_mutate_response(&result, &prefs, "PUT", &path, &config, &media)
-        },
+        }
         Err(e) => e.into_response(),
     }
 }
@@ -699,11 +735,21 @@ pub async fn rpc_get_handler(
     let path = format!("/rpc/{}", function);
     let query_str = raw_query.as_deref().unwrap_or("");
 
-    match process_request(&state, &auth, "GET", &path, query_str, &headers, Bytes::new()).await {
+    match process_request(
+        &state,
+        &auth,
+        "GET",
+        &path,
+        query_str,
+        &headers,
+        Bytes::new(),
+    )
+    .await
+    {
         Ok((result, prefs, media)) => {
             let config = state.config();
             build_rpc_response(&result, &prefs, &config, &media)
-        },
+        }
         Err(e) => e.into_response(),
     }
 }
@@ -724,7 +770,7 @@ pub async fn rpc_post_handler(
         Ok((result, prefs, media)) => {
             let config = state.config();
             build_rpc_response(&result, &prefs, &config, &media)
-        },
+        }
         Err(e) => e.into_response(),
     }
 }
@@ -746,12 +792,11 @@ pub async fn schema_root_handler(
     let cache_guard = state.schema_cache_guard();
 
     // Check if OpenAPI is requested
-    if let Some(accept) = headers.get(http::header::ACCEPT) {
-        if let Ok(accept_str) = accept.to_str() {
-            if accept_str.contains("application/openapi+json") {
-                return generate_openapi_spec(&state, &auth, &cache_guard).await;
-            }
-        }
+    if let Some(accept) = headers.get(http::header::ACCEPT)
+        && let Ok(accept_str) = accept.to_str()
+        && accept_str.contains("application/openapi+json")
+    {
+        return generate_openapi_spec(&state, &auth, &cache_guard).await;
     }
 
     // Default: return table definitions
@@ -796,18 +841,18 @@ async fn generate_openapi_spec(
         Some(cache) => {
             let config_guard = state.config();
             let config = config_guard.clone();
-            let generator = OpenApiGenerator::new(
-                config,
-                Arc::new(cache.clone()),
-                Some(auth.clone()),
-            );
+            let generator =
+                OpenApiGenerator::new(config, Arc::new(cache.clone()), Some(auth.clone()));
 
             match generator.generate() {
                 Ok(spec) => {
                     let body = serde_json::to_string(&spec).unwrap_or_else(|_| "{}".to_string());
                     Response::builder()
                         .status(StatusCode::OK)
-                        .header(header::CONTENT_TYPE, "application/openapi+json; charset=utf-8")
+                        .header(
+                            header::CONTENT_TYPE,
+                            "application/openapi+json; charset=utf-8",
+                        )
                         .body(Body::from(body))
                         .unwrap()
                 }
@@ -1139,7 +1184,10 @@ mod tests {
             Ok(_) => panic!("Should return error for invalid headers format"),
             Err(err_response) => {
                 // Should return error response (PGRST111)
-                assert!(err_response.status().is_client_error() || err_response.status().is_server_error());
+                assert!(
+                    err_response.status().is_client_error()
+                        || err_response.status().is_server_error()
+                );
             }
         }
     }

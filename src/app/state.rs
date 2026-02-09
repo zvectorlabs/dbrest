@@ -69,7 +69,7 @@ pub struct AppState {
 impl AppState {
     /// Create a new `AppState` from a pool, config, and PG version.
     ///
-    /// The schema cache starts as `None` — call [`reload_schema_cache`]
+    /// The schema cache starts as `None` — call [`Self::reload_schema_cache`]
     /// after construction.
     pub fn new(pool: PgPool, config: AppConfig, pg_version: PgVersion) -> Self {
         let config_swap = Arc::new(ArcSwap::new(Arc::new(config)));
@@ -105,12 +105,12 @@ impl AppState {
     pub async fn reload_config(&self) -> Result<(), Error> {
         let current = self.config.load();
         let file_path = current.config_file_path.clone();
-        let new_config = crate::config::load_config(
-            file_path.as_deref(),
-            std::collections::HashMap::new(),
-        )
-        .await
-        .map_err(|e| Error::InvalidConfig { message: e.to_string() })?;
+        let new_config =
+            crate::config::load_config(file_path.as_deref(), std::collections::HashMap::new())
+                .await
+                .map_err(|e| Error::InvalidConfig {
+                    message: e.to_string(),
+                })?;
 
         self.config.store(Arc::new(new_config));
 
@@ -144,14 +144,8 @@ pub async fn query_pg_version(pool: &PgPool) -> Result<PgVersion, Error> {
     let version_str = &row.0;
     let parts: Vec<&str> = version_str.split('.').collect();
     Ok(PgVersion {
-        major: parts
-            .first()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0),
-        minor: parts
-            .get(1)
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(0),
+        major: parts.first().and_then(|s| s.parse().ok()).unwrap_or(0),
+        minor: parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0),
         patch: parts
             .get(2)
             .and_then(|s| {

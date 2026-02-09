@@ -179,7 +179,10 @@ impl AcceptItem {
             }
         }
 
-        Self { media_type, quality }
+        Self {
+            media_type,
+            quality,
+        }
     }
 }
 
@@ -190,7 +193,11 @@ pub fn parse_accept_header(header: &str) -> Vec<AcceptItem> {
     let mut items: Vec<AcceptItem> = header.split(',').map(AcceptItem::parse).collect();
 
     // Sort by quality (highest first)
-    items.sort_by(|a, b| b.quality.partial_cmp(&a.quality).unwrap_or(std::cmp::Ordering::Equal));
+    items.sort_by(|a, b| {
+        b.quality
+            .partial_cmp(&a.quality)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     items
 }
@@ -201,8 +208,14 @@ mod tests {
 
     #[test]
     fn test_media_type_parse() {
-        assert_eq!(MediaType::parse("application/json"), MediaType::ApplicationJson);
-        assert_eq!(MediaType::parse("APPLICATION/JSON"), MediaType::ApplicationJson);
+        assert_eq!(
+            MediaType::parse("application/json"),
+            MediaType::ApplicationJson
+        );
+        assert_eq!(
+            MediaType::parse("APPLICATION/JSON"),
+            MediaType::ApplicationJson
+        );
         assert_eq!(MediaType::parse("text/csv"), MediaType::TextCsv);
         assert_eq!(MediaType::parse("*/*"), MediaType::Any);
         assert_eq!(

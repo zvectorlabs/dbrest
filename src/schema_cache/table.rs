@@ -439,10 +439,12 @@ mod tests {
     #[test]
     fn test_column_is_text_type() {
         assert!(test_column().data_type("text").build().is_text_type());
-        assert!(test_column()
-            .data_type("character varying")
-            .build()
-            .is_text_type());
+        assert!(
+            test_column()
+                .data_type("character varying")
+                .build()
+                .is_text_type()
+        );
         assert!(test_column().data_type("varchar").build().is_text_type());
         assert!(test_column().data_type("char").build().is_text_type());
         assert!(!test_column().data_type("integer").build().is_text_type());
@@ -453,10 +455,12 @@ mod tests {
         assert!(test_column().data_type("integer").build().is_numeric_type());
         assert!(test_column().data_type("bigint").build().is_numeric_type());
         assert!(test_column().data_type("numeric").build().is_numeric_type());
-        assert!(test_column()
-            .data_type("double precision")
-            .build()
-            .is_numeric_type());
+        assert!(
+            test_column()
+                .data_type("double precision")
+                .build()
+                .is_numeric_type()
+        );
         assert!(!test_column().data_type("text").build().is_numeric_type());
     }
 
@@ -483,19 +487,25 @@ mod tests {
 
     #[test]
     fn test_column_is_temporal_type() {
-        assert!(test_column()
-            .data_type("timestamp with time zone")
-            .build()
-            .is_temporal_type());
-        assert!(test_column()
-            .data_type("timestamp without time zone")
-            .build()
-            .is_temporal_type());
+        assert!(
+            test_column()
+                .data_type("timestamp with time zone")
+                .build()
+                .is_temporal_type()
+        );
+        assert!(
+            test_column()
+                .data_type("timestamp without time zone")
+                .build()
+                .is_temporal_type()
+        );
         assert!(test_column().data_type("date").build().is_temporal_type());
-        assert!(test_column()
-            .data_type("interval")
-            .build()
-            .is_temporal_type());
+        assert!(
+            test_column()
+                .data_type("interval")
+                .build()
+                .is_temporal_type()
+        );
         assert!(!test_column().data_type("text").build().is_temporal_type());
     }
 
@@ -532,8 +542,8 @@ mod tests {
 
     #[test]
     fn test_computed_field_structure() {
-        use crate::types::QualifiedIdentifier;
         use super::ComputedField;
+        use crate::types::QualifiedIdentifier;
 
         let func_qi = QualifiedIdentifier::new("test_api", "full_name");
         let computed = ComputedField {
@@ -550,13 +560,10 @@ mod tests {
 
     #[test]
     fn test_table_get_computed_field() {
-        use crate::types::QualifiedIdentifier;
         use super::ComputedField;
+        use crate::types::QualifiedIdentifier;
 
-        let mut table = test_table()
-            .schema("test_api")
-            .name("users")
-            .build();
+        let mut table = test_table().schema("test_api").name("users").build();
 
         // Add a computed field manually for testing
         let func_qi = QualifiedIdentifier::new("test_api", "full_name");
@@ -569,7 +576,7 @@ mod tests {
 
         assert!(table.get_computed_field("full_name").is_some());
         assert!(table.get_computed_field("nonexistent").is_none());
-        
+
         let cf = table.get_computed_field("full_name").unwrap();
         assert_eq!(cf.return_type.as_str(), "text");
     }

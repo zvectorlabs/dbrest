@@ -30,17 +30,15 @@ pub use types::*;
 
 use compact_str::CompactString;
 
-use crate::api_request::types::{
-    Action, DbAction, InvokeMethod, Mutation, OrderTerm, SelectItem,
-};
+use crate::api_request::types::{Action, DbAction, InvokeMethod, Mutation, OrderTerm, SelectItem};
 use crate::api_request::{ApiRequest, Preferences, QueryParams};
 use crate::config::AppConfig;
 use crate::error::Error;
+use crate::schema_cache::SchemaCache;
 use crate::schema_cache::media_handler::ResolvedHandler;
 use crate::schema_cache::relationship::AnyRelationship;
 use crate::schema_cache::routine::Routine;
 use crate::schema_cache::table::Table;
-use crate::schema_cache::SchemaCache;
 use crate::types::identifiers::{QualifiedIdentifier, RelIdentifier};
 use crate::types::media::MediaType;
 
@@ -178,16 +176,12 @@ pub fn action_plan(
 
     match action {
         // Info actions (OPTIONS) -> no DB needed
-        Action::RelationInfo(qi) => {
-            Ok(ActionPlan::NoDb(InfoPlan::RelInfoPlan(qi.clone())))
-        }
+        Action::RelationInfo(qi) => Ok(ActionPlan::NoDb(InfoPlan::RelInfoPlan(qi.clone()))),
         Action::RoutineInfo(qi, _) => {
             let proc = find_proc(schema_cache, qi)?;
             Ok(ActionPlan::NoDb(InfoPlan::RoutineInfoPlan(proc.clone())))
         }
-        Action::SchemaInfo => {
-            Ok(ActionPlan::NoDb(InfoPlan::SchemaInfoPlan))
-        }
+        Action::SchemaInfo => Ok(ActionPlan::NoDb(InfoPlan::SchemaInfoPlan)),
 
         // DB actions
         Action::Db(db_action) => match db_action {
@@ -224,13 +218,7 @@ pub fn action_plan(
                     config.db_plan_enabled,
                 )?;
 
-                let read_tree = build_read_plan(
-                    config,
-                    schema_cache,
-                    api_request,
-                    qi,
-                    table,
-                )?;
+                let read_tree = build_read_plan(config, schema_cache, api_request, qi, table)?;
 
                 let tx_mode = resolve_tx_mode(config, &api_request.preferences, true);
 
@@ -260,20 +248,9 @@ pub fn action_plan(
                     config.db_plan_enabled,
                 )?;
 
-                let read_tree = build_read_plan(
-                    config,
-                    schema_cache,
-                    api_request,
-                    qi,
-                    table,
-                )?;
+                let read_tree = build_read_plan(config, schema_cache, api_request, qi, table)?;
 
-                let mutate = build_mutate_plan(
-                    qi,
-                    table,
-                    *mutation,
-                    api_request,
-                )?;
+                let mutate = build_mutate_plan(qi, table, *mutation, api_request)?;
 
                 let tx_mode = resolve_tx_mode(config, &api_request.preferences, false);
 
@@ -307,13 +284,7 @@ pub fn action_plan(
                     config.db_plan_enabled,
                 )?;
 
-                let read_tree = build_call_read_plan(
-                    config,
-                    schema_cache,
-                    api_request,
-                    qi,
-                    proc,
-                )?;
+                let read_tree = build_call_read_plan(config, schema_cache, api_request, qi, proc)?;
 
                 let call = build_call_plan(proc, api_request)?;
 
@@ -347,10 +318,12 @@ pub fn find_table<'a>(
     schema_cache: &'a SchemaCache,
     qi: &QualifiedIdentifier,
 ) -> Result<&'a Table, Error> {
-    schema_cache.get_table(qi).ok_or_else(|| Error::TableNotFound {
-        name: qi.to_string(),
-        suggestion: None,
-    })
+    schema_cache
+        .get_table(qi)
+        .ok_or_else(|| Error::TableNotFound {
+            name: qi.to_string(),
+            suggestion: None,
+        })
 }
 
 /// Find a routine (function) in the schema cache
@@ -613,7 +586,7 @@ fn build_child_plan(
         .map(|(_, f)| f.clone())
         .collect();
     let child_table = schema_cache.get_table(&child_qi);
-    
+
     // Resolve select, filters, and orders for the child
     child_plan.select = resolve_select(sub_select, child_table)?;
     child_plan.where_ = resolve_filters(&child_filters, child_table)?;
@@ -648,10 +621,7 @@ fn build_mutate_plan(
 
     match mutation {
         Mutation::MutationCreate | Mutation::MutationSingleUpsert => {
-            let payload = api_request
-                .payload
-                .clone()
-                .ok_or(Error::MissingPayload)?;
+            let payload = api_request.payload.clone().ok_or(Error::MissingPayload)?;
 
             let columns = resolve_mutation_columns(table, &api_request.columns);
 
@@ -679,7 +649,12 @@ fn build_mutate_plan(
             let apply_defaults = api_request
                 .preferences
                 .missing
-                .map(|m| matches!(m, crate::api_request::preferences::PreferMissing::ApplyDefaults))
+                .map(|m| {
+                    matches!(
+                        m,
+                        crate::api_request::preferences::PreferMissing::ApplyDefaults
+                    )
+                })
                 .unwrap_or(false);
 
             Ok(MutatePlan::Insert(InsertPlan {
@@ -694,17 +669,19 @@ fn build_mutate_plan(
             }))
         }
         Mutation::MutationUpdate => {
-            let payload = api_request
-                .payload
-                .clone()
-                .ok_or(Error::MissingPayload)?;
+            let payload = api_request.payload.clone().ok_or(Error::MissingPayload)?;
 
             let columns = resolve_mutation_columns(table, &api_request.columns);
 
             let apply_defaults = api_request
                 .preferences
                 .missing
-                .map(|m| matches!(m, crate::api_request::preferences::PreferMissing::ApplyDefaults))
+                .map(|m| {
+                    matches!(
+                        m,
+                        crate::api_request::preferences::PreferMissing::ApplyDefaults
+                    )
+                })
                 .unwrap_or(false);
 
             Ok(MutatePlan::Update(UpdatePlan {
@@ -716,13 +693,11 @@ fn build_mutate_plan(
                 apply_defaults,
             }))
         }
-        Mutation::MutationDelete => {
-            Ok(MutatePlan::Delete(DeletePlan {
-                from: qi.clone(),
-                where_: resolve_filters(&qp.filters_root, Some(table))?,
-                returning: resolve_returning(table, &api_request.preferences),
-            }))
-        }
+        Mutation::MutationDelete => Ok(MutatePlan::Delete(DeletePlan {
+            from: qi.clone(),
+            where_: resolve_filters(&qp.filters_root, Some(table))?,
+            returning: resolve_returning(table, &api_request.preferences),
+        })),
     }
 }
 
@@ -731,19 +706,17 @@ fn build_mutate_plan(
 // ==========================================================================
 
 /// Build a CallPlan from an API request
-fn build_call_plan(
-    proc: &Routine,
-    api_request: &ApiRequest,
-) -> Result<CallPlan, Error> {
+fn build_call_plan(proc: &Routine, api_request: &ApiRequest) -> Result<CallPlan, Error> {
     let qp = &api_request.query_params;
 
     // Determine call params
-    let params = if proc.param_count() == 1 && proc.params[0].is_json_type() && !qp.params.is_empty() {
-        // Single JSON param — can use positional
-        CallParams::OnePosParam(proc.params[0].clone())
-    } else {
-        CallParams::KeyParams(proc.params.to_vec())
-    };
+    let params =
+        if proc.param_count() == 1 && proc.params[0].is_json_type() && !qp.params.is_empty() {
+            // Single JSON param — can use positional
+            CallParams::OnePosParam(proc.params[0].clone())
+        } else {
+            CallParams::KeyParams(proc.params.to_vec())
+        };
 
     // Build call args
     let args = if !qp.params.is_empty() {
@@ -793,7 +766,7 @@ fn build_call_plan(
 /// The actual type existence will be validated by PostgreSQL.
 fn validate_cast_type(cast_type: &str) -> Result<(), Error> {
     let cast_type = cast_type.trim();
-    
+
     // Empty cast type is invalid
     if cast_type.is_empty() {
         return Err(Error::InvalidQueryParam {
@@ -801,7 +774,7 @@ fn validate_cast_type(cast_type: &str) -> Result<(), Error> {
             message: "empty cast type".to_string(),
         });
     }
-    
+
     // Check for valid characters: alphanumeric, underscore, space, parentheses, brackets
     // PostgreSQL allows types like "character varying", "int4", "text[]", "numeric(10,2)"
     let is_valid = cast_type.chars().all(|c| {
@@ -814,14 +787,14 @@ fn validate_cast_type(cast_type: &str) -> Result<(), Error> {
             || c == ']'
             || c == ','
     });
-    
+
     if !is_valid {
         return Err(Error::InvalidQueryParam {
             param: "select".to_string(),
             message: format!("invalid cast type: {}", cast_type),
         });
     }
-    
+
     Ok(())
 }
 
@@ -833,9 +806,12 @@ fn validate_cast_type(cast_type: &str) -> Result<(), Error> {
 ///
 /// When a `table` is provided, fields are resolved against the table's columns
 /// and computed fields so that `base_type` is set for proper type casting.
-fn resolve_select(items: &[SelectItem], table: Option<&Table>) -> Result<Vec<CoercibleSelectField>, Error> {
+fn resolve_select(
+    items: &[SelectItem],
+    table: Option<&Table>,
+) -> Result<Vec<CoercibleSelectField>, Error> {
     let mut result = Vec::new();
-    
+
     for item in items {
         match item {
             SelectItem::Field {
@@ -877,10 +853,9 @@ fn resolve_select(items: &[SelectItem], table: Option<&Table>) -> Result<Vec<Coe
                         }
                     }
                 } else {
-                    CoercibleField::unknown(field.0.clone(), field.1.clone())
-                        .with_to_json(None)
+                    CoercibleField::unknown(field.0.clone(), field.1.clone()).with_to_json(None)
                 };
-                
+
                 // Validate cast types if present
                 if let Some(cast_type) = cast {
                     validate_cast_type(cast_type)?;
@@ -888,7 +863,7 @@ fn resolve_select(items: &[SelectItem], table: Option<&Table>) -> Result<Vec<Coe
                 if let Some(agg_cast_type) = aggregate_cast {
                     validate_cast_type(agg_cast_type)?;
                 }
-                
+
                 result.push(CoercibleSelectField {
                     field: resolved_field,
                     agg_function: *aggregate,
@@ -902,7 +877,7 @@ fn resolve_select(items: &[SelectItem], table: Option<&Table>) -> Result<Vec<Coe
             }
         }
     }
-    
+
     Ok(result)
 }
 
@@ -931,7 +906,10 @@ fn resolve_filters(
                     if !f.field.1.is_empty() {
                         tracing::trace!(
                             "Filter field '{}' has JSON path: {:?}, is_composite: {}, is_array: {}",
-                            f.field.0, f.field.1, col.is_composite_type(), col.is_array_type()
+                            f.field.0,
+                            f.field.1,
+                            col.is_composite_type(),
+                            col.is_array_type()
                         );
                     }
                     field = field.with_to_json(Some(col));
@@ -954,8 +932,7 @@ fn resolve_filters(
                 }
             } else {
                 // No table provided - allow unknown fields (for unit tests, etc.)
-                CoercibleField::unknown(f.field.0.clone(), f.field.1.clone())
-                    .with_to_json(None)
+                CoercibleField::unknown(f.field.0.clone(), f.field.1.clone()).with_to_json(None)
             };
             Ok(CoercibleLogicTree::Stmnt(CoercibleFilter::Filter {
                 field,
@@ -1010,12 +987,10 @@ fn resolve_order_terms(terms: &[OrderTerm], table: Option<&Table>) -> Vec<Coerci
                         )
                         // Computed fields don't need to_jsonb wrapper
                     } else {
-                        CoercibleField::unknown(field.0.clone(), field.1.clone())
-                            .with_to_json(None)
+                        CoercibleField::unknown(field.0.clone(), field.1.clone()).with_to_json(None)
                     }
                 } else {
-                    CoercibleField::unknown(field.0.clone(), field.1.clone())
-                        .with_to_json(None)
+                    CoercibleField::unknown(field.0.clone(), field.1.clone()).with_to_json(None)
                 };
                 CoercibleOrderTerm::Term {
                     field: resolved_field,
@@ -1074,10 +1049,7 @@ fn resolve_mutation_columns(
 }
 
 /// Resolve RETURNING columns based on Prefer header
-fn resolve_returning(
-    table: &Table,
-    prefs: &Preferences,
-) -> Vec<CoercibleSelectField> {
+fn resolve_returning(table: &Table, prefs: &Preferences) -> Vec<CoercibleSelectField> {
     match prefs.representation {
         Some(PreferRepresentation::Full) | Some(PreferRepresentation::HeadersOnly) => {
             // Return all columns
@@ -1109,11 +1081,7 @@ fn restrict_range(tree: &mut ReadPlanTree, max_rows: i64) {
 }
 
 /// Resolve transaction mode from config and preferences
-fn resolve_tx_mode(
-    config: &AppConfig,
-    prefs: &Preferences,
-    is_read: bool,
-) -> TxMode {
+fn resolve_tx_mode(config: &AppConfig, prefs: &Preferences, is_read: bool) -> TxMode {
     let rollback = if config.db_tx_rollback_all {
         true
     } else if config.db_tx_allow_override {
@@ -1161,7 +1129,13 @@ mod tests {
             .schema("public")
             .name("users")
             .pk_col("id")
-            .column(test_column().name("id").data_type("integer").nullable(false).build())
+            .column(
+                test_column()
+                    .name("id")
+                    .data_type("integer")
+                    .nullable(false)
+                    .build(),
+            )
             .column(test_column().name("name").data_type("text").build())
             .column(test_column().name("email").data_type("text").build())
             .build();
@@ -1170,7 +1144,13 @@ mod tests {
             .schema("public")
             .name("posts")
             .pk_col("id")
-            .column(test_column().name("id").data_type("integer").nullable(false).build())
+            .column(
+                test_column()
+                    .name("id")
+                    .data_type("integer")
+                    .nullable(false)
+                    .build(),
+            )
             .column(test_column().name("user_id").data_type("integer").build())
             .column(test_column().name("title").data_type("text").build())
             .build();
@@ -1255,7 +1235,10 @@ mod tests {
         let qi = QualifiedIdentifier::new("public", "nonexistent_func");
         let result = find_proc(&cache, &qi);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), Error::FunctionNotFound { .. }));
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::FunctionNotFound { .. }
+        ));
     }
 
     #[test]
@@ -1297,8 +1280,8 @@ mod tests {
 
     #[test]
     fn test_resolve_filters() {
-        use smallvec::SmallVec;
         use crate::api_request::types::{Filter, OpExpr, Operation, QuantOperator};
+        use smallvec::SmallVec;
 
         let filters = vec![Filter {
             field: ("id".into(), SmallVec::new()),
@@ -1315,10 +1298,10 @@ mod tests {
 
     #[test]
     fn test_resolve_filters_with_computed_field() {
-        use smallvec::SmallVec;
         use crate::api_request::types::{Filter, OpExpr, Operation, QuantOperator};
         use crate::schema_cache::table::ComputedField;
         use crate::types::QualifiedIdentifier;
+        use smallvec::SmallVec;
 
         // Create a table with a computed field
         let mut table = test_table()
@@ -1345,7 +1328,7 @@ mod tests {
 
         let resolved = resolve_filters(&filters, Some(&table)).unwrap();
         assert_eq!(resolved.len(), 1);
-        
+
         if let CoercibleLogicTree::Stmnt(CoercibleFilter::Filter { field, .. }) = &resolved[0] {
             assert!(field.is_computed);
             assert_eq!(field.name.as_str(), "full_name");
@@ -1396,11 +1379,11 @@ mod tests {
 
         let resolved = resolve_select(&items, Some(&table)).unwrap();
         assert_eq!(resolved.len(), 2);
-        
+
         // First field (id) should be a regular column
         assert!(!resolved[0].field.is_computed);
         assert_eq!(resolved[0].field.name.as_str(), "id");
-        
+
         // Second field (full_name) should be a computed field
         assert!(resolved[1].field.is_computed);
         assert_eq!(resolved[1].field.name.as_str(), "full_name");
@@ -1469,7 +1452,7 @@ mod tests {
 
         let resolved = resolve_order_terms(&terms, Some(&table));
         assert_eq!(resolved.len(), 1);
-        
+
         if let crate::plan::types::CoercibleOrderTerm::Term { field, .. } = &resolved[0] {
             assert!(field.is_computed);
             assert_eq!(field.name.as_str(), "full_name");
@@ -1481,10 +1464,10 @@ mod tests {
 
     #[test]
     fn test_resolve_filters_with_computed_field_operators() {
-        use smallvec::SmallVec;
         use crate::api_request::types::{Filter, OpExpr, Operation, QuantOperator};
         use crate::schema_cache::table::ComputedField;
         use crate::types::QualifiedIdentifier;
+        use smallvec::SmallVec;
 
         let mut table = test_table()
             .schema("test_api")
@@ -1511,8 +1494,11 @@ mod tests {
 
         let resolved = resolve_filters(&filters, Some(&table)).unwrap();
         assert_eq!(resolved.len(), 1);
-        
-        if let crate::plan::types::CoercibleLogicTree::Stmnt(crate::plan::types::CoercibleFilter::Filter { field, .. }) = &resolved[0] {
+
+        if let crate::plan::types::CoercibleLogicTree::Stmnt(
+            crate::plan::types::CoercibleFilter::Filter { field, .. },
+        ) = &resolved[0]
+        {
             assert!(field.is_computed);
             assert_eq!(field.name.as_str(), "full_name");
         } else {
@@ -1522,10 +1508,10 @@ mod tests {
 
     #[test]
     fn test_resolve_filters_computed_field_vs_column() {
-        use smallvec::SmallVec;
         use crate::api_request::types::{Filter, OpExpr, Operation, QuantOperator};
         use crate::schema_cache::table::ComputedField;
         use crate::types::QualifiedIdentifier;
+        use smallvec::SmallVec;
 
         let mut table = test_table()
             .schema("test_api")
@@ -1551,7 +1537,10 @@ mod tests {
         }];
         let resolved1 = resolve_filters(&filters1, Some(&table)).unwrap();
         assert_eq!(resolved1.len(), 1);
-        if let crate::plan::types::CoercibleLogicTree::Stmnt(crate::plan::types::CoercibleFilter::Filter { field, .. }) = &resolved1[0] {
+        if let crate::plan::types::CoercibleLogicTree::Stmnt(
+            crate::plan::types::CoercibleFilter::Filter { field, .. },
+        ) = &resolved1[0]
+        {
             assert!(!field.is_computed);
             assert_eq!(field.name.as_str(), "name");
         }
@@ -1566,7 +1555,10 @@ mod tests {
         }];
         let resolved2 = resolve_filters(&filters2, Some(&table)).unwrap();
         assert_eq!(resolved2.len(), 1);
-        if let crate::plan::types::CoercibleLogicTree::Stmnt(crate::plan::types::CoercibleFilter::Filter { field, .. }) = &resolved2[0] {
+        if let crate::plan::types::CoercibleLogicTree::Stmnt(
+            crate::plan::types::CoercibleFilter::Filter { field, .. },
+        ) = &resolved2[0]
+        {
             assert!(field.is_computed);
             assert_eq!(field.name.as_str(), "full_name");
         }
@@ -1638,16 +1630,9 @@ mod tests {
         let prefs = Preferences::default();
         let body = bytes::Bytes::new();
 
-        let api_req = crate::api_request::from_request(
-            &config,
-            &prefs,
-            "OPTIONS",
-            "/",
-            "",
-            &[],
-            body,
-        )
-        .unwrap();
+        let api_req =
+            crate::api_request::from_request(&config, &prefs, "OPTIONS", "/", "", &[], body)
+                .unwrap();
 
         let plan = action_plan(&config, &api_req, &cache).unwrap();
         assert!(matches!(plan, ActionPlan::NoDb(InfoPlan::SchemaInfoPlan)));
@@ -1660,16 +1645,9 @@ mod tests {
         let prefs = Preferences::default();
         let body = bytes::Bytes::new();
 
-        let api_req = crate::api_request::from_request(
-            &config,
-            &prefs,
-            "OPTIONS",
-            "/users",
-            "",
-            &[],
-            body,
-        )
-        .unwrap();
+        let api_req =
+            crate::api_request::from_request(&config, &prefs, "OPTIONS", "/users", "", &[], body)
+                .unwrap();
 
         let plan = action_plan(&config, &api_req, &cache).unwrap();
         assert!(matches!(plan, ActionPlan::NoDb(InfoPlan::RelInfoPlan(_))));
@@ -1742,16 +1720,9 @@ mod tests {
         let prefs = Preferences::default();
         let body = bytes::Bytes::new();
 
-        let api_req = crate::api_request::from_request(
-            &config,
-            &prefs,
-            "GET",
-            "/nonexistent",
-            "",
-            &[],
-            body,
-        )
-        .unwrap();
+        let api_req =
+            crate::api_request::from_request(&config, &prefs, "GET", "/nonexistent", "", &[], body)
+                .unwrap();
 
         let result = action_plan(&config, &api_req, &cache);
         assert!(result.is_err());
@@ -1805,7 +1776,7 @@ mod tests {
     #[test]
     fn test_resolve_select_composite_type() {
         use crate::api_request::types::SelectItem;
-        use crate::api_request::types::{JsonOperation, JsonOperand, JsonPath};
+        use crate::api_request::types::{JsonOperand, JsonOperation, JsonPath};
         use smallvec::SmallVec;
 
         let mut table = test_table()
@@ -1821,8 +1792,8 @@ mod tests {
 
         // Mark column as composite
         {
-            use std::sync::Arc;
             use indexmap::IndexMap;
+            use std::sync::Arc;
             let mut new_columns = IndexMap::new();
             for (k, v) in table.columns.iter() {
                 if k.as_str() == "location" {
@@ -1851,24 +1822,22 @@ mod tests {
 
         let resolved = resolve_select(&items, Some(&table)).unwrap();
         assert_eq!(resolved.len(), 1);
-        assert!(resolved[0].field.to_json, "Composite type with JSON path should have to_json=true");
+        assert!(
+            resolved[0].field.to_json,
+            "Composite type with JSON path should have to_json=true"
+        );
     }
 
     #[test]
     fn test_resolve_select_array_type() {
         use crate::api_request::types::SelectItem;
-        use crate::api_request::types::{JsonOperation, JsonOperand, JsonPath};
+        use crate::api_request::types::{JsonOperand, JsonOperation, JsonPath};
         use smallvec::SmallVec;
 
         let table = test_table()
             .schema("test_api")
             .name("countries")
-            .column(
-                test_column()
-                    .name("languages")
-                    .data_type("text[]")
-                    .build(),
-            )
+            .column(test_column().name("languages").data_type("text[]").build())
             .build();
 
         let mut json_path: JsonPath = SmallVec::new();
@@ -1884,24 +1853,22 @@ mod tests {
 
         let resolved = resolve_select(&items, Some(&table)).unwrap();
         assert_eq!(resolved.len(), 1);
-        assert!(resolved[0].field.to_json, "Array type with JSON path should have to_json=true");
+        assert!(
+            resolved[0].field.to_json,
+            "Array type with JSON path should have to_json=true"
+        );
     }
 
     #[test]
     fn test_resolve_select_json_type_no_wrapper() {
         use crate::api_request::types::SelectItem;
-        use crate::api_request::types::{JsonOperation, JsonOperand, JsonPath};
+        use crate::api_request::types::{JsonOperand, JsonOperation, JsonPath};
         use smallvec::SmallVec;
 
         let table = test_table()
             .schema("test_api")
             .name("posts")
-            .column(
-                test_column()
-                    .name("metadata")
-                    .data_type("jsonb")
-                    .build(),
-            )
+            .column(test_column().name("metadata").data_type("jsonb").build())
             .build();
 
         let mut json_path: JsonPath = SmallVec::new();
@@ -1917,14 +1884,17 @@ mod tests {
 
         let resolved = resolve_select(&items, Some(&table)).unwrap();
         assert_eq!(resolved.len(), 1);
-        assert!(!resolved[0].field.to_json, "JSON/JSONB type should have to_json=false");
+        assert!(
+            !resolved[0].field.to_json,
+            "JSON/JSONB type should have to_json=false"
+        );
     }
 
     #[test]
     fn test_resolve_filters_composite_type() {
-        use smallvec::SmallVec;
         use crate::api_request::types::{Filter, OpExpr, Operation, QuantOperator};
-        use crate::api_request::types::{JsonOperation, JsonOperand, JsonPath};
+        use crate::api_request::types::{JsonOperand, JsonOperation, JsonPath};
+        use smallvec::SmallVec;
 
         let mut table = test_table()
             .schema("test_api")
@@ -1939,8 +1909,8 @@ mod tests {
 
         // Mark column as composite
         {
-            use std::sync::Arc;
             use indexmap::IndexMap;
+            use std::sync::Arc;
             let mut new_columns = IndexMap::new();
             for (k, v) in table.columns.iter() {
                 if k.as_str() == "location" {
@@ -1969,9 +1939,15 @@ mod tests {
 
         let resolved = resolve_filters(&filters, Some(&table)).unwrap();
         assert_eq!(resolved.len(), 1);
-        
-        if let crate::plan::types::CoercibleLogicTree::Stmnt(crate::plan::types::CoercibleFilter::Filter { field, .. }) = &resolved[0] {
-            assert!(field.to_json, "Composite type filter with JSON path should have to_json=true");
+
+        if let crate::plan::types::CoercibleLogicTree::Stmnt(
+            crate::plan::types::CoercibleFilter::Filter { field, .. },
+        ) = &resolved[0]
+        {
+            assert!(
+                field.to_json,
+                "Composite type filter with JSON path should have to_json=true"
+            );
         } else {
             panic!("Expected Filter variant");
         }
@@ -2001,8 +1977,8 @@ mod tests {
         // handles fields that have already been validated.
         // If a field with "::" somehow gets through, it would be treated as an unknown
         // field name, which would fail column lookup.
-        use smallvec::SmallVec;
         use crate::api_request::types::{Filter, OpExpr, Operation, QuantOperator};
+        use smallvec::SmallVec;
 
         let table = test_table()
             .schema("test_api")
@@ -2021,8 +1997,11 @@ mod tests {
 
         let result = resolve_filters(&filters, Some(&table));
         // Should fail because "id::text" doesn't match column "id"
-        assert!(result.is_err(), "Should fail when column name doesn't match");
-        
+        assert!(
+            result.is_err(),
+            "Should fail when column name doesn't match"
+        );
+
         if let Err(Error::ColumnNotFound { column, .. }) = result {
             assert_eq!(column, "id::text");
         } else {

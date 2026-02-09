@@ -9,11 +9,11 @@ use std::sync::atomic::Ordering;
 
 use arc_swap::ArcSwap;
 use axum::{
+    Router,
     extract::Request,
     middleware::{self, Next},
     response::Response,
     routing::{get, options, post},
-    Router,
 };
 use tower_http::{
     compression::CompressionLayer,
@@ -73,9 +73,7 @@ pub fn create_router(state: AppState) -> Router {
     let auth_state = state.auth.clone();
     let auth_layer = middleware::from_fn(move |req: Request, next: Next| {
         let auth = auth_state.clone();
-        async move {
-            auth_middleware_inner(auth, req, next).await
-        }
+        async move { auth_middleware_inner(auth, req, next).await }
     });
 
     // Build metrics middleware layer
@@ -102,9 +100,7 @@ pub fn create_router(state: AppState) -> Router {
     let timing_config = state.config.clone();
     let timing_layer = middleware::from_fn(move |req: Request, next: Next| {
         let cfg = timing_config.clone();
-        async move {
-            server_timing_middleware(cfg, req, next).await
-        }
+        async move { server_timing_middleware(cfg, req, next).await }
     });
 
     // Assemble main router
@@ -189,10 +185,8 @@ pub fn create_cors_layer(config: &AppConfig) -> CorsLayer {
 
     let origin = match config.server_cors_allowed_origins {
         Some(ref origins) => {
-            let parsed: Vec<http::HeaderValue> = origins
-                .iter()
-                .filter_map(|o| o.parse().ok())
-                .collect();
+            let parsed: Vec<http::HeaderValue> =
+                origins.iter().filter_map(|o| o.parse().ok()).collect();
             AllowOrigin::list(parsed)
         }
         None => AllowOrigin::any(),
@@ -250,8 +244,10 @@ mod tests {
     #[test]
     fn test_create_cors_layer_specific_origins() {
         let mut config = AppConfig::default();
-        config.server_cors_allowed_origins =
-            Some(vec!["http://localhost:3000".to_string(), "https://example.com".to_string()]);
+        config.server_cors_allowed_origins = Some(vec![
+            "http://localhost:3000".to_string(),
+            "https://example.com".to_string(),
+        ]);
         let _layer = create_cors_layer(&config);
     }
 
@@ -273,15 +269,15 @@ mod tests {
                 async move { server_timing_middleware(c, req, next).await }
             }));
 
-        let req = Request::builder()
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
+        let req = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
         let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), http::StatusCode::OK);
 
-        let timing = resp.headers().get("server-timing").expect("Server-Timing header missing");
+        let timing = resp
+            .headers()
+            .get("server-timing")
+            .expect("Server-Timing header missing");
         let val = timing.to_str().unwrap();
         assert!(val.starts_with("total;dur="), "Unexpected format: {val}");
     }
@@ -302,10 +298,7 @@ mod tests {
                 async move { server_timing_middleware(c, req, next).await }
             }));
 
-        let req = Request::builder()
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
+        let req = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
         let resp = app.oneshot(req).await.unwrap();
         assert_eq!(resp.status(), http::StatusCode::OK);

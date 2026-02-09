@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use pgrest::api_request::query_params;
 use std::collections::HashMap;
 
@@ -57,13 +57,9 @@ fn bench_query_parsing(c: &mut Criterion) {
             .join(",");
         let query = format!("select={}", fields);
 
-        group.bench_with_input(
-            BenchmarkId::new("select_fields", n),
-            &query,
-            |b, q| {
-                b.iter(|| query_params::parse(black_box(false), black_box(q)));
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("select_fields", n), &query, |b, q| {
+            b.iter(|| query_params::parse(black_box(false), black_box(q)));
+        });
     }
 
     group.finish();
@@ -80,9 +76,7 @@ fn bench_json_parsing(c: &mut Criterion) {
     let single_obj = r#"{"id": 1, "name": "Test User", "email": "test@example.com"}"#;
     group.throughput(Throughput::Bytes(single_obj.len() as u64));
     group.bench_function("single_object", |b| {
-        b.iter(|| {
-            serde_json::from_str::<serde_json::Value>(black_box(single_obj))
-        });
+        b.iter(|| serde_json::from_str::<serde_json::Value>(black_box(single_obj)));
     });
 
     // Array of objects (typical bulk insert)

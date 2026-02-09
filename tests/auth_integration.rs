@@ -22,7 +22,7 @@ use http::header;
 use jsonwebtoken::{Algorithm, EncodingKey, Header as JwtHeader};
 use pgrest::auth::error::{JwtClaimsError, JwtDecodeError, JwtError};
 use pgrest::auth::jwt;
-use pgrest::auth::middleware::{authenticate, AuthState};
+use pgrest::auth::middleware::{AuthState, authenticate};
 use pgrest::auth::types::AuthResult;
 use pgrest::config::AppConfig;
 use sqlx::{PgPool, Row};
@@ -120,19 +120,12 @@ async fn setup_auth_roles(pool: &PgPool) {
 }
 
 /// Set session context variables for a role, then run a query.
-async fn query_as_role(
-    pool: &PgPool,
-    role: &str,
-    claims_json: &str,
-) -> Vec<sqlx::postgres::PgRow> {
+async fn query_as_role(pool: &PgPool, role: &str, claims_json: &str) -> Vec<sqlx::postgres::PgRow> {
     let mut tx = pool.begin().await.unwrap();
 
     // Set role
     let set_role = format!("SET LOCAL ROLE {role}");
-    sqlx::raw_sql(&set_role)
-        .execute(&mut *tx)
-        .await
-        .unwrap();
+    sqlx::raw_sql(&set_role).execute(&mut *tx).await.unwrap();
 
     // Set claims
     sqlx::query("SELECT set_config('request.jwt.claims', $1, true)")
@@ -570,12 +563,10 @@ fn jwt_error_response(err: JwtError) -> Response {
         hint: None,
     };
     let mut response = (status, axum::Json(body)).into_response();
-    if let Some(val) = www_auth {
-        if let Ok(hv) = http::HeaderValue::from_str(&val) {
-            response
-                .headers_mut()
-                .insert(header::WWW_AUTHENTICATE, hv);
-        }
+    if let Some(val) = www_auth
+        && let Ok(hv) = http::HeaderValue::from_str(&val)
+    {
+        response.headers_mut().insert(header::WWW_AUTHENTICATE, hv);
     }
     response
 }
@@ -630,10 +621,7 @@ async fn test_http_anonymous_response() {
     let config = test_config();
     let state = AuthState::new(Arc::new(config));
 
-    let request = Request::builder()
-        .uri("/test")
-        .body(Body::empty())
-        .unwrap();
+    let request = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
     let response = simulate_http(&state, request).await;
     assert_eq!(response.status(), http::StatusCode::OK);
@@ -689,10 +677,7 @@ async fn test_http_no_secret_500() {
         .unwrap();
 
     let response = simulate_http(&state, request).await;
-    assert_eq!(
-        response.status(),
-        http::StatusCode::INTERNAL_SERVER_ERROR
-    );
+    assert_eq!(response.status(), http::StatusCode::INTERNAL_SERVER_ERROR);
 }
 
 #[tokio::test]
@@ -702,10 +687,7 @@ async fn test_http_no_anon_no_token_401() {
     config.db_anon_role = None;
     let state = AuthState::new(Arc::new(config));
 
-    let request = Request::builder()
-        .uri("/test")
-        .body(Body::empty())
-        .unwrap();
+    let request = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
     let response = simulate_http(&state, request).await;
     assert_eq!(response.status(), http::StatusCode::UNAUTHORIZED);
@@ -808,10 +790,7 @@ async fn test_db_set_claims_in_session() {
 
     // Set role
     let set_role = format!("SET LOCAL ROLE {}", auth_result.role);
-    sqlx::raw_sql(&set_role)
-        .execute(&mut *tx)
-        .await
-        .unwrap();
+    sqlx::raw_sql(&set_role).execute(&mut *tx).await.unwrap();
 
     // Set claims JSON
     let claims_json = auth_result.claims_json();

@@ -2,6 +2,10 @@
 //!
 //! This crate provides a REST API layer for PostgreSQL databases,
 //! written in Rust for speed and safety.
+
+#![cfg_attr(test, allow(clippy::field_reassign_with_default))]
+#![cfg_attr(test, allow(clippy::const_is_empty))]
+#![cfg_attr(test, allow(clippy::unnecessary_get_then_check))]
 //!
 //! # Architecture
 //!
@@ -35,7 +39,7 @@ pub mod test_helpers;
 pub use api_request::ApiRequest;
 pub use app::{AppState, start_server};
 pub use auth::{AuthResult, AuthState, JwtCache};
-pub use config::{load_config, AppConfig};
+pub use config::{AppConfig, load_config};
 pub use error::Error;
 pub use plan::action_plan;
 pub use schema_cache::{SchemaCache, SchemaCacheHolder};

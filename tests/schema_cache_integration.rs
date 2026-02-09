@@ -4,16 +4,18 @@
 //! to spin up a PostgreSQL instance.
 //!
 //! Run with: `cargo test --test schema_cache_integration`
-//! 
+//!
 //! Note: These tests are marked as #[ignore] by default because they require
 //! Docker. Run with `cargo test --test schema_cache_integration -- --ignored`
+
+#![allow(clippy::field_reassign_with_default)]
 
 mod common;
 
 use pgrest::config::AppConfig;
 use pgrest::schema_cache::{
-    db::{ColumnJson, DbIntrospector, RelationshipRow, RoutineRow, TableRow},
     SchemaCache,
+    db::{ColumnJson, DbIntrospector, RelationshipRow, RoutineRow, TableRow},
 };
 use sqlx::PgPool;
 
@@ -32,7 +34,19 @@ impl<'a> SqlxIntrospector<'a> {
 impl DbIntrospector for SqlxIntrospector<'_> {
     async fn query_tables(&self, schemas: &[String]) -> Result<Vec<TableRow>, pgrest::Error> {
         // Simplified query for testing
-        let rows = sqlx::query_as::<_, (String, String, Option<String>, bool, bool, bool, bool, Vec<String>)>(
+        let rows = sqlx::query_as::<
+            _,
+            (
+                String,
+                String,
+                Option<String>,
+                bool,
+                bool,
+                bool,
+                bool,
+                Vec<String>,
+            ),
+        >(
             r#"
             SELECT 
                 n.nspname AS table_schema,
@@ -60,11 +74,11 @@ impl DbIntrospector for SqlxIntrospector<'_> {
         .bind(schemas)
         .fetch_all(self.pool)
         .await
-        .map_err(|e| pgrest::Error::Database { 
-            code: None, 
-            message: e.to_string(), 
-            detail: None, 
-            hint: None 
+        .map_err(|e| pgrest::Error::Database {
+            code: None,
+            message: e.to_string(),
+            detail: None,
+            hint: None,
         })?;
 
         // Get columns for each table
@@ -110,16 +124,25 @@ impl DbIntrospector for SqlxIntrospector<'_> {
         )
         .fetch_all(self.pool)
         .await
-        .map_err(|e| pgrest::Error::Database { 
-            code: None, 
-            message: e.to_string(), 
-            detail: None, 
-            hint: None 
+        .map_err(|e| pgrest::Error::Database {
+            code: None,
+            message: e.to_string(),
+            detail: None,
+            hint: None,
         })?;
 
         // Get column mappings for each relationship
         let mut result = Vec::new();
-        for (table_schema, table_name, foreign_schema, foreign_name, is_self, constraint, one_to_one) in rows {
+        for (
+            table_schema,
+            table_name,
+            foreign_schema,
+            foreign_name,
+            is_self,
+            constraint,
+            one_to_one,
+        ) in rows
+        {
             let cols = self.get_fk_columns(&constraint).await?;
             result.push(RelationshipRow {
                 table_schema,
@@ -156,11 +179,11 @@ impl DbIntrospector for SqlxIntrospector<'_> {
         .bind(schemas)
         .fetch_all(self.pool)
         .await
-        .map_err(|e| pgrest::Error::Database { 
-            code: None, 
-            message: e.to_string(), 
-            detail: None, 
-            hint: None 
+        .map_err(|e| pgrest::Error::Database {
+            code: None,
+            message: e.to_string(),
+            detail: None,
+            hint: None,
         })?;
 
         let result = rows
@@ -180,9 +203,12 @@ impl DbIntrospector for SqlxIntrospector<'_> {
         Ok(result)
     }
 
-    async fn query_computed_fields(&self, schemas: &[String]) -> Result<Vec<pgrest::schema_cache::ComputedFieldRow>, pgrest::Error> {
+    async fn query_computed_fields(
+        &self,
+        schemas: &[String],
+    ) -> Result<Vec<pgrest::schema_cache::ComputedFieldRow>, pgrest::Error> {
         use pgrest::schema_cache::queries::computed_fields::COMPUTED_FIELDS_QUERY;
-        
+
         let rows = sqlx::query_as::<_, (String, String, String, String, String, bool)>(
             COMPUTED_FIELDS_QUERY,
         )
@@ -198,16 +224,25 @@ impl DbIntrospector for SqlxIntrospector<'_> {
 
         Ok(rows
             .into_iter()
-            .map(|(table_schema, table_name, function_schema, function_name, return_type, returns_set)| {
-                pgrest::schema_cache::ComputedFieldRow {
+            .map(
+                |(
                     table_schema,
                     table_name,
                     function_schema,
                     function_name,
                     return_type,
                     returns_set,
-                }
-            })
+                )| {
+                    pgrest::schema_cache::ComputedFieldRow {
+                        table_schema,
+                        table_name,
+                        function_schema,
+                        function_name,
+                        return_type,
+                        returns_set,
+                    }
+                },
+            )
             .collect())
     }
 
@@ -215,20 +250,35 @@ impl DbIntrospector for SqlxIntrospector<'_> {
         let rows: Vec<(String,)> = sqlx::query_as("SELECT name FROM pg_timezone_names LIMIT 100")
             .fetch_all(self.pool)
             .await
-            .map_err(|e| pgrest::Error::Database { 
-            code: None, 
-            message: e.to_string(), 
-            detail: None, 
-            hint: None 
-        })?;
+            .map_err(|e| pgrest::Error::Database {
+                code: None,
+                message: e.to_string(),
+                detail: None,
+                hint: None,
+            })?;
 
         Ok(rows.into_iter().map(|(name,)| name).collect())
     }
 }
 
 impl SqlxIntrospector<'_> {
-    async fn get_columns(&self, schema: &str, table: &str) -> Result<Vec<ColumnJson>, pgrest::Error> {
-        let rows = sqlx::query_as::<_, (String, Option<String>, bool, String, String, Option<i32>, Option<String>)>(
+    async fn get_columns(
+        &self,
+        schema: &str,
+        table: &str,
+    ) -> Result<Vec<ColumnJson>, pgrest::Error> {
+        let rows = sqlx::query_as::<
+            _,
+            (
+                String,
+                Option<String>,
+                bool,
+                String,
+                String,
+                Option<i32>,
+                Option<String>,
+            ),
+        >(
             r#"
             SELECT
                 a.attname AS name,
@@ -252,17 +302,17 @@ impl SqlxIntrospector<'_> {
         .bind(table)
         .fetch_all(self.pool)
         .await
-        .map_err(|e| pgrest::Error::Database { 
-            code: None, 
-            message: e.to_string(), 
-            detail: None, 
-            hint: None 
+        .map_err(|e| pgrest::Error::Database {
+            code: None,
+            message: e.to_string(),
+            detail: None,
+            hint: None,
         })?;
 
         Ok(rows
             .into_iter()
-            .map(|(name, desc, nullable, data_type, nominal_type, max_length, default)| {
-                ColumnJson {
+            .map(
+                |(name, desc, nullable, data_type, nominal_type, max_length, default)| ColumnJson {
                     name,
                     description: desc,
                     nullable,
@@ -274,12 +324,15 @@ impl SqlxIntrospector<'_> {
                     is_composite: false,
                     composite_type_schema: None,
                     composite_type_name: None,
-                }
-            })
+                },
+            )
             .collect())
     }
 
-    async fn get_fk_columns(&self, constraint: &str) -> Result<Vec<(String, String)>, pgrest::Error> {
+    async fn get_fk_columns(
+        &self,
+        constraint: &str,
+    ) -> Result<Vec<(String, String)>, pgrest::Error> {
         let rows = sqlx::query_as::<_, (String, String)>(
             r#"
             SELECT cols.attname, refs.attname
@@ -294,11 +347,11 @@ impl SqlxIntrospector<'_> {
         .bind(constraint)
         .fetch_all(self.pool)
         .await
-        .map_err(|e| pgrest::Error::Database { 
-            code: None, 
-            message: e.to_string(), 
-            detail: None, 
-            hint: None 
+        .map_err(|e| pgrest::Error::Database {
+            code: None,
+            message: e.to_string(),
+            detail: None,
+            hint: None
         })?;
 
         Ok(rows)
@@ -316,15 +369,15 @@ async fn test_load_tables() {
         .await
         .expect("Failed to create test database: Docker and network access required. Ensure Docker is running and you have permission to create containers.");
     let introspector = SqlxIntrospector::new(db.pool());
-    
+
     let mut config = AppConfig::default();
     config.db_schemas = vec!["test_api".to_string()];
-    
+
     let cache = SchemaCache::load(&introspector, &config).await.unwrap();
-    
+
     // Should have tables from test_api schema
     assert!(cache.table_count() > 0);
-    
+
     // Check specific tables exist
     assert!(cache.get_table_by_name("test_api", "users").is_some());
     assert!(cache.get_table_by_name("test_api", "posts").is_some());
@@ -338,24 +391,24 @@ async fn test_load_columns() {
         .await
         .expect("Failed to create test database: Docker and network access required. Ensure Docker is running and you have permission to create containers.");
     let introspector = SqlxIntrospector::new(db.pool());
-    
+
     let mut config = AppConfig::default();
     config.db_schemas = vec!["test_api".to_string()];
-    
+
     let cache = SchemaCache::load(&introspector, &config).await.unwrap();
-    
+
     let users = cache.get_table_by_name("test_api", "users").unwrap();
-    
+
     // Check columns exist
     assert!(users.get_column("id").is_some());
     assert!(users.get_column("email").is_some());
     assert!(users.get_column("name").is_some());
     assert!(users.get_column("status").is_some());
-    
+
     // Check column types
     let id_col = users.get_column("id").unwrap();
     assert!(id_col.is_numeric_type());
-    
+
     let email_col = users.get_column("email").unwrap();
     assert!(email_col.is_text_type());
 }
@@ -367,20 +420,20 @@ async fn test_load_relationships() {
         .await
         .expect("Failed to create test database: Docker and network access required. Ensure Docker is running and you have permission to create containers.");
     let introspector = SqlxIntrospector::new(db.pool());
-    
+
     let mut config = AppConfig::default();
     config.db_schemas = vec!["test_api".to_string()];
-    
+
     let cache = SchemaCache::load(&introspector, &config).await.unwrap();
-    
+
     // Check relationships exist
     assert!(cache.relationship_count() > 0);
-    
+
     // Posts should have relationship to users
     let posts_qi = pgrest::QualifiedIdentifier::new("test_api", "posts");
     let rels = cache.find_relationships(&posts_qi);
     assert!(!rels.is_empty());
-    
+
     // At least one should point to users
     let to_users = cache.find_relationships_to(&posts_qi, "users");
     assert!(!to_users.is_empty());
@@ -393,16 +446,16 @@ async fn test_load_views() {
         .await
         .expect("Failed to create test database: Docker and network access required. Ensure Docker is running and you have permission to create containers.");
     let introspector = SqlxIntrospector::new(db.pool());
-    
+
     let mut config = AppConfig::default();
     config.db_schemas = vec!["test_api".to_string()];
-    
+
     let cache = SchemaCache::load(&introspector, &config).await.unwrap();
-    
+
     // Check views are loaded
     let active_users = cache.get_table_by_name("test_api", "active_users");
     assert!(active_users.is_some());
-    
+
     let view = active_users.unwrap();
     assert!(view.is_view);
 }
@@ -414,15 +467,15 @@ async fn test_load_routines() {
         .await
         .expect("Failed to create test database: Docker and network access required. Ensure Docker is running and you have permission to create containers.");
     let introspector = SqlxIntrospector::new(db.pool());
-    
+
     let mut config = AppConfig::default();
     config.db_schemas = vec!["test_api".to_string()];
-    
+
     let cache = SchemaCache::load(&introspector, &config).await.unwrap();
-    
+
     // Check routines are loaded
     assert!(cache.routine_count() > 0);
-    
+
     // Check specific functions exist
     let add_func = cache.get_routines_by_name("test_api", "add_numbers");
     assert!(add_func.is_some());
@@ -435,13 +488,13 @@ async fn test_load_timezones() {
         .await
         .expect("Failed to create test database: Docker and network access required. Ensure Docker is running and you have permission to create containers.");
     let introspector = SqlxIntrospector::new(db.pool());
-    
+
     let config = AppConfig::default();
     let cache = SchemaCache::load(&introspector, &config).await.unwrap();
-    
+
     // Should have timezones
-    assert!(cache.timezones.len() > 0);
-    
+    assert!(!cache.timezones.is_empty());
+
     // UTC should always be valid
     assert!(cache.is_valid_timezone("UTC"));
 }
@@ -453,17 +506,17 @@ async fn test_table_primary_key() {
         .await
         .expect("Failed to create test database: Docker and network access required. Ensure Docker is running and you have permission to create containers.");
     let introspector = SqlxIntrospector::new(db.pool());
-    
+
     let mut config = AppConfig::default();
     config.db_schemas = vec!["test_api".to_string()];
-    
+
     let cache = SchemaCache::load(&introspector, &config).await.unwrap();
-    
+
     // Users table should have PK
     let users = cache.get_table_by_name("test_api", "users").unwrap();
     assert!(users.has_pk());
     assert!(users.is_pk_column("id"));
-    
+
     // Profiles has composite-ish PK (just user_id)
     let profiles = cache.get_table_by_name("test_api", "profiles").unwrap();
     assert!(profiles.has_pk());
@@ -476,19 +529,22 @@ async fn test_self_referencing_relationship() {
         .await
         .expect("Failed to create test database: Docker and network access required. Ensure Docker is running and you have permission to create containers.");
     let introspector = SqlxIntrospector::new(db.pool());
-    
+
     let mut config = AppConfig::default();
     config.db_schemas = vec!["test_api".to_string()];
-    
+
     let cache = SchemaCache::load(&introspector, &config).await.unwrap();
-    
+
     // Comments has self-referencing FK (parent_id)
     let comments_qi = pgrest::QualifiedIdentifier::new("test_api", "comments");
     let rels = cache.find_relationships(&comments_qi);
-    
+
     // Should have a self-referencing relationship
     let self_rels: Vec<_> = rels.iter().filter(|r| r.is_self()).collect();
-    assert!(!self_rels.is_empty(), "Comments should have self-referencing relationship");
+    assert!(
+        !self_rels.is_empty(),
+        "Comments should have self-referencing relationship"
+    );
 }
 
 #[tokio::test]
@@ -498,12 +554,12 @@ async fn test_schema_cache_summary() {
         .await
         .expect("Failed to create test database: Docker and network access required. Ensure Docker is running and you have permission to create containers.");
     let introspector = SqlxIntrospector::new(db.pool());
-    
+
     let mut config = AppConfig::default();
     config.db_schemas = vec!["test_api".to_string()];
-    
+
     let cache = SchemaCache::load(&introspector, &config).await.unwrap();
-    
+
     let summary = cache.summary();
     assert!(summary.contains("tables"));
     assert!(summary.contains("relationships"));
@@ -517,15 +573,15 @@ async fn test_tables_in_schema() {
         .await
         .expect("Failed to create test database: Docker and network access required. Ensure Docker is running and you have permission to create containers.");
     let introspector = SqlxIntrospector::new(db.pool());
-    
+
     let mut config = AppConfig::default();
     config.db_schemas = vec!["test_api".to_string()];
-    
+
     let cache = SchemaCache::load(&introspector, &config).await.unwrap();
-    
+
     let tables: Vec<_> = cache.tables_in_schema("test_api").collect();
     assert!(!tables.is_empty());
-    
+
     // All should be in test_api schema
     for table in &tables {
         assert_eq!(table.schema.as_str(), "test_api");
@@ -539,27 +595,30 @@ async fn test_load_computed_fields() {
         .await
         .expect("Failed to create test database: Docker and network access required. Ensure Docker is running and you have permission to create containers.");
     let introspector = SqlxIntrospector::new(db.pool());
-    
+
     let mut config = AppConfig::default();
     config.db_schemas = vec!["test_api".to_string()];
-    
+
     let cache = SchemaCache::load(&introspector, &config).await.unwrap();
-    
+
     // Find users table
     let users_qi = pgrest::types::QualifiedIdentifier::new("test_api", "users");
-    let users_table = cache.tables.get(&users_qi).expect("users table should exist");
-    
+    let users_table = cache
+        .tables
+        .get(&users_qi)
+        .expect("users table should exist");
+
     // Check that computed fields are loaded
     assert!(users_table.computed_fields.contains_key("full_name"));
     assert!(users_table.computed_fields.contains_key("initials"));
-    
+
     // Verify computed field structure
     let full_name_cf = users_table.get_computed_field("full_name").unwrap();
     assert_eq!(full_name_cf.function.schema.as_str(), "test_api");
     assert_eq!(full_name_cf.function.name.as_str(), "full_name");
     assert_eq!(full_name_cf.return_type.as_str(), "text");
     assert!(!full_name_cf.returns_set);
-    
+
     let initials_cf = users_table.get_computed_field("initials").unwrap();
     assert_eq!(initials_cf.function.schema.as_str(), "test_api");
     assert_eq!(initials_cf.function.name.as_str(), "initials");
@@ -573,13 +632,13 @@ async fn test_computed_fields_with_extra_search_path() {
     let db = common::TestDb::new()
         .await
         .expect("Failed to create test database: Docker and network access required. Ensure Docker is running and you have permission to create containers.");
-    
+
     // Create a function in a different schema
     sqlx::query("CREATE SCHEMA IF NOT EXISTS extensions")
         .execute(db.pool())
         .await
         .unwrap();
-    
+
     sqlx::query(
         r#"
         CREATE FUNCTION extensions.display_name(u test_api.users)
@@ -589,27 +648,30 @@ async fn test_computed_fields_with_extra_search_path() {
         AS $$
             SELECT u.name || ' (' || u.email || ')';
         $$;
-        "#
+        "#,
     )
     .execute(db.pool())
     .await
     .unwrap();
-    
+
     let introspector = SqlxIntrospector::new(db.pool());
-    
+
     let mut config = AppConfig::default();
     config.db_schemas = vec!["test_api".to_string()];
     config.db_extra_search_path = vec!["extensions".to_string()];
-    
+
     let cache = SchemaCache::load(&introspector, &config).await.unwrap();
-    
+
     // Find users table
     let users_qi = pgrest::types::QualifiedIdentifier::new("test_api", "users");
-    let users_table = cache.tables.get(&users_qi).expect("users table should exist");
-    
+    let users_table = cache
+        .tables
+        .get(&users_qi)
+        .expect("users table should exist");
+
     // Check that computed field from extra search path is loaded
     assert!(users_table.computed_fields.contains_key("display_name"));
-    
+
     let display_name_cf = users_table.get_computed_field("display_name").unwrap();
     assert_eq!(display_name_cf.function.schema.as_str(), "extensions");
     assert_eq!(display_name_cf.function.name.as_str(), "display_name");

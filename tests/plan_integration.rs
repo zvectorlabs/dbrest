@@ -10,20 +10,18 @@
 
 mod common;
 
-use pgrest::api_request::preferences::{
-    PreferRepresentation, PreferResolution, Preferences,
-};
+use bytes::Bytes;
+use pgrest::api_request::preferences::{PreferRepresentation, PreferResolution, Preferences};
 use pgrest::api_request::{self, ApiRequest};
 use pgrest::config::AppConfig;
 use pgrest::error::Error;
 use pgrest::plan::{
-    action_plan, ActionPlan, CallPlan, CrudPlan, DbActionPlan, InfoPlan, MutatePlan, ReadPlanTree,
+    ActionPlan, CallPlan, CrudPlan, DbActionPlan, InfoPlan, MutatePlan, ReadPlanTree, action_plan,
 };
 use pgrest::schema_cache::{
-    db::{ColumnJson, DbIntrospector, RelationshipRow, RoutineRow, TableRow},
     SchemaCache,
+    db::{ColumnJson, DbIntrospector, RelationshipRow, RoutineRow, TableRow},
 };
-use bytes::Bytes;
 use sqlx::PgPool;
 
 // ==========================================================================
@@ -100,7 +98,19 @@ impl<'a> SqlxIntrospector<'a> {
 #[async_trait::async_trait]
 impl DbIntrospector for SqlxIntrospector<'_> {
     async fn query_tables(&self, schemas: &[String]) -> Result<Vec<TableRow>, Error> {
-        let rows = sqlx::query_as::<_, (String, String, Option<String>, bool, bool, bool, bool, Vec<String>)>(
+        let rows = sqlx::query_as::<
+            _,
+            (
+                String,
+                String,
+                Option<String>,
+                bool,
+                bool,
+                bool,
+                bool,
+                Vec<String>,
+            ),
+        >(
             r#"
             SELECT 
                 n.nspname AS table_schema,
@@ -252,7 +262,10 @@ impl DbIntrospector for SqlxIntrospector<'_> {
         Ok(result)
     }
 
-    async fn query_computed_fields(&self, _schemas: &[String]) -> Result<Vec<pgrest::schema_cache::ComputedFieldRow>, Error> {
+    async fn query_computed_fields(
+        &self,
+        _schemas: &[String],
+    ) -> Result<Vec<pgrest::schema_cache::ComputedFieldRow>, Error> {
         Ok(Vec::new())
     }
 
@@ -271,11 +284,7 @@ impl DbIntrospector for SqlxIntrospector<'_> {
 }
 
 impl SqlxIntrospector<'_> {
-    async fn get_columns(
-        &self,
-        schema: &str,
-        table: &str,
-    ) -> Result<Vec<ColumnJson>, Error> {
+    async fn get_columns(&self, schema: &str, table: &str) -> Result<Vec<ColumnJson>, Error> {
         let rows = sqlx::query_as::<_, (String, Option<String>, bool, String, String, Option<i32>, Option<String>)>(
             r#"
             SELECT
@@ -694,11 +703,7 @@ async fn test_plan_read_with_nested_embed() {
     assert_eq!(tree.children().len(), 1);
     assert_eq!(tree.children()[0].children().len(), 1);
     assert_eq!(
-        tree.children()[0].children()[0]
-            .node
-            .from
-            .name
-            .as_str(),
+        tree.children()[0].children()[0].node.from.name.as_str(),
         "comments"
     );
 }
@@ -792,7 +797,10 @@ async fn test_plan_insert() {
     assert!(matches!(mutate, MutatePlan::Insert(_)));
     if let MutatePlan::Insert(insert) = mutate {
         assert_eq!(insert.into.name.as_str(), "users");
-        assert!(!insert.returning.is_empty(), "Prefer: return=representation should have returning");
+        assert!(
+            !insert.returning.is_empty(),
+            "Prefer: return=representation should have returning"
+        );
     }
 }
 
@@ -823,9 +831,15 @@ async fn test_plan_update() {
     assert!(matches!(mutate, MutatePlan::Update(_)));
     if let MutatePlan::Update(update) = mutate {
         assert_eq!(update.into.name.as_str(), "users");
-        assert!(!update.where_.is_empty(), "Expected a WHERE clause for UPDATE");
+        assert!(
+            !update.where_.is_empty(),
+            "Expected a WHERE clause for UPDATE"
+        );
     }
-    assert!(!read.node.where_.is_empty(), "Read plan should also have filter");
+    assert!(
+        !read.node.where_.is_empty(),
+        "Read plan should also have filter"
+    );
 }
 
 #[tokio::test]
@@ -1171,7 +1185,10 @@ async fn test_plan_tx_mode_rollback_all() {
             plan: CrudPlan::MutateReadPlan { tx_mode, .. },
             ..
         }) => {
-            assert!(tx_mode.rollback, "Expected rollback when db_tx_rollback_all");
+            assert!(
+                tx_mode.rollback,
+                "Expected rollback when db_tx_rollback_all"
+            );
         }
         other => panic!("Unexpected plan: {other:?}"),
     }
@@ -1311,7 +1328,10 @@ async fn test_plan_insert_with_on_conflict() {
     let (mutate, _read) = expect_mutate_read(plan);
 
     if let MutatePlan::Insert(insert) = mutate {
-        assert!(insert.on_conflict.is_some(), "Expected on_conflict for upsert");
+        assert!(
+            insert.on_conflict.is_some(),
+            "Expected on_conflict for upsert"
+        );
         let oc = insert.on_conflict.unwrap();
         assert!(oc.merge_duplicates, "Expected merge_duplicates=true");
     } else {

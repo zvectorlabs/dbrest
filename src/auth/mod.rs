@@ -40,5 +40,5 @@ pub mod types;
 // Re-exports for convenience
 pub use cache::JwtCache;
 pub use error::JwtError;
-pub use middleware::{auth_middleware, AuthState};
+pub use middleware::{AuthState, auth_middleware};
 pub use types::AuthResult;

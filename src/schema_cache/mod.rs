@@ -32,9 +32,13 @@ pub mod routine;
 pub mod table;
 
 // Re-export main types
-pub use db::{ComputedFieldRow, DbIntrospector, RelationshipRow, RoutineRow, SqlxIntrospector, TableRow};
+pub use db::{
+    ComputedFieldRow, DbIntrospector, RelationshipRow, RoutineRow, SqlxIntrospector, TableRow,
+};
 pub use media_handler::{MediaHandler, MediaHandlerMap, ResolvedHandler};
-pub use relationship::{AnyRelationship, Cardinality, ComputedRelationship, Junction, Relationship};
+pub use relationship::{
+    AnyRelationship, Cardinality, ComputedRelationship, Junction, Relationship,
+};
 pub use representations::{DataRepresentation, RepresentationsMap};
 pub use routine::{PgType, ReturnType, Routine, RoutineParam, Volatility};
 pub use table::{Column, ComputedField, Table};
@@ -104,9 +108,9 @@ impl SchemaCache {
         config: &AppConfig,
     ) -> Result<Self, Error> {
         let schemas = &config.db_schemas;
-        
+
         tracing::info!("Loading schema cache for schemas: {:?}", schemas);
-        
+
         // Combine exposed schemas with extra search path for computed fields query
         let mut all_schemas = config.db_schemas.clone();
         for extra_schema in &config.db_extra_search_path {
@@ -114,7 +118,7 @@ impl SchemaCache {
                 all_schemas.push(extra_schema.clone());
             }
         }
-        
+
         tracing::debug!("All schemas for computed fields query: {:?}", all_schemas);
 
         // Query all data concurrently
@@ -146,10 +150,10 @@ impl SchemaCache {
         // Group computed fields by table and attach them
         use crate::schema_cache::table::ComputedField;
         use crate::types::QualifiedIdentifier as QI;
-        
+
         let mut attached_count = 0;
         let mut not_found_count = 0;
-        
+
         for row in computed_fields_rows {
             let table_qi = QI::new(&row.table_schema, &row.table_name);
             if let Some(table) = tables.get_mut(&table_qi) {
@@ -160,7 +164,9 @@ impl SchemaCache {
                     returns_set: row.returns_set,
                 };
                 // Use function name as the key (not qualified, matching PostgREST behavior)
-                table.computed_fields.insert(row.function_name.clone().into(), computed_field);
+                table
+                    .computed_fields
+                    .insert(row.function_name.clone().into(), computed_field);
                 tracing::trace!(
                     "Attached computed field '{}' to table {}.{}",
                     row.function_name,
@@ -179,7 +185,7 @@ impl SchemaCache {
                 not_found_count += 1;
             }
         }
-        
+
         tracing::debug!(
             "Attached {} computed fields to tables, {} referenced non-existent tables",
             attached_count,
@@ -219,7 +225,7 @@ impl SchemaCache {
         // Convert timezones to HashSet, ensuring UTC is always included
         let mut timezone_set: HashSet<String> = timezones.into_iter().collect();
         timezone_set.insert("UTC".to_string());
-        
+
         Ok(Self {
             tables: Arc::new(tables),
             relationships: Arc::new(relationships),
@@ -351,11 +357,7 @@ impl SchemaCacheHolder {
     /// Returns None if the cache hasn't been loaded yet.
     pub fn get(&self) -> Option<arc_swap::Guard<Arc<Option<SchemaCache>>>> {
         let guard = self.inner.load();
-        if guard.is_some() {
-            Some(guard)
-        } else {
-            None
-        }
+        if guard.is_some() { Some(guard) } else { None }
     }
 
     /// Replace the cache with a new one
@@ -547,10 +549,7 @@ mod tests {
     fn test_schema_cache_tables_iter() {
         let cache = create_test_cache();
 
-        let table_names: Vec<_> = cache
-            .tables_iter()
-            .map(|(_, t)| t.name.as_str())
-            .collect();
+        let table_names: Vec<_> = cache.tables_iter().map(|(_, t)| t.name.as_str()).collect();
         assert!(table_names.contains(&"users"));
         assert!(table_names.contains(&"posts"));
     }
@@ -633,7 +632,8 @@ mod tests {
 
         mock.expect_query_relationships().returning(|| Ok(vec![]));
         mock.expect_query_routines().returning(|_| Ok(vec![]));
-        mock.expect_query_computed_fields().returning(|_| Ok(vec![]));
+        mock.expect_query_computed_fields()
+            .returning(|_| Ok(vec![]));
         mock.expect_query_timezones()
             .returning(|| Ok(vec!["UTC".to_string()]));
 
@@ -694,7 +694,8 @@ mod tests {
         });
 
         mock.expect_query_routines().returning(|_| Ok(vec![]));
-        mock.expect_query_computed_fields().returning(|_| Ok(vec![]));
+        mock.expect_query_computed_fields()
+            .returning(|_| Ok(vec![]));
         mock.expect_query_timezones().returning(|| Ok(vec![]));
 
         let config = AppConfig::default();

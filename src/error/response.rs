@@ -3,8 +3,8 @@
 //! JSON error response formatting.
 
 use axum::{
-    response::{IntoResponse, Response},
     Json,
+    response::{IntoResponse, Response},
 };
 use http::header;
 use serde::Serialize;
@@ -61,12 +61,13 @@ impl IntoResponse for Error {
         let mut response = (status, Json(body)).into_response();
 
         // Propagate WWW-Authenticate header for JWT errors
-        if let Error::JwtAuth(jwt_err) = &self {
-            if let Some(www_auth) = jwt_err.www_authenticate() {
-                if let Ok(header_value) = http::HeaderValue::from_str(&www_auth) {
-                    response.headers_mut().insert(header::WWW_AUTHENTICATE, header_value);
-                }
-            }
+        if let Error::JwtAuth(jwt_err) = &self
+            && let Some(www_auth) = jwt_err.www_authenticate()
+            && let Ok(header_value) = http::HeaderValue::from_str(&www_auth)
+        {
+            response
+                .headers_mut()
+                .insert(header::WWW_AUTHENTICATE, header_value);
         }
 
         response
@@ -205,7 +206,7 @@ mod tests {
 
     #[test]
     fn test_www_authenticate_header_propagation() {
-        use crate::auth::error::{JwtError, JwtDecodeError};
+        use crate::auth::error::{JwtDecodeError, JwtError};
 
         // Test that JwtAuth errors include WWW-Authenticate header
         let jwt_err = JwtError::TokenRequired;

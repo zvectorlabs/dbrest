@@ -594,7 +594,10 @@ mod tests {
 
         let headers = vec![("Prefer", "return=headers-only")];
         let prefs = Preferences::from_headers(true, &empty_tz(), &headers);
-        assert_eq!(prefs.representation, Some(PreferRepresentation::HeadersOnly));
+        assert_eq!(
+            prefs.representation,
+            Some(PreferRepresentation::HeadersOnly)
+        );
     }
 
     #[test]
