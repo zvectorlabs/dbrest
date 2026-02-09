@@ -1,7 +1,7 @@
 # Makefile for PgREST development lifecycle
 # Provides convenient commands for building, testing, benchmarking, and running
 
-.PHONY: help build build-release clean run run-release test test-unit test-integration test-all test-ignored bench bench-micro bench-integration bench-load fmt lint clippy check doc
+.PHONY: help build build-release clean run run-release test test-unit test-integration test-all test-ignored bench bench-micro bench-integration bench-load fmt lint clippy check doc docs-build docs-serve docs-clean docs-install
 
 # Default target
 .DEFAULT_GOAL := help
@@ -11,6 +11,8 @@ CARGO := cargo
 BINARY_NAME := pgrest
 BENCH_DIR := benches
 TEST_DIR := tests
+DOCS_DIR := docs
+MDBOOK := mdbook
 
 # Colors for output
 BLUE := \033[0;34m
@@ -234,13 +236,33 @@ check-all: check clippy fmt-check ## Run all checks (check + clippy + fmt-check)
 
 ##@ Documentation
 
-doc: ## Generate documentation
+doc: ## Generate Rust API documentation (cargo doc)
 	@echo "$(BLUE)Generating documentation...$(NC)"
 	$(CARGO) doc --no-deps --open
 
-doc-build: ## Build documentation without opening
+doc-build: ## Build Rust API documentation without opening
 	@echo "$(BLUE)Building documentation...$(NC)"
 	$(CARGO) doc --no-deps
+
+##@ User Documentation (mdbook)
+
+docs-build: ## Build user documentation (mdbook) into docs/book
+	@echo "$(BLUE)Building user documentation...$(NC)"
+	@command -v $(MDBOOK) >/dev/null 2>&1 || { echo "$(YELLOW)mdbook not found. Install with: make docs-install$(NC)"; exit 1; }
+	$(MDBOOK) build $(DOCS_DIR)
+
+docs-serve: ## Serve user documentation for local preview (http://localhost:3000)
+	@echo "$(BLUE)Serving user documentation at http://localhost:3000$(NC)"
+	@command -v $(MDBOOK) >/dev/null 2>&1 || { echo "$(YELLOW)mdbook not found. Install with: make docs-install$(NC)"; exit 1; }
+	$(MDBOOK) serve $(DOCS_DIR)
+
+docs-clean: ## Remove built user documentation (docs/book)
+	@echo "$(BLUE)Cleaning built documentation...$(NC)"
+	@rm -rf $(DOCS_DIR)/book
+
+docs-install: ## Install mdbook (cargo install mdbook)
+	@echo "$(BLUE)Installing mdbook...$(NC)"
+	$(CARGO) install mdbook
 
 ##@ Development Workflow
 
