@@ -1,23 +1,26 @@
 //! Application state shared across all handlers.
 //!
-//! [`AppState`] is the central struct holding the database pool,
+//! [`AppState`] is the central struct holding the database backend,
 //! configuration, schema cache, authentication state, metrics, and
-//! PostgreSQL version info. It is cheaply cloneable (all fields are
+//! database version info. It is cheaply cloneable (all fields are
 //! `Arc`-wrapped) and passed to every axum handler via `State<AppState>`.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use arc_swap::ArcSwap;
-use sqlx::PgPool;
 
 use crate::auth::JwtCache;
 use crate::auth::middleware::AuthState;
+use crate::backend::{DatabaseBackend, DbVersion, SqlDialect};
 use crate::config::AppConfig;
 use crate::error::Error;
 use crate::schema_cache::SchemaCache;
 
+// Keep PgVersion as a compatibility alias during migration
 /// PostgreSQL server version.
+///
+/// Deprecated — use [`DbVersion`] from the backend module instead.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PgVersion {
     pub major: u32,
@@ -28,6 +31,16 @@ pub struct PgVersion {
 impl std::fmt::Display for PgVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
+    }
+}
+
+impl From<&DbVersion> for PgVersion {
+    fn from(v: &DbVersion) -> Self {
+        Self {
+            major: v.major,
+            minor: v.minor,
+            patch: v.patch,
+        }
     }
 }
 
@@ -50,8 +63,10 @@ pub struct Metrics {
 /// lock-free reads and atomic replacement during live reload.
 #[derive(Clone)]
 pub struct AppState {
-    /// Database connection pool.
-    pub pool: PgPool,
+    /// Database backend (connection pool + execution + introspection).
+    pub db: Arc<dyn DatabaseBackend>,
+    /// SQL dialect for the active backend.
+    pub dialect: Arc<dyn SqlDialect>,
     /// Atomically swappable configuration.
     pub config: Arc<ArcSwap<AppConfig>>,
     /// Atomically swappable schema cache.
@@ -62,28 +77,64 @@ pub struct AppState {
     pub jwt_cache: JwtCache,
     /// Application metrics.
     pub metrics: Arc<Metrics>,
-    /// PostgreSQL version.
+    /// Database version.
+    pub db_version: DbVersion,
+
+    // --- Compatibility fields (will be removed once migration is complete) ---
+    /// PostgreSQL connection pool (legacy — prefer `db` field).
+    pub pool: sqlx::PgPool,
+    /// PostgreSQL version (legacy — prefer `db_version` field).
     pub pg_version: PgVersion,
 }
 
 impl AppState {
-    /// Create a new `AppState` from a pool, config, and PG version.
+    /// Create a new `AppState` from a database backend, dialect, config, and version.
     ///
     /// The schema cache starts as `None` — call [`Self::reload_schema_cache`]
     /// after construction.
-    pub fn new(pool: PgPool, config: AppConfig, pg_version: PgVersion) -> Self {
+    pub fn new_with_backend(
+        db: Arc<dyn DatabaseBackend>,
+        dialect: Arc<dyn SqlDialect>,
+        pool: sqlx::PgPool,
+        config: AppConfig,
+        db_version: DbVersion,
+    ) -> Self {
+        let pg_version = PgVersion::from(&db_version);
         let config_swap = Arc::new(ArcSwap::new(Arc::new(config)));
         let auth = AuthState::with_shared_config(config_swap.clone());
         let jwt_cache = auth.cache.clone();
         Self {
-            pool,
+            db,
+            dialect,
+            pool: pool.clone(),
             config: config_swap,
             schema_cache: Arc::new(ArcSwap::new(Arc::new(None))),
             auth,
             jwt_cache,
             metrics: Arc::new(Metrics::default()),
+            db_version,
             pg_version,
         }
+    }
+
+    /// Create a new `AppState` from a pool, config, and PG version.
+    ///
+    /// Legacy constructor — uses `PgBackend` and `PgDialect` automatically.
+    /// The schema cache starts as `None` — call [`Self::reload_schema_cache`]
+    /// after construction.
+    pub fn new(pool: sqlx::PgPool, config: AppConfig, pg_version: PgVersion) -> Self {
+        use crate::backend::postgres::{PgBackend, PgDialect};
+
+        let db_version = DbVersion {
+            major: pg_version.major,
+            minor: pg_version.minor,
+            patch: pg_version.patch,
+            engine: "PostgreSQL".to_string(),
+        };
+        let backend = Arc::new(PgBackend::from_pool(pool.clone()));
+        let dialect = Arc::new(PgDialect);
+
+        Self::new_with_backend(backend, dialect, pool, config, db_version)
     }
 
     /// Get the current config snapshot.
@@ -97,11 +148,6 @@ impl AppState {
     }
 
     /// Reload configuration from file and environment.
-    ///
-    /// Re-reads the config file (if one was specified at startup) and
-    /// environment variables, then atomically swaps in the new config.
-    /// Because `AuthState` shares the same `ArcSwap`, the auth middleware
-    /// automatically picks up the new JWT secret / audience / role settings.
     pub async fn reload_config(&self) -> Result<(), Error> {
         let current = self.config.load();
         let file_path = current.config_file_path.clone();
@@ -121,8 +167,8 @@ impl AppState {
     /// Load or reload the schema cache from the database.
     pub async fn reload_schema_cache(&self) -> Result<(), Error> {
         let config = self.config.load();
-        let introspector = crate::schema_cache::SqlxIntrospector::new(&self.pool);
-        let cache = SchemaCache::load(&introspector, &config).await?;
+        let introspector = self.db.introspector();
+        let cache = SchemaCache::load(&*introspector, &config).await?;
 
         self.metrics
             .schema_cache_reloads
@@ -135,7 +181,9 @@ impl AppState {
 }
 
 /// Query the PostgreSQL version from the connection pool.
-pub async fn query_pg_version(pool: &PgPool) -> Result<PgVersion, Error> {
+///
+/// Legacy function — prefer using `DatabaseBackend::version()` instead.
+pub async fn query_pg_version(pool: &sqlx::PgPool) -> Result<PgVersion, Error> {
     let row: (String,) = sqlx::query_as("SHOW server_version")
         .fetch_one(pool)
         .await
@@ -149,7 +197,6 @@ pub async fn query_pg_version(pool: &PgPool) -> Result<PgVersion, Error> {
         patch: parts
             .get(2)
             .and_then(|s| {
-                // Handle "15.4 (Debian 15.4-1.pgdg120+1)" style
                 s.split_whitespace().next().and_then(|v| v.parse().ok())
             })
             .unwrap_or(0),

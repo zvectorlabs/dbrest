@@ -397,6 +397,18 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA test_api TO web_anon;
 GRANT ALL ON ALL TABLES IN SCHEMA test_api TO admin_user;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA test_api TO admin_user;
 
+-- RLS on users: anon can only read, admin has full access
+ALTER TABLE test_api.users ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY users_anon_read ON test_api.users
+    FOR SELECT TO web_anon
+    USING (true);
+
+CREATE POLICY users_admin_all ON test_api.users
+    FOR ALL TO admin_user
+    USING (true)
+    WITH CHECK (true);
+
 -- RLS on posts: anon sees only published, admin sees all
 ALTER TABLE test_api.posts ENABLE ROW LEVEL SECURITY;
 

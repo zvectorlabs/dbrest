@@ -5,11 +5,12 @@
 //!
 //! # Startup Sequence
 //!
-//! 1. Create `AppState` (connect to DB, query version).
-//! 2. Load schema cache.
-//! 3. Start admin server (separate port).
-//! 4. Start NOTIFY listener (background task).
-//! 5. Start main API server.
+//! 1. Create database backend (connect, query version).
+//! 2. Create `AppState`.
+//! 3. Load schema cache.
+//! 4. Start admin server (separate port).
+//! 5. Start NOTIFY listener (background task).
+//! 6. Start main API server.
 //!
 //! # Graceful Shutdown
 //!
@@ -17,57 +18,54 @@
 //! connections and drains in-flight requests before exiting.
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-use std::time::Duration;
+use std::sync::Arc;
 
-use sqlx::postgres::PgPoolOptions;
 use tokio::net::TcpListener;
 
+use crate::backend::DatabaseBackend;
+use crate::backend::postgres::{PgBackend, PgDialect};
 use crate::config::AppConfig;
 use crate::error::Error;
 
 use super::admin::create_admin_router;
-use super::listener::start_notify_listener;
 use super::router::create_router;
-use super::state::{AppState, query_pg_version};
+use super::state::AppState;
 
-/// Start the PgREST server.
+/// Start the dbrest server.
 ///
 /// This is the main entry point for the application. It initializes all
 /// components and starts serving HTTP requests.
-///
-/// # Arguments
-///
-/// * `config` — the parsed application configuration.
-///
-/// # Returns
-///
-/// Returns `Ok(())` when the server shuts down gracefully, or an error
-/// if initialization fails.
 pub async fn start_server(config: AppConfig) -> Result<(), Error> {
-    // 1. Create database pool
+    // 1. Create database backend
     tracing::info!("Connecting to database…");
-    let pool = PgPoolOptions::new()
-        .max_connections(config.db_pool_size as u32)
-        .acquire_timeout(Duration::from_secs(config.db_pool_acquisition_timeout))
-        .max_lifetime(Duration::from_secs(config.db_pool_max_lifetime))
-        .idle_timeout(Duration::from_secs(config.db_pool_max_idletime))
-        .connect(&config.db_uri)
-        .await
-        .map_err(|e| Error::DbConnection(e.to_string()))?;
+    let backend = PgBackend::connect(
+        &config.db_uri,
+        config.db_pool_size as u32,
+        config.db_pool_acquisition_timeout,
+        config.db_pool_max_lifetime,
+        config.db_pool_max_idletime,
+    )
+    .await?;
 
-    // 2. Query PostgreSQL version
-    let pg_version = query_pg_version(&pool).await?;
-    tracing::info!(pg_version = %pg_version, "Connected to PostgreSQL");
+    // 2. Query database version
+    let db_version = backend.version().await?;
+    tracing::info!(db_version = %db_version, "Connected to database");
 
-    if pg_version.major < 12 {
+    let (min_major, min_minor) = backend.min_version();
+    if db_version.major < min_major
+        || (db_version.major == min_major && db_version.minor < min_minor)
+    {
         return Err(Error::UnsupportedPgVersion {
-            major: pg_version.major,
-            minor: pg_version.minor,
+            major: db_version.major,
+            minor: db_version.minor,
         });
     }
 
     // 3. Initialize application state
-    let state = AppState::new(pool, config.clone(), pg_version);
+    let pool = backend.pool().clone();
+    let db: Arc<dyn DatabaseBackend> = Arc::new(backend);
+    let dialect: Arc<dyn crate::backend::SqlDialect> = Arc::new(PgDialect);
+    let state = AppState::new_with_backend(db.clone(), dialect, pool, config.clone(), db_version);
 
     // 4. Load schema cache
     tracing::info!("Loading schema cache…");
@@ -82,9 +80,11 @@ pub async fn start_server(config: AppConfig) -> Result<(), Error> {
 
     // 7. Start NOTIFY listener
     if config.db_channel_enabled {
-        let notify_state = state.clone();
+        let listener_state = state.clone();
+        let listener_db = db.clone();
+        let channel = config.db_channel.clone();
         tokio::spawn(async move {
-            start_notify_listener(notify_state, cancel_rx).await;
+            start_notify_listener(listener_db, listener_state, &channel, cancel_rx).await;
         });
     }
 
@@ -130,6 +130,52 @@ pub async fn start_server(config: AppConfig) -> Result<(), Error> {
     Ok(())
 }
 
+/// Background NOTIFY listener using the database backend.
+async fn start_notify_listener(
+    db: Arc<dyn DatabaseBackend>,
+    state: AppState,
+    channel: &str,
+    cancel: tokio::sync::watch::Receiver<bool>,
+) {
+    tracing::info!(channel = %channel, "Starting NOTIFY listener");
+
+    loop {
+        if *cancel.borrow() {
+            tracing::info!("NOTIFY listener shutting down");
+            return;
+        }
+
+        let state_clone = state.clone();
+        let on_event: std::sync::Arc<dyn Fn(String) + Send + Sync> =
+            std::sync::Arc::new(move |payload: String| {
+                let state = state_clone.clone();
+                tokio::spawn(async move {
+                    if (payload.contains("schema") || payload.contains("reload"))
+                        && let Err(e) = state.reload_schema_cache().await
+                    {
+                        tracing::error!(error = %e, "Failed to reload schema cache");
+                    }
+                    if payload.contains("config")
+                        && let Err(e) = state.reload_config().await
+                    {
+                        tracing::error!(error = %e, "Failed to reload config");
+                    }
+                });
+            });
+
+        match db.start_listener(channel, cancel.clone(), on_event).await {
+            Ok(()) => {
+                tracing::info!("NOTIFY listener exiting normally");
+                return;
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "NOTIFY listener disconnected, reconnecting in 5s");
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            }
+        }
+    }
+}
+
 /// Start the main server on a TCP socket.
 async fn serve_tcp(router: axum::Router, config: &AppConfig) -> Result<(), Error> {
     let server_ip = parse_address(&config.server_host)?;
@@ -138,7 +184,7 @@ async fn serve_tcp(router: axum::Router, config: &AppConfig) -> Result<(), Error
         .await
         .map_err(|e| Error::Internal(format!("Failed to bind main server: {}", e)))?;
 
-    tracing::info!(addr = %server_addr, "PgREST server listening");
+    tracing::info!(addr = %server_addr, "dbrest server listening");
 
     axum::serve(main_listener, router)
         .with_graceful_shutdown(shutdown_signal())
@@ -147,9 +193,6 @@ async fn serve_tcp(router: axum::Router, config: &AppConfig) -> Result<(), Error
 }
 
 /// Start the main server on a Unix domain socket.
-///
-/// Uses a manual accept loop since `axum::serve` in 0.7 only accepts
-/// `TcpListener`. Each accepted connection is served with `hyper_util`.
 #[cfg(unix)]
 async fn serve_unix_socket(
     router: axum::Router,
@@ -159,7 +202,6 @@ async fn serve_unix_socket(
     use hyper_util::rt::TokioIo;
     use std::os::unix::fs::PermissionsExt;
 
-    // Remove stale socket file if it exists
     let _ = std::fs::remove_file(socket_path);
 
     let uds = tokio::net::UnixListener::bind(socket_path).map_err(|e| {
@@ -170,7 +212,6 @@ async fn serve_unix_socket(
         ))
     })?;
 
-    // Set file permissions
     std::fs::set_permissions(socket_path, std::fs::Permissions::from_mode(mode)).map_err(|e| {
         Error::Internal(format!(
             "Failed to set socket permissions on '{}': {}",
@@ -179,7 +220,7 @@ async fn serve_unix_socket(
         ))
     })?;
 
-    tracing::info!(path = %socket_path.display(), "PgREST server listening (Unix socket)");
+    tracing::info!(path = %socket_path.display(), "dbrest server listening (Unix socket)");
 
     let shutdown = shutdown_signal();
     tokio::pin!(shutdown);
@@ -195,7 +236,6 @@ async fn serve_unix_socket(
                     }
                 };
 
-                // Clone router for this connection — Router is cheaply clonable
                 let svc = router.clone();
                 tokio::spawn(async move {
                     let io = TokioIo::new(stream);
@@ -215,26 +255,11 @@ async fn serve_unix_socket(
         }
     }
 
-    // Clean up socket file
     let _ = std::fs::remove_file(socket_path);
     Ok(())
 }
 
-/// Parse a PgREST host string into an `IpAddr`.
-///
-/// Supported formats:
-///
-/// | Input       | Result                            |
-/// |-------------|-----------------------------------|
-/// | `!4`        | `0.0.0.0` (IPv4 any)              |
-/// | `!6`        | `::` (IPv6 any)                   |
-/// | `*` / `*4`  | `0.0.0.0` (IPv4 any, alias)       |
-/// | `*6`        | `::` (IPv6 any, alias)            |
-/// | `127.0.0.1` | Parsed as literal IPv4            |
-/// | `::1`       | Parsed as literal IPv6            |
-/// | `localhost` | `127.0.0.1`                       |
-///
-/// Returns an error if the host string is unrecognised.
+/// Parse a host string into an `IpAddr`.
 pub fn parse_address(host: &str) -> Result<IpAddr, Error> {
     match host {
         "!4" | "*" | "*4" => Ok(IpAddr::V4(Ipv4Addr::UNSPECIFIED)),
