@@ -57,7 +57,7 @@ pub fn mixed_scenario() -> LoadTestScenario {
             (
                 0.05,
                 RequestType::Delete {
-                    path: "/temp_table?id=gt.1000".to_string(),
+                    path: "/posts?id=gt.1000".to_string(),
                 },
             ),
         ],

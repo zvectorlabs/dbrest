@@ -779,6 +779,16 @@ pub async fn rpc_post_handler(
 // Root / schema handler
 // ==========================================================================
 
+/// Handle `GET /openapi.json` — returns OpenAPI 3.0 spec (no Accept header required).
+/// Use this URL when tools or agents need a single spec URL (e.g. Swagger UI, codegen).
+pub async fn openapi_spec_handler(
+    State(state): State<AppState>,
+    Extension(auth): Extension<AuthResult>,
+) -> Response {
+    let cache_guard = state.schema_cache_guard();
+    generate_openapi_spec(&state, &auth, &cache_guard).await
+}
+
 /// Handle `GET /` — returns OpenAPI spec or JSON listing of available tables.
 ///
 /// If `Accept: application/openapi+json` header is present, returns full OpenAPI 3.0 spec.

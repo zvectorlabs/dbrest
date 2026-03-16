@@ -97,6 +97,10 @@ harness = false
 name = "load_tester"
 harness = false
 
+[[bench]]
+name = "bench_metrics"
+harness = false
+
 [profile.release]
 opt-level = 3
 lto = true

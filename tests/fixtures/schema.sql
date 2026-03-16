@@ -389,9 +389,9 @@ GRANT USAGE ON SCHEMA test_api TO test_authenticator;
 GRANT web_anon TO test_authenticator;
 GRANT admin_user TO test_authenticator;
 
--- web_anon: read-only on most tables
-GRANT SELECT ON ALL TABLES IN SCHEMA test_api TO web_anon;
-GRANT USAGE ON ALL SEQUENCES IN SCHEMA test_api TO web_anon;
+-- web_anon: read + write for benchmark (mixed workload: GET, POST, PATCH, DELETE)
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA test_api TO web_anon;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA test_api TO web_anon;
 
 -- admin_user: full access
 GRANT ALL ON ALL TABLES IN SCHEMA test_api TO admin_user;
@@ -403,6 +403,14 @@ ALTER TABLE test_api.posts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY posts_anon_read ON test_api.posts
     FOR SELECT TO web_anon
     USING (published = true);
+
+-- web_anon: INSERT/DELETE for benchmark mixed workload
+CREATE POLICY posts_anon_insert ON test_api.posts
+    FOR INSERT TO web_anon
+    WITH CHECK (true);
+CREATE POLICY posts_anon_delete ON test_api.posts
+    FOR DELETE TO web_anon
+    USING (true);
 
 CREATE POLICY posts_admin_all ON test_api.posts
     FOR ALL TO admin_user

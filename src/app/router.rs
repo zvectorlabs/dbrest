@@ -35,6 +35,7 @@ use super::state::AppState;
 /// |---------|------------------|-----------------------|
 /// | GET     | `/`              | schema_root_handler   |
 /// | OPTIONS | `/`              | root_options_handler  |
+/// | GET     | `/openapi.json`  | openapi_spec_handler  |
 /// | GET     | `/:resource`     | read_handler          |
 /// | HEAD    | `/:resource`     | read_handler          |
 /// | POST    | `/:resource`     | create_handler        |
@@ -103,10 +104,11 @@ pub fn create_router(state: AppState) -> Router {
         async move { server_timing_middleware(cfg, req, next).await }
     });
 
-    // Assemble main router
+    // Assemble main router (fixed paths before catch-all /:resource)
     Router::new()
         .route("/", get(handlers::schema_root_handler))
         .route("/", options(handlers::root_options_handler))
+        .route("/openapi.json", get(handlers::openapi_spec_handler))
         .nest("/rpc", rpc_routes)
         .merge(resource_routes)
         .route_layer(auth_layer)

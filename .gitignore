@@ -135,6 +135,7 @@ $RECYCLE.BIN/
 *.profraw
 test-results/
 coverage/
+bench-results/
 
 # Database
 # --------

@@ -1,0 +1,69 @@
+# PostgREST benchmark stack - same schema and resource limits as PgREST
+# Use with: docker compose -f docker-compose.bench-postgrest.yml --env-file .env.bench up -d
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: postgrest-bench-postgres
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+    volumes:
+      - ./tests/fixtures/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./benches/fixtures/seed_data.sql:/docker-entrypoint-initdb.d/02-seed_data.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '${POSTGRES_CPU_LIMIT:-1}'
+          memory: ${POSTGRES_MEMORY_LIMIT:-2G}
+        reservations:
+          cpus: '${POSTGRES_CPU_LIMIT:-1}'
+          memory: ${POSTGRES_MEMORY_LIMIT:-2G}
+    networks:
+      - postgrest-bench
+
+  postgrest:
+    image: postgrest/postgrest:latest
+    container_name: postgrest-bench-server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-postgres}
+      PGRST_DB_SCHEMAS: test_api
+      PGRST_DB_ANON_ROLE: web_anon
+      PGRST_DB_POOL: 10
+      PGRST_LOG_LEVEL: error
+      PGRST_DB_CONFIG: "false"
+      PGRST_SERVER_HOST: 0.0.0.0
+      PGRST_SERVER_PORT: 3000
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '${PGREST_CPU_LIMIT:-1}'
+          memory: ${PGREST_MEMORY_LIMIT:-2G}
+        reservations:
+          cpus: '${PGREST_CPU_LIMIT:-1}'
+          memory: ${PGREST_MEMORY_LIMIT:-2G}
+    networks:
+      - postgrest-bench
+
+networks:
+  postgrest-bench:
+    driver: bridge

@@ -86,6 +86,16 @@ This runs three scenarios:
 - **Error scenarios** - Misspelled paths, non-existent resources
 - **Streaming** - Large dataset responses
 
+### Metrics Capture (req/s for comparison)
+
+For benchmark comparison scripts that capture requests-per-second:
+
+```bash
+cargo bench --bench bench_metrics
+```
+
+Outputs JSON with throughput (req/s), latency (p50/p95/p99), and error rate. Use `./scripts/benchmark-compare.sh` for a full PgREST vs PostgREST comparison with req/s comparison table.
+
 ## Interpreting Results
 
 ### Criterion HTML Reports
