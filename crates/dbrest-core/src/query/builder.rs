@@ -78,21 +78,53 @@ pub fn read_plan_to_query(tree: &ReadPlanTree, dialect: &dyn SqlDialect) -> SqlB
         });
     }
 
-    // Add join select expressions for children
-    for (i, child) in tree.forest.iter().enumerate() {
-        b.push(", ");
-        let agg_alias = &child.node.rel_agg_alias;
-        b.push_ident(agg_alias);
-        b.push(".body");
-        // Alias as the relation name
-        let sel_name = child
-            .node
-            .rel_alias
-            .as_ref()
-            .unwrap_or(&child.node.rel_name);
-        b.push(" AS ");
-        b.push_ident(sel_name);
-        let _ = i; // suppress unused warning
+    if dialect.supports_lateral_join() {
+        // Add join select expressions for children (references LATERAL JOIN aliases)
+        for child in &tree.forest {
+            b.push(", ");
+            let agg_alias = &child.node.rel_agg_alias;
+            b.push_ident(agg_alias);
+            b.push(".body");
+            let sel_name = child
+                .node
+                .rel_alias
+                .as_ref()
+                .unwrap_or(&child.node.rel_name);
+            b.push(" AS ");
+            b.push_ident(sel_name);
+        }
+    } else {
+        // Correlated subqueries for children (no LATERAL JOIN support)
+        for child in &tree.forest {
+            b.push(", ");
+            let is_to_one = child
+                .node
+                .rel_to_parent
+                .as_ref()
+                .map(|r| r.is_to_one())
+                .unwrap_or(false);
+
+            b.push("(SELECT ");
+            if is_to_one {
+                dialect.row_to_json(&mut b, "_pgrest_t");
+            } else {
+                dialect.json_agg(&mut b, "_pgrest_t");
+            }
+            b.push(" FROM (");
+            let child_query = read_plan_to_query(child, dialect);
+            b.push_builder(&child_query);
+            b.push(") AS ");
+            b.push_ident("_pgrest_t");
+            b.push(")");
+
+            let sel_name = child
+                .node
+                .rel_alias
+                .as_ref()
+                .unwrap_or(&child.node.rel_name);
+            b.push(" AS ");
+            b.push_ident(sel_name);
+        }
     }
 
     // FROM clause
@@ -103,51 +135,53 @@ pub fn read_plan_to_query(tree: &ReadPlanTree, dialect: &dyn SqlDialect) -> SqlB
         b.push_ident(alias);
     }
 
-    // LATERAL JOINs for children
-    for child in &tree.forest {
-        let is_inner = child
-            .node
-            .rel_join_type
-            .map(|jt| matches!(jt, crate::api_request::types::JoinType::Inner))
-            .unwrap_or(false);
+    // LATERAL JOINs for children (only when supported)
+    if dialect.supports_lateral_join() {
+        for child in &tree.forest {
+            let is_inner = child
+                .node
+                .rel_join_type
+                .map(|jt| matches!(jt, crate::api_request::types::JoinType::Inner))
+                .unwrap_or(false);
 
-        let join_type = if is_inner {
-            "INNER JOIN LATERAL"
-        } else {
-            "LEFT JOIN LATERAL"
-        };
+            let join_type = if is_inner {
+                "INNER JOIN LATERAL"
+            } else {
+                "LEFT JOIN LATERAL"
+            };
 
-        b.push(" ");
-        b.push(join_type);
-        b.push(" (");
+            b.push(" ");
+            b.push(join_type);
+            b.push(" (");
 
-        // Inner aggregation subquery
-        let is_to_one = child
-            .node
-            .rel_to_parent
-            .as_ref()
-            .map(|r| r.is_to_one())
-            .unwrap_or(false);
+            // Inner aggregation subquery
+            let is_to_one = child
+                .node
+                .rel_to_parent
+                .as_ref()
+                .map(|r| r.is_to_one())
+                .unwrap_or(false);
 
-        if is_to_one {
-            b.push("SELECT ");
-            dialect.row_to_json(&mut b, "_pgrest_t");
-            b.push(" AS body FROM (");
-        } else {
-            b.push("SELECT ");
-            dialect.json_agg(&mut b, "_pgrest_t");
-            b.push(" AS body FROM (");
+            if is_to_one {
+                b.push("SELECT ");
+                dialect.row_to_json(&mut b, "_pgrest_t");
+                b.push(" AS body FROM (");
+            } else {
+                b.push("SELECT ");
+                dialect.json_agg(&mut b, "_pgrest_t");
+                b.push(" AS body FROM (");
+            }
+
+            // Recursive child query
+            let child_query = read_plan_to_query(child, dialect);
+            b.push_builder(&child_query);
+
+            b.push(") AS ");
+            b.push_ident("_pgrest_t");
+            b.push(") AS ");
+            b.push_ident(&child.node.rel_agg_alias);
+            b.push(" ON TRUE");
         }
-
-        // Recursive child query
-        let child_query = read_plan_to_query(child, dialect);
-        b.push_builder(&child_query);
-
-        b.push(") AS ");
-        b.push_ident("_pgrest_t");
-        b.push(") AS ");
-        b.push_ident(&child.node.rel_agg_alias);
-        b.push(" ON TRUE");
     }
 
     // WHERE clause (includes join conditions for child nodes)

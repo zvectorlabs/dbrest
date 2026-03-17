@@ -75,12 +75,7 @@ pub fn tx_var_query(
     cookies_json: Option<&str>,
     claims_json: Option<&str>,
 ) -> SqlBuilder {
-    let mut b = SqlBuilder::new();
-    let mut first = true;
-
-    b.push("SELECT ");
-
-    // search_path
+    // Collect all key-value pairs
     let search_path = config
         .db_schemas
         .iter()
@@ -88,32 +83,42 @@ pub fn tx_var_query(
         .collect::<Vec<_>>()
         .join(", ");
 
-    push_set_var(&mut b, dialect, "search_path", &search_path, &mut first);
+    let mut vars: Vec<(&str, String)> = Vec::new();
+    vars.push(("search_path", search_path));
 
-    // role
-    if let Some(role) = role.or(config.db_anon_role.as_deref()) {
-        push_set_var(&mut b, dialect, "role", role, &mut first);
+    let effective_role = role
+        .map(|r| r.to_string())
+        .or_else(|| config.db_anon_role.clone());
+    if let Some(ref role_val) = effective_role {
+        vars.push(("role", role_val.clone()));
     }
 
-    // request.method
-    push_set_var(&mut b, dialect, "request.method", method, &mut first);
+    vars.push(("request.method", method.to_string()));
+    vars.push(("request.path", path.to_string()));
 
-    // request.path
-    push_set_var(&mut b, dialect, "request.path", path, &mut first);
-
-    // request.headers
     if let Some(headers) = headers_json {
-        push_set_var(&mut b, dialect, "request.headers", headers, &mut first);
+        vars.push(("request.headers", headers.to_string()));
     }
-
-    // request.cookies
     if let Some(cookies) = cookies_json {
-        push_set_var(&mut b, dialect, "request.cookies", cookies, &mut first);
+        vars.push(("request.cookies", cookies.to_string()));
+    }
+    if let Some(claims) = claims_json {
+        vars.push(("request.jwt.claims", claims.to_string()));
     }
 
-    // request.jwt.claims
-    if let Some(claims) = claims_json {
-        push_set_var(&mut b, dialect, "request.jwt.claims", claims, &mut first);
+    let mut b = SqlBuilder::new();
+
+    if dialect.session_vars_are_select_exprs() {
+        // PostgreSQL-style: SELECT set_config(...), set_config(...), ...
+        b.push("SELECT ");
+        let mut first = true;
+        for (key, value) in &vars {
+            push_set_var(&mut b, dialect, key, value, &mut first);
+        }
+    } else {
+        // Batch-style: dialect produces a single statement for all vars
+        let refs: Vec<(&str, &str)> = vars.iter().map(|(k, v)| (*k, v.as_str())).collect();
+        dialect.build_tx_vars_statement(&mut b, &refs);
     }
 
     b

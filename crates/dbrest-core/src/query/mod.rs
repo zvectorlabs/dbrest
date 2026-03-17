@@ -68,6 +68,12 @@ pub struct MainQuery {
     pub tx_vars: Option<SqlBuilder>,
     /// Pre-request function call (`SELECT schema.pre_request()`).
     pub pre_req: Option<SqlBuilder>,
+    /// Mutation statement (INSERT/UPDATE/DELETE with RETURNING).
+    ///
+    /// Only set for backends that don't support DML in CTEs (e.g. SQLite).
+    /// When set, `main` contains only the aggregation SELECT over a temp table
+    /// populated by this mutation.
+    pub mutation: Option<SqlBuilder>,
     /// Main data query (CTE-wrapped SELECT / INSERT / UPDATE / DELETE / CALL).
     pub main: Option<SqlBuilder>,
 }
@@ -78,6 +84,7 @@ impl MainQuery {
         Self {
             tx_vars: None,
             pre_req: None,
+            mutation: None,
             main: None,
         }
     }
@@ -131,23 +138,27 @@ pub fn main_query(
     let pre_req = config.db_pre_request.as_ref().map(pre_query::pre_req_query);
 
     // Main query based on action plan type
-    let main = match action_plan {
+    let (mutation, main) = match action_plan {
         ActionPlan::Db(db_plan) => match db_plan {
-            DbActionPlan::DbCrud { plan, .. } => Some(build_crud_query(plan, config, dialect)),
+            DbActionPlan::DbCrud { plan, .. } => {
+                let (m, q) = build_crud_query(plan, config, dialect);
+                (m, Some(q))
+            }
             DbActionPlan::MayUseDb(_inspect) => {
                 // Schema inspection — placeholder for future phases
-                None
+                (None, None)
             }
         },
         ActionPlan::NoDb(_) => {
             // Info plans (OPTIONS) are handled at the HTTP layer, no SQL needed
-            None
+            (None, None)
         }
     };
 
     MainQuery {
         tx_vars,
         pre_req,
+        mutation,
         main,
     }
 }
@@ -164,7 +175,7 @@ pub fn main_query(
 /// | `CallReadPlan`    | `statements::main_call`  | CTE function call        |
 ///
 /// Returns the assembled `SqlBuilder` ready for execution.
-fn build_crud_query(plan: &CrudPlan, config: &AppConfig, dialect: &dyn SqlDialect) -> SqlBuilder {
+fn build_crud_query(plan: &CrudPlan, config: &AppConfig, dialect: &dyn SqlDialect) -> (Option<SqlBuilder>, SqlBuilder) {
     match plan {
         CrudPlan::WrappedReadPlan {
             read_plan,
@@ -172,14 +183,14 @@ fn build_crud_query(plan: &CrudPlan, config: &AppConfig, dialect: &dyn SqlDialec
             handler,
             ..
         } => {
-            statements::main_read(
+            (None, statements::main_read(
                 read_plan,
                 None,
                 config.db_max_rows,
                 *headers_only,
                 Some(&handler.0),
                 dialect,
-            )
+            ))
         }
         CrudPlan::MutateReadPlan {
             read_plan,
@@ -188,17 +199,28 @@ fn build_crud_query(plan: &CrudPlan, config: &AppConfig, dialect: &dyn SqlDialec
             ..
         } => {
             let return_representation = !mutate_plan.returning().is_empty();
-            statements::main_write(
-                mutate_plan,
-                read_plan,
-                return_representation,
-                Some(&handler.0),
-                dialect,
-            )
+            if dialect.supports_dml_cte() {
+                (None, statements::main_write(
+                    mutate_plan,
+                    read_plan,
+                    return_representation,
+                    Some(&handler.0),
+                    dialect,
+                ))
+            } else {
+                let (mutation, agg) = statements::main_write_split(
+                    mutate_plan,
+                    read_plan,
+                    return_representation,
+                    Some(&handler.0),
+                    dialect,
+                );
+                (Some(mutation), agg)
+            }
         }
         CrudPlan::CallReadPlan {
             call_plan, handler, ..
-        } => statements::main_call(call_plan, None, config.db_max_rows, Some(&handler.0), dialect),
+        } => (None, statements::main_call(call_plan, None, config.db_max_rows, Some(&handler.0), dialect)),
     }
 }
 

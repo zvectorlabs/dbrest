@@ -340,6 +340,7 @@ impl DatabaseBackend for PgBackend {
         &self,
         tx_vars: Option<&SqlBuilder>,
         pre_req: Option<&SqlBuilder>,
+        _mutation: Option<&SqlBuilder>,
         main: Option<&SqlBuilder>,
     ) -> Result<StatementResult, Error> {
         let mut tx = self.pool.begin().await.map_err(|e| Error::Database {

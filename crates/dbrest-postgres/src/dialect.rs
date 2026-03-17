@@ -9,13 +9,14 @@ use dbrest_core::query::sql_builder::{SqlBuilder, SqlParam};
 pub struct PgDialect;
 
 impl SqlDialect for PgDialect {
-    fn json_agg(&self, b: &mut SqlBuilder, alias: &str) {
+    fn json_agg_with_columns(&self, b: &mut SqlBuilder, alias: &str, _columns: &[&str]) {
+        // PostgreSQL can aggregate entire row aliases — columns not needed.
         b.push("coalesce(json_agg(");
         b.push_ident(alias);
         b.push("), '[]')::text");
     }
 
-    fn row_to_json(&self, b: &mut SqlBuilder, alias: &str) {
+    fn row_to_json_with_columns(&self, b: &mut SqlBuilder, alias: &str, _columns: &[&str]) {
         b.push("row_to_json(");
         b.push_ident(alias);
         b.push(")::text");
@@ -122,6 +123,33 @@ impl SqlDialect for PgDialect {
             b.push_literal(cfg);
             b.push(", ");
         }
+    }
+
+    fn row_to_json_star(&self, b: &mut SqlBuilder, source: &str) {
+        b.push("row_to_json(");
+        b.push(source);
+        b.push(".*)::text");
+    }
+
+    fn count_star_from(&self, b: &mut SqlBuilder, source: &str) {
+        b.push("(SELECT pg_catalog.count(*) FROM ");
+        b.push(source);
+        b.push(")");
+    }
+
+    fn push_literal(&self, b: &mut SqlBuilder, s: &str) {
+        let has_backslash = s.contains('\\');
+        if has_backslash {
+            b.push("E");
+        }
+        b.push("'");
+        for ch in s.chars() {
+            if ch == '\'' {
+                b.push("'");
+            }
+            b.push_char(ch);
+        }
+        b.push("'");
     }
 
     fn supports_lateral_join(&self) -> bool {

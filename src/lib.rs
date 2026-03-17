@@ -40,6 +40,9 @@ pub use dbrest_core::types::media::MediaType;
 // Re-export postgres backend types
 pub use dbrest_postgres::{PgBackend, PgDialect, SqlxIntrospector};
 
+// Re-export sqlite backend types
+pub use dbrest_sqlite::{SqliteBackend, SqliteDialect, SqliteIntrospector};
+
 /// Compatibility module providing legacy constructors that depend on both
 /// `dbrest-core` and `dbrest-postgres`.
 pub mod compat {

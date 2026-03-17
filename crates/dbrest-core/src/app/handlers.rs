@@ -86,6 +86,7 @@ async fn execute_main_query(
         .exec_in_transaction(
             mq.tx_vars.as_ref(),
             mq.pre_req.as_ref(),
+            mq.mutation.as_ref(),
             mq.main.as_ref(),
         )
         .await

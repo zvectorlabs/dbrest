@@ -111,15 +111,19 @@ pub fn main_read(
     dialect.count_expr(&mut b, "_pgrest_t");
     b.push(" AS page_total");
 
+    // Extract column names for non-PG backends that need them
+    let col_names = select_column_names(read_plan);
+    let col_refs: Vec<&str> = col_names.iter().map(|s| s.as_str()).collect();
+
     // body
     if headers_only {
         b.push(", NULL AS body");
     } else {
         b.push(", ");
         if let Some(h) = handler {
-            fragment::handler_agg_with_media(&mut b, h, false, dialect);
+            fragment::handler_agg_with_media_cols(&mut b, h, false, dialect, &col_refs);
         } else {
-            fragment::handler_agg(&mut b, false, dialect);
+            fragment::handler_agg_cols(&mut b, false, dialect, &col_refs);
         }
         b.push(" AS body");
     }
@@ -143,6 +147,29 @@ pub fn main_read(
     b.push_ident("_pgrest_t");
 
     b
+}
+
+/// Extract the output column names from a read plan's select list.
+///
+/// These are the names that will appear in the `_pgrest_t` alias and
+/// are needed by backends that cannot aggregate a row alias (e.g. SQLite).
+/// Returns an empty vec for `SELECT *` plans (full_row / star selects).
+fn select_column_names(tree: &ReadPlanTree) -> Vec<String> {
+    // If any field is a full_row select (i.e. `*`), we can't enumerate
+    // individual column names — return empty to trigger fallback.
+    if tree.node.select.iter().any(|sf| sf.field.full_row) {
+        return Vec::new();
+    }
+    tree.node
+        .select
+        .iter()
+        .map(|sf| {
+            sf.alias
+                .as_ref()
+                .map(|a| a.to_string())
+                .unwrap_or_else(|| sf.field.name.to_string())
+        })
+        .collect()
 }
 
 // ==========================================================================
@@ -204,13 +231,22 @@ pub fn main_write(
     dialect.count_expr(&mut b, "_pgrest_t");
     b.push(" AS page_total");
 
+    // Extract column names from the RETURNING clause for non-PG backends
+    let col_names: Vec<String> = mutate_plan.returning().iter().map(|sf| {
+        sf.alias
+            .as_ref()
+            .map(|a| a.to_string())
+            .unwrap_or_else(|| sf.field.name.to_string())
+    }).collect();
+    let col_refs: Vec<&str> = col_names.iter().map(|s| s.as_str()).collect();
+
     // body
     if return_representation && has_returning {
         b.push(", ");
         if let Some(h) = handler {
-            fragment::handler_agg_with_media(&mut b, h, false, dialect);
+            fragment::handler_agg_with_media_cols(&mut b, h, false, dialect, &col_refs);
         } else {
-            fragment::handler_agg(&mut b, false, dialect);
+            fragment::handler_agg_cols(&mut b, false, dialect, &col_refs);
         }
         b.push(" AS body");
     } else {
@@ -228,6 +264,77 @@ pub fn main_write(
     b.push_ident("_pgrest_t");
 
     b
+}
+
+/// Build split mutation + aggregation statements for backends without DML-in-CTE support.
+///
+/// Returns `(mutation, aggregation)` where:
+/// - `mutation` is the bare INSERT/UPDATE/DELETE with RETURNING
+/// - `aggregation` is a SELECT that aggregates rows from `_pgrst_mut` temp table
+///
+/// The executor is responsible for:
+/// 1. Creating `_pgrst_mut` temp table from the mutation RETURNING rows
+/// 2. Running the aggregation SELECT
+pub fn main_write_split(
+    mutate_plan: &MutatePlan,
+    _read_plan: &ReadPlanTree,
+    return_representation: bool,
+    handler: Option<&crate::schema_cache::media_handler::MediaHandler>,
+    dialect: &dyn SqlDialect,
+) -> (SqlBuilder, SqlBuilder) {
+    let mut mutation = builder::mutate_plan_to_query(mutate_plan, dialect);
+    let has_returning = !mutate_plan.returning().is_empty();
+    if !has_returning {
+        mutation.push(" RETURNING 1");
+    }
+
+    // Build the aggregation SELECT from _pgrst_mut
+    let mut b = SqlBuilder::new();
+    b.push("SELECT ");
+
+    // total_result_set (mutations don't support count)
+    b.push("'' AS total_result_set");
+
+    // page_total
+    b.push(", ");
+    dialect.count_expr(&mut b, "_pgrest_t");
+    b.push(" AS page_total");
+
+    // Extract column names from the RETURNING clause
+    let col_names: Vec<String> = mutate_plan.returning().iter().map(|sf| {
+        sf.alias
+            .as_ref()
+            .map(|a| a.to_string())
+            .unwrap_or_else(|| sf.field.name.to_string())
+    }).collect();
+    let col_refs: Vec<&str> = col_names.iter().map(|s| s.as_str()).collect();
+
+    // body
+    if return_representation && has_returning {
+        b.push(", ");
+        if let Some(h) = handler {
+            fragment::handler_agg_with_media_cols(&mut b, h, false, dialect, &col_refs);
+        } else {
+            fragment::handler_agg_cols(&mut b, false, dialect, &col_refs);
+        }
+        b.push(" AS body");
+    } else {
+        b.push(", NULL AS body");
+    }
+
+    // response_headers & response_status
+    b.push(", ");
+    dialect.get_session_var(&mut b, "response.headers", "response_headers");
+    b.push(", ");
+    dialect.get_session_var(&mut b, "response.status", "response_status");
+
+    // FROM _pgrst_mut (the temp table populated by the executor)
+    b.push(" FROM ");
+    b.push_ident("_pgrst_mut");
+    b.push(" AS ");
+    b.push_ident("_pgrest_t");
+
+    (mutation, b)
 }
 
 // ==========================================================================
@@ -281,7 +388,7 @@ pub fn main_call(
 
     // total_result_set
     if has_exact_count {
-        b.push("(SELECT pg_catalog.count(*) FROM pgrst_source)");
+        dialect.count_star_from(&mut b, "pgrst_source");
     } else {
         b.push("NULL");
     }
@@ -299,9 +406,8 @@ pub fn main_call(
     // body
     b.push(", ");
     if call_plan.scalar {
-        // Scalar function: row_to_json(pgrst_source.*)::text
-        // We use a specialized form because the source is "table.*" not just an alias
-        b.push("row_to_json(pgrst_source.*)::text");
+        // Scalar function: convert the CTE row to JSON text
+        dialect.row_to_json_star(&mut b, "pgrst_source");
     } else if let Some(h) = handler {
         fragment::handler_agg_with_media(&mut b, h, false, dialect);
     } else {

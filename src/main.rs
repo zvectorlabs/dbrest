@@ -1,7 +1,7 @@
 //! PgREST binary entry point
 //!
 //! Parses CLI arguments, loads configuration, initialises logging,
-//! and starts the HTTP server.
+//! and starts the HTTP server. Supports both PostgreSQL and SQLite backends.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -13,8 +13,9 @@ use dbrest_core::backend::{DatabaseBackend, SqlDialect};
 use dbrest_core::config::AppConfig;
 use dbrest_core::error::Error;
 use dbrest_postgres::{PgBackend, PgDialect};
+use dbrest_sqlite::{SqliteBackend, SqliteDialect};
 
-/// PgREST — high-performance REST API for PostgreSQL
+/// PgREST — high-performance REST API for PostgreSQL and SQLite
 #[derive(Parser, Debug)]
 #[command(name = "pgrest", version, about)]
 struct Args {
@@ -23,6 +24,9 @@ struct Args {
     config: Option<String>,
 
     /// Database connection URI (overrides config file)
+    ///
+    /// PostgreSQL: postgres://user:pass@host/db
+    /// SQLite:     sqlite:path/to/db.sqlite or sqlite::memory:
     #[arg(long, env = "PGREST_DB_URI")]
     db_uri: Option<String>,
 
@@ -56,16 +60,27 @@ async fn main() {
         config.server_port = port;
     }
 
-    // Start the server with the PostgreSQL backend
-    if let Err(e) = start_pg_server(config).await {
+    // Detect backend from URI and start
+    let result = if is_sqlite_uri(&config.db_uri) {
+        start_sqlite_server(config).await
+    } else {
+        start_pg_server(config).await
+    };
+
+    if let Err(e) = result {
         eprintln!("Server error: {}", e);
         std::process::exit(1);
     }
 }
 
+/// Detect whether a URI targets SQLite.
+fn is_sqlite_uri(uri: &str) -> bool {
+    uri.starts_with("sqlite:") || uri.ends_with(".sqlite") || uri.ends_with(".db")
+}
+
 /// Create a PostgreSQL backend and start the server.
 async fn start_pg_server(config: AppConfig) -> Result<(), Error> {
-    tracing::info!("Connecting to database...");
+    tracing::info!("Connecting to PostgreSQL database...");
     let backend = PgBackend::connect(
         &config.db_uri,
         config.db_pool_size as u32,
@@ -90,6 +105,37 @@ async fn start_pg_server(config: AppConfig) -> Result<(), Error> {
 
     let db: Arc<dyn DatabaseBackend> = Arc::new(backend);
     let dialect: Arc<dyn SqlDialect> = Arc::new(PgDialect);
+
+    dbrest_core::app::server::start_server_with_backend(db, dialect, db_version, config).await
+}
+
+/// Create a SQLite backend and start the server.
+async fn start_sqlite_server(config: AppConfig) -> Result<(), Error> {
+    tracing::info!("Connecting to SQLite database...");
+    let backend = SqliteBackend::connect(
+        &config.db_uri,
+        config.db_pool_size as u32,
+        config.db_pool_acquisition_timeout,
+        config.db_pool_max_lifetime,
+        config.db_pool_max_idletime,
+    )
+    .await?;
+
+    let db_version = backend.version().await?;
+    tracing::info!(db_version = %db_version, "Connected to database");
+
+    let (min_major, min_minor) = backend.min_version();
+    if db_version.major < min_major
+        || (db_version.major == min_major && db_version.minor < min_minor)
+    {
+        return Err(Error::UnsupportedPgVersion {
+            major: db_version.major,
+            minor: db_version.minor,
+        });
+    }
+
+    let db: Arc<dyn DatabaseBackend> = Arc::new(backend);
+    let dialect: Arc<dyn SqlDialect> = Arc::new(SqliteDialect);
 
     dbrest_core::app::server::start_server_with_backend(db, dialect, db_version, config).await
 }

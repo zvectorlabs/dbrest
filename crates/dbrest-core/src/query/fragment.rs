@@ -736,9 +736,25 @@ pub fn returning_clause(
         return;
     }
     b.push(" RETURNING ");
-    b.push_separated(", ", fields, |b, f| {
-        fmt_select_item(b, qi, f, dialect);
-    });
+    if dialect.supports_dml_cte() {
+        // PostgreSQL: use table-qualified column names (works in CTE context)
+        b.push_separated(", ", fields, |b, f| {
+            fmt_select_item(b, qi, f, dialect);
+        });
+    } else {
+        // SQLite etc: use unqualified column names in RETURNING
+        b.push_separated(", ", fields, |b, f| {
+            fmt_returning_item_unqualified(b, f);
+        });
+    }
+}
+
+/// Format a RETURNING item with unqualified column names.
+fn fmt_returning_item_unqualified(b: &mut SqlBuilder, sel: &CoercibleSelectField) {
+    b.push_ident(&sel.field.name);
+    let alias = sel.alias.as_ref().unwrap_or(&sel.field.name);
+    b.push(" AS ");
+    b.push_ident(alias);
 }
 
 // ==========================================================================
@@ -840,6 +856,20 @@ pub fn handler_agg_with_media(
     _is_scalar: bool,
     dialect: &dyn SqlDialect,
 ) {
+    handler_agg_with_media_cols(b, handler, _is_scalar, dialect, &[])
+}
+
+/// Append handler aggregation with explicit column names.
+///
+/// Column names are needed for backends like SQLite that cannot aggregate
+/// a whole row alias.
+pub fn handler_agg_with_media_cols(
+    b: &mut SqlBuilder,
+    handler: &crate::schema_cache::media_handler::MediaHandler,
+    _is_scalar: bool,
+    dialect: &dyn SqlDialect,
+    columns: &[&str],
+) {
     use crate::schema_cache::media_handler::MediaHandler;
 
     match handler {
@@ -847,7 +877,7 @@ pub fn handler_agg_with_media(
         | MediaHandler::BuiltinAggSingleJson(_)
         | MediaHandler::BuiltinAggArrayJsonStrip => {
             // JSON aggregation (default)
-            dialect.json_agg(b, "_pgrest_t");
+            dialect.json_agg_with_columns(b, "_pgrest_t", columns);
         }
         MediaHandler::BuiltinOvAggCsv => {
             // CSV formatting with headers — PG-specific string_agg / json_each_text
@@ -896,6 +926,11 @@ pub fn handler_agg_with_media(
 /// Use `handler_agg_with_media` instead to support multiple output formats.
 pub fn handler_agg(b: &mut SqlBuilder, _is_scalar: bool, dialect: &dyn SqlDialect) {
     dialect.json_agg(b, "_pgrest_t");
+}
+
+/// Append handler aggregation with explicit columns (for non-PG backends).
+pub fn handler_agg_cols(b: &mut SqlBuilder, _is_scalar: bool, dialect: &dyn SqlDialect, columns: &[&str]) {
+    dialect.json_agg_with_columns(b, "_pgrest_t", columns);
 }
 
 /// Append a single-object handler aggregation (for to-one relations).

@@ -368,6 +368,11 @@ fn build_read_plan(
     // Add select fields
     root.select = resolve_select(&qp.select, Some(table))?;
 
+    // Expand wildcard selects to individual columns.
+    // This is needed for backends like SQLite that cannot aggregate row aliases
+    // (e.g. `json_agg(alias)`) and need explicit column names.
+    expand_star_select(&mut root.select, table);
+
     // Add filters (resolve column types for proper casting)
     root.where_ = resolve_filters(&qp.filters_root, Some(table))?;
 
@@ -801,6 +806,50 @@ fn validate_cast_type(cast_type: &str) -> Result<(), Error> {
 // ==========================================================================
 // Resolution helpers
 // ==========================================================================
+
+/// Expand `*` (full_row) select fields into individual column selects.
+///
+/// Backends like SQLite cannot aggregate a row alias (e.g. `json_agg(alias)`)
+/// and need explicit column names. By expanding `*` here, the downstream
+/// SQL generation always has concrete column names available.
+fn expand_star_select(select: &mut Vec<CoercibleSelectField>, table: &Table) {
+    let is_star = |sf: &CoercibleSelectField| sf.field.full_row || sf.field.name.as_str() == "*";
+    let needs_expand = select.is_empty() || select.iter().any(is_star);
+    if !needs_expand {
+        return;
+    }
+
+    let mut expanded = Vec::with_capacity(table.column_count());
+    for sf in select.drain(..) {
+        if is_star(&sf) {
+            expand_all_columns(&mut expanded, table);
+        } else {
+            expanded.push(sf);
+        }
+    }
+    // If select was empty, expand to all columns
+    if expanded.is_empty() {
+        expand_all_columns(&mut expanded, table);
+    }
+    *select = expanded;
+}
+
+fn expand_all_columns(out: &mut Vec<CoercibleSelectField>, table: &Table) {
+    for (col_name, col) in table.columns.iter() {
+        out.push(CoercibleSelectField {
+            field: CoercibleField::from_column(
+                col_name.clone(),
+                smallvec::SmallVec::new(),
+                col.data_type.clone(),
+            )
+            .with_to_json(Some(col)),
+            agg_function: None,
+            agg_cast: None,
+            cast: None,
+            alias: None,
+        });
+    }
+}
 
 /// Resolve select items into coercible select fields
 ///

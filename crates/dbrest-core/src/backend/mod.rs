@@ -113,12 +113,17 @@ pub trait DatabaseBackend: Send + Sync + 'static {
 
     /// Begin a transaction and execute multiple statements within it.
     ///
-    /// Runs tx_vars, pre_req, and main query in order within a single
+    /// Runs tx_vars, pre_req, mutation, and main query in order within a single
     /// transaction. Returns the result from the main query.
+    ///
+    /// `mutation` is only set for backends that don't support DML in CTEs.
+    /// When set, the executor must run the mutation, capture RETURNING rows
+    /// into a temp table `_pgrst_mut`, then run `main` which aggregates from it.
     async fn exec_in_transaction(
         &self,
         tx_vars: Option<&SqlBuilder>,
         pre_req: Option<&SqlBuilder>,
+        mutation: Option<&SqlBuilder>,
         main: Option<&SqlBuilder>,
     ) -> Result<StatementResult, Error>;
 
@@ -155,15 +160,31 @@ pub trait SqlDialect: Send + Sync {
 
     /// JSON array aggregation expression.
     ///
+    /// `columns` is optionally provided for backends that cannot aggregate
+    /// a whole row alias (e.g. SQLite needs explicit column names).
+    /// PostgreSQL ignores `columns` and uses `json_agg(alias)`.
+    ///
     /// PostgreSQL: `coalesce(json_agg(_pgrest_t), '[]')::text`
-    /// MySQL:      `COALESCE(JSON_ARRAYAGG(JSON_OBJECT(...)), JSON_ARRAY())`
-    fn json_agg(&self, b: &mut SqlBuilder, alias: &str);
+    /// SQLite:     `COALESCE(json_group_array(json_object('col', "col", ...)), '[]')`
+    fn json_agg(&self, b: &mut SqlBuilder, alias: &str) {
+        self.json_agg_with_columns(b, alias, &[]);
+    }
+
+    /// JSON array aggregation with explicit column names.
+    ///
+    /// Default implementation ignores columns and delegates to the alias-based form.
+    fn json_agg_with_columns(&self, b: &mut SqlBuilder, alias: &str, columns: &[&str]);
 
     /// Single-row JSON expression.
     ///
     /// PostgreSQL: `row_to_json(_pgrest_t)::text`
     /// MySQL:      `JSON_OBJECT(...)`
-    fn row_to_json(&self, b: &mut SqlBuilder, alias: &str);
+    fn row_to_json(&self, b: &mut SqlBuilder, alias: &str) {
+        self.row_to_json_with_columns(b, alias, &[]);
+    }
+
+    /// Single-row JSON with explicit column names.
+    fn row_to_json_with_columns(&self, b: &mut SqlBuilder, alias: &str, columns: &[&str]);
 
     // -- Counting --
 
@@ -182,6 +203,8 @@ pub trait SqlDialect: Send + Sync {
 
     /// Set a session/transaction-local variable.
     ///
+    /// The generated expression must be usable as a SELECT column expression.
+    ///
     /// PostgreSQL: `set_config('key', 'value', true)`
     /// MySQL:      `SET @key = 'value'`
     fn set_session_var(&self, b: &mut SqlBuilder, key: &str, value: &str);
@@ -191,6 +214,27 @@ pub trait SqlDialect: Send + Sync {
     /// PostgreSQL: `nullif(current_setting('key', true), '')`
     /// MySQL:      `@key`
     fn get_session_var(&self, b: &mut SqlBuilder, key: &str, column_alias: &str);
+
+    /// Whether session variable setup uses SELECT-based expressions.
+    ///
+    /// If true (default), `tx_var_query` wraps calls in `SELECT expr1, expr2, ...`.
+    /// If false, `set_session_var` is not called; instead `build_tx_vars_statement`
+    /// is used to produce a single statement for all variables at once.
+    fn session_vars_are_select_exprs(&self) -> bool {
+        true
+    }
+
+    /// Build a single statement that sets all session/transaction variables.
+    ///
+    /// Only called when `session_vars_are_select_exprs()` returns false.
+    /// The default implementation panics — backends that return false must override.
+    fn build_tx_vars_statement(
+        &self,
+        _b: &mut SqlBuilder,
+        _vars: &[(&str, &str)],
+    ) {
+        unimplemented!("backends with session_vars_are_select_exprs() == false must implement build_tx_vars_statement")
+    }
 
     // -- Type casting --
 
@@ -258,6 +302,51 @@ pub trait SqlDialect: Send + Sync {
         operator: &str,
     );
 
+    // -- Scalar row-to-json --
+
+    /// Convert an entire CTE row to JSON text (for scalar function calls).
+    ///
+    /// PostgreSQL: `row_to_json(pgrst_source.*)::text`
+    /// SQLite:     `json_object(...)` (requires column list — override if needed)
+    fn row_to_json_star(&self, b: &mut SqlBuilder, source: &str) {
+        // Default implementation uses PG-style syntax.
+        // Override for databases that don't support `source.*`.
+        b.push("row_to_json(");
+        b.push(source);
+        b.push(".*)::text");
+    }
+
+    /// COUNT(*) subquery for exact count from a CTE source.
+    ///
+    /// PostgreSQL: `(SELECT pg_catalog.count(*) FROM pgrst_source)`
+    /// SQLite:     `(SELECT COUNT(*) FROM pgrst_source)`
+    fn count_star_from(&self, b: &mut SqlBuilder, source: &str) {
+        b.push("(SELECT pg_catalog.count(*) FROM ");
+        b.push(source);
+        b.push(")");
+    }
+
+    // -- Literal escaping --
+
+    /// Push a single-quoted SQL literal with proper escaping.
+    ///
+    /// PostgreSQL uses `E'...'` for backslash escapes. SQLite uses plain `'...'`.
+    /// The default implementation uses PostgreSQL E-string syntax.
+    fn push_literal(&self, b: &mut SqlBuilder, s: &str) {
+        let has_backslash = s.contains('\\');
+        if has_backslash {
+            b.push("E");
+        }
+        b.push("'");
+        for ch in s.chars() {
+            if ch == '\'' {
+                b.push("'");
+            }
+            b.push_char(ch);
+        }
+        b.push("'");
+    }
+
     // -- Lateral joins --
 
     /// Whether the backend supports LATERAL joins.
@@ -273,5 +362,16 @@ pub trait SqlDialect: Send + Sync {
     /// Others may use different syntax or not support this.
     fn named_param_assign(&self) -> &str {
         " := "
+    }
+
+    /// Whether the backend supports DML (INSERT/UPDATE/DELETE) inside CTEs.
+    ///
+    /// PostgreSQL supports `WITH cte AS (INSERT ... RETURNING ...) SELECT ... FROM cte`.
+    /// SQLite does NOT — DML is only allowed as the top-level statement.
+    ///
+    /// When false, write queries are split into a mutation statement and a
+    /// separate aggregation SELECT, executed sequentially in the same transaction.
+    fn supports_dml_cte(&self) -> bool {
+        true
     }
 }
