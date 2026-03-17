@@ -24,6 +24,7 @@
 //!   set_config('request.cookies', '{}', true)
 //! ```
 
+use crate::backend::SqlDialect;
 use crate::config::AppConfig;
 use crate::types::identifiers::QualifiedIdentifier;
 
@@ -63,8 +64,10 @@ use super::sql_builder::SqlBuilder;
 ///   set_config('request.method', 'GET', true),
 ///   set_config('request.path', '/users', true)
 /// ```
+#[allow(clippy::too_many_arguments)]
 pub fn tx_var_query(
     config: &AppConfig,
+    dialect: &dyn SqlDialect,
     method: &str,
     path: &str,
     role: Option<&str>,
@@ -85,59 +88,55 @@ pub fn tx_var_query(
         .collect::<Vec<_>>()
         .join(", ");
 
-    push_set_config(&mut b, "search_path", &search_path, &mut first);
+    push_set_var(&mut b, dialect, "search_path", &search_path, &mut first);
 
     // role
     if let Some(role) = role.or(config.db_anon_role.as_deref()) {
-        push_set_config(&mut b, "role", role, &mut first);
+        push_set_var(&mut b, dialect, "role", role, &mut first);
     }
 
     // request.method
-    push_set_config(&mut b, "request.method", method, &mut first);
+    push_set_var(&mut b, dialect, "request.method", method, &mut first);
 
     // request.path
-    push_set_config(&mut b, "request.path", path, &mut first);
+    push_set_var(&mut b, dialect, "request.path", path, &mut first);
 
     // request.headers
     if let Some(headers) = headers_json {
-        push_set_config(&mut b, "request.headers", headers, &mut first);
+        push_set_var(&mut b, dialect, "request.headers", headers, &mut first);
     }
 
     // request.cookies
     if let Some(cookies) = cookies_json {
-        push_set_config(&mut b, "request.cookies", cookies, &mut first);
+        push_set_var(&mut b, dialect, "request.cookies", cookies, &mut first);
     }
 
     // request.jwt.claims
     if let Some(claims) = claims_json {
-        push_set_config(&mut b, "request.jwt.claims", claims, &mut first);
+        push_set_var(&mut b, dialect, "request.jwt.claims", claims, &mut first);
     }
 
     b
 }
 
-/// Append a single `set_config('key', 'value', true)` expression.
+/// Append a session variable assignment expression via the dialect.
 ///
 /// # Behaviour
 ///
 /// - Prepends a comma separator when this is not the first call
-/// - The third argument `true` makes the setting transaction-local
+/// - Delegates to `dialect.set_session_var()` for database-specific syntax
 ///
-/// # SQL Example
+/// # SQL Example (PostgreSQL)
 ///
 /// ```sql
 /// set_config('request.method', 'GET', true)
 /// ```
-fn push_set_config(b: &mut SqlBuilder, key: &str, value: &str, first: &mut bool) {
+fn push_set_var(b: &mut SqlBuilder, dialect: &dyn SqlDialect, key: &str, value: &str, first: &mut bool) {
     if !*first {
         b.push(", ");
     }
     *first = false;
-    b.push("set_config(");
-    b.push_literal(key);
-    b.push(", ");
-    b.push_literal(value);
-    b.push(", true)");
+    dialect.set_session_var(b, key, value);
 }
 
 // ==========================================================================
@@ -173,6 +172,7 @@ pub fn pre_req_query(pre_request: &QualifiedIdentifier) -> SqlBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::backend::postgres::PgDialect;
 
     fn test_config() -> AppConfig {
         let mut config = AppConfig::default();
@@ -181,10 +181,14 @@ mod tests {
         config
     }
 
+    fn dialect() -> &'static dyn SqlDialect {
+        &PgDialect
+    }
+
     #[test]
     fn test_tx_var_query_basic() {
         let config = test_config();
-        let b = tx_var_query(&config, "GET", "/users", None, None, None, None);
+        let b = tx_var_query(&config, dialect(), "GET", "/users", None, None, None, None);
         let sql = b.sql();
 
         assert!(sql.starts_with("SELECT set_config("));
@@ -198,7 +202,7 @@ mod tests {
     #[test]
     fn test_tx_var_query_with_role() {
         let config = test_config();
-        let b = tx_var_query(&config, "POST", "/items", Some("admin"), None, None, None);
+        let b = tx_var_query(&config, dialect(), "POST", "/items", Some("admin"), None, None, None);
         let sql = b.sql();
 
         assert!(sql.contains("'role'"));
@@ -210,6 +214,7 @@ mod tests {
         let config = test_config();
         let b = tx_var_query(
             &config,
+            dialect(),
             "GET",
             "/users",
             None,
@@ -228,6 +233,7 @@ mod tests {
         let config = test_config();
         let b = tx_var_query(
             &config,
+            dialect(),
             "GET",
             "/users",
             None,
@@ -257,7 +263,7 @@ mod tests {
     #[test]
     fn test_tx_var_query_search_path_format() {
         let config = test_config();
-        let b = tx_var_query(&config, "GET", "/", None, None, None, None);
+        let b = tx_var_query(&config, dialect(), "GET", "/", None, None, None, None);
         let sql = b.sql();
 
         // Should contain quoted schema names

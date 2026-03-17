@@ -686,6 +686,55 @@ dependencies = [
 ]
 
 [[package]]
+name = "dbrest-core"
+version = "0.1.0"
+dependencies = [
+ "arc-swap",
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "bitflags 2.10.0",
+ "bytes",
+ "chrono",
+ "clap",
+ "compact_str",
+ "form_urlencoded",
+ "futures",
+ "http",
+ "hyper",
+ "hyper-util",
+ "indexmap 2.13.0",
+ "insta",
+ "jsonwebtoken",
+ "mockall",
+ "moka",
+ "serde",
+ "serde_json",
+ "serial_test",
+ "smallvec",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tokio-test",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "dbrest-postgres"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "dbrest-core",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "der"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1991,6 +2040,8 @@ dependencies = [
  "clap",
  "compact_str",
  "criterion",
+ "dbrest-core",
+ "dbrest-postgres",
  "fake",
  "form_urlencoded",
  "futures",

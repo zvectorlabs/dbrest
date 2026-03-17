@@ -216,6 +216,20 @@ pub trait SqlDialect: Send + Sync {
         json_bytes: &[u8],
     );
 
+    // -- Type cast suffix --
+
+    /// Append a type cast suffix to the builder.
+    ///
+    /// PostgreSQL: `::type`
+    /// MySQL:      (no-op, or uses CAST wrapping at a higher level)
+    fn push_type_cast_suffix(&self, b: &mut SqlBuilder, ty: &str);
+
+    /// Append an array type cast suffix to the builder.
+    ///
+    /// PostgreSQL: `::type[]`
+    /// MySQL:      (no-op)
+    fn push_array_type_cast_suffix(&self, b: &mut SqlBuilder, ty: &str);
+
     // -- Quoting --
 
     /// Quote an identifier (table, column, schema name).

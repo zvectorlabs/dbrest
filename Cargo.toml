@@ -1,3 +1,10 @@
+[workspace]
+members = [
+    ".",
+    "crates/dbrest-core",
+    "crates/dbrest-postgres",
+]
+
 [package]
 name = "pgrest"
 version = "0.1.0"
@@ -7,6 +14,10 @@ description = "PgREST — high-performance REST API for PostgreSQL, written in R
 license = "MIT"
 
 [dependencies]
+# Workspace crates
+dbrest-core = { path = "crates/dbrest-core" }
+dbrest-postgres = { path = "crates/dbrest-postgres" }
+
 # Core async runtime
 tokio = { version = "1", features = ["full"] }
 

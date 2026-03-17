@@ -15,6 +15,7 @@
 //! ```
 
 use crate::api_request::types::Payload;
+use crate::backend::SqlDialect;
 use crate::plan::call_plan::{CallArgs, CallParams, CallPlan, RpcParamValue};
 use crate::plan::mutate_plan::{DeletePlan, InsertPlan, MutatePlan, UpdatePlan};
 use crate::plan::read_plan::ReadPlanTree;
@@ -59,7 +60,7 @@ use super::sql_builder::{SqlBuilder, SqlParam};
 /// ORDER BY "public"."users"."name" ASC
 /// LIMIT 10
 /// ```
-pub fn read_plan_to_query(tree: &ReadPlanTree) -> SqlBuilder {
+pub fn read_plan_to_query(tree: &ReadPlanTree, dialect: &dyn SqlDialect) -> SqlBuilder {
     let plan = &tree.node;
     let qi = &plan.from;
 
@@ -73,7 +74,7 @@ pub fn read_plan_to_query(tree: &ReadPlanTree) -> SqlBuilder {
         b.push(".*");
     } else {
         b.push_separated(", ", &plan.select, |b, sel| {
-            fragment::fmt_select_item(b, qi, sel);
+            fragment::fmt_select_item(b, qi, sel, dialect);
         });
     }
 
@@ -129,17 +130,17 @@ pub fn read_plan_to_query(tree: &ReadPlanTree) -> SqlBuilder {
             .unwrap_or(false);
 
         if is_to_one {
-            b.push("SELECT row_to_json(");
-            b.push_ident("_pgrest_t");
-            b.push(")::text AS body FROM (");
+            b.push("SELECT ");
+            dialect.row_to_json(&mut b, "_pgrest_t");
+            b.push(" AS body FROM (");
         } else {
-            b.push("SELECT coalesce(json_agg(");
-            b.push_ident("_pgrest_t");
-            b.push("), '[]')::text AS body FROM (");
+            b.push("SELECT ");
+            dialect.json_agg(&mut b, "_pgrest_t");
+            b.push(" AS body FROM (");
         }
 
         // Recursive child query
-        let child_query = read_plan_to_query(child);
+        let child_query = read_plan_to_query(child, dialect);
         b.push_builder(&child_query);
 
         b.push(") AS ");
@@ -152,7 +153,7 @@ pub fn read_plan_to_query(tree: &ReadPlanTree) -> SqlBuilder {
     // WHERE clause (includes join conditions for child nodes)
     let mut has_where = false;
     if !plan.where_.is_empty() {
-        fragment::where_clause(&mut b, qi, &plan.where_);
+        fragment::where_clause(&mut b, qi, &plan.where_, dialect);
         has_where = true;
     }
 
@@ -189,9 +190,9 @@ pub fn read_plan_to_query(tree: &ReadPlanTree) -> SqlBuilder {
 /// SELECT COUNT(*) AS "pgrst_filtered_count"
 /// FROM (SELECT … FROM "public"."users" WHERE …) AS _pgrst_count_t
 /// ```
-pub fn read_plan_to_count_query(tree: &ReadPlanTree) -> SqlBuilder {
+pub fn read_plan_to_count_query(tree: &ReadPlanTree, dialect: &dyn SqlDialect) -> SqlBuilder {
     let mut b = SqlBuilder::new();
-    fragment::count_f(&mut b);
+    fragment::count_f(&mut b, dialect);
 
     // Build the inner query without LIMIT/OFFSET for accurate counting
     let plan = &tree.node;
@@ -202,7 +203,7 @@ pub fn read_plan_to_count_query(tree: &ReadPlanTree) -> SqlBuilder {
 
     // WHERE clause
     if !plan.where_.is_empty() {
-        fragment::where_clause(&mut b, qi, &plan.where_);
+        fragment::where_clause(&mut b, qi, &plan.where_, dialect);
     }
 
     b.push(") AS _pgrst_count_t");
@@ -239,11 +240,11 @@ pub fn read_plan_to_count_query(tree: &ReadPlanTree) -> SqlBuilder {
 /// DELETE FROM "public"."users" WHERE "id" = $1
 /// RETURNING "id" AS "id"
 /// ```
-pub fn mutate_plan_to_query(plan: &MutatePlan) -> SqlBuilder {
+pub fn mutate_plan_to_query(plan: &MutatePlan, dialect: &dyn SqlDialect) -> SqlBuilder {
     match plan {
-        MutatePlan::Insert(insert) => insert_to_query(insert),
-        MutatePlan::Update(update) => update_to_query(update),
-        MutatePlan::Delete(delete) => delete_to_query(delete),
+        MutatePlan::Insert(insert) => insert_to_query(insert, dialect),
+        MutatePlan::Update(update) => update_to_query(update, dialect),
+        MutatePlan::Delete(delete) => delete_to_query(delete, dialect),
     }
 }
 
@@ -264,7 +265,7 @@ pub fn mutate_plan_to_query(plan: &MutatePlan) -> SqlBuilder {
 /// ON CONFLICT("id") DO UPDATE SET "name" = EXCLUDED."name"
 /// RETURNING "id" AS "id", "name" AS "name"
 /// ```
-fn insert_to_query(plan: &InsertPlan) -> SqlBuilder {
+fn insert_to_query(plan: &InsertPlan, dialect: &dyn SqlDialect) -> SqlBuilder {
     let qi = &plan.into;
     let mut b = SqlBuilder::new();
 
@@ -290,7 +291,7 @@ fn insert_to_query(plan: &InsertPlan) -> SqlBuilder {
         b.push(" FROM ");
 
         let json_bytes = payload_to_bytes(&plan.body);
-        fragment::from_json_body(&mut b, &plan.columns, &json_bytes);
+        fragment::from_json_body(&mut b, &plan.columns, &json_bytes, dialect);
     }
 
     // ON CONFLICT
@@ -314,10 +315,10 @@ fn insert_to_query(plan: &InsertPlan) -> SqlBuilder {
     }
 
     // WHERE
-    fragment::where_clause(&mut b, qi, &plan.where_);
+    fragment::where_clause(&mut b, qi, &plan.where_, dialect);
 
     // RETURNING
-    fragment::returning_clause(&mut b, qi, &plan.returning);
+    fragment::returning_clause(&mut b, qi, &plan.returning, dialect);
 
     b
 }
@@ -339,7 +340,7 @@ fn insert_to_query(plan: &InsertPlan) -> SqlBuilder {
 /// WHERE "public"."users"."id"=$2
 /// RETURNING "id" AS "id", "name" AS "name"
 /// ```
-fn update_to_query(plan: &UpdatePlan) -> SqlBuilder {
+fn update_to_query(plan: &UpdatePlan, dialect: &dyn SqlDialect) -> SqlBuilder {
     let qi = &plan.into;
     let mut b = SqlBuilder::new();
 
@@ -364,14 +365,14 @@ fn update_to_query(plan: &UpdatePlan) -> SqlBuilder {
 
     b.push(" FROM ");
     let json_bytes = payload_to_bytes(&plan.body);
-    fragment::from_json_body(&mut b, &plan.columns, &json_bytes);
+    fragment::from_json_body(&mut b, &plan.columns, &json_bytes, dialect);
     b.push(")");
 
     // WHERE
-    fragment::where_clause(&mut b, qi, &plan.where_);
+    fragment::where_clause(&mut b, qi, &plan.where_, dialect);
 
     // RETURNING
-    fragment::returning_clause(&mut b, qi, &plan.returning);
+    fragment::returning_clause(&mut b, qi, &plan.returning, dialect);
 
     b
 }
@@ -390,7 +391,7 @@ fn update_to_query(plan: &UpdatePlan) -> SqlBuilder {
 /// WHERE "public"."users"."id"=$1
 /// RETURNING "id" AS "id"
 /// ```
-fn delete_to_query(plan: &DeletePlan) -> SqlBuilder {
+fn delete_to_query(plan: &DeletePlan, dialect: &dyn SqlDialect) -> SqlBuilder {
     let qi = &plan.from;
     let mut b = SqlBuilder::new();
 
@@ -398,10 +399,10 @@ fn delete_to_query(plan: &DeletePlan) -> SqlBuilder {
     b.push_qi(qi);
 
     // WHERE
-    fragment::where_clause(&mut b, qi, &plan.where_);
+    fragment::where_clause(&mut b, qi, &plan.where_, dialect);
 
     // RETURNING
-    fragment::returning_clause(&mut b, qi, &plan.returning);
+    fragment::returning_clause(&mut b, qi, &plan.returning, dialect);
 
     b
 }
@@ -423,7 +424,8 @@ fn delete_to_query(plan: &DeletePlan) -> SqlBuilder {
 /// SELECT * FROM "public"."add_numbers"("a" := $1, "b" := $2)
 /// SELECT * FROM "public"."get_data"($1::jsonb)
 /// ```
-pub fn call_plan_to_query(plan: &CallPlan) -> SqlBuilder {
+pub fn call_plan_to_query(plan: &CallPlan, dialect: &dyn SqlDialect) -> SqlBuilder {
+    let _ = dialect; // Available for future use (named_param_assign, variadic syntax)
     let mut b = SqlBuilder::new();
 
     b.push("SELECT * FROM ");
@@ -526,6 +528,7 @@ mod tests {
     use super::*;
     use crate::api_request::range::Range;
     use crate::api_request::types::*;
+    use crate::backend::postgres::PgDialect;
     use crate::plan::call_plan::*;
     use crate::plan::mutate_plan::*;
     use crate::plan::read_plan::*;
@@ -535,6 +538,10 @@ mod tests {
     use compact_str::CompactString;
     use smallvec::SmallVec;
     use std::collections::HashMap;
+
+    fn dialect() -> &'static dyn SqlDialect {
+        &PgDialect
+    }
 
     fn test_qi() -> QualifiedIdentifier {
         QualifiedIdentifier::new("public", "users")
@@ -568,7 +575,7 @@ mod tests {
         plan.select = vec![select_field("id"), select_field("name")];
 
         let tree = ReadPlanTree::leaf(plan);
-        let b = read_plan_to_query(&tree);
+        let b = read_plan_to_query(&tree, dialect());
         let sql = b.sql();
 
         assert!(sql.starts_with("SELECT "));
@@ -590,7 +597,7 @@ mod tests {
         })];
 
         let tree = ReadPlanTree::leaf(plan);
-        let b = read_plan_to_query(&tree);
+        let b = read_plan_to_query(&tree, dialect());
 
         assert!(b.sql().contains("WHERE"));
         assert!(b.sql().contains("$1"));
@@ -608,7 +615,7 @@ mod tests {
         }];
 
         let tree = ReadPlanTree::leaf(plan);
-        let sql = read_plan_to_query(&tree).sql().to_string();
+        let sql = read_plan_to_query(&tree, dialect()).sql().to_string();
         assert!(sql.contains("ORDER BY"));
         assert!(sql.contains("ASC"));
     }
@@ -623,7 +630,7 @@ mod tests {
         };
 
         let tree = ReadPlanTree::leaf(plan);
-        let sql = read_plan_to_query(&tree).sql().to_string();
+        let sql = read_plan_to_query(&tree, dialect()).sql().to_string();
         assert!(sql.contains("LIMIT 10"));
         assert!(sql.contains("OFFSET 5"));
     }
@@ -632,7 +639,7 @@ mod tests {
     fn test_read_plan_default_select() {
         let plan = ReadPlan::root(test_qi());
         let tree = ReadPlanTree::leaf(plan);
-        let sql = read_plan_to_query(&tree).sql().to_string();
+        let sql = read_plan_to_query(&tree, dialect()).sql().to_string();
         assert!(sql.contains("\"public\".\"users\".*"));
     }
 
@@ -648,7 +655,7 @@ mod tests {
         })];
 
         let tree = ReadPlanTree::leaf(plan);
-        let b = read_plan_to_count_query(&tree);
+        let b = read_plan_to_count_query(&tree, dialect());
 
         assert!(b.sql().contains("COUNT(*)"));
         assert!(b.sql().contains("_pgrst_count_t"));
@@ -685,7 +692,7 @@ mod tests {
         }];
 
         let tree = ReadPlanTree::with_children(root, vec![ReadPlanTree::leaf(child)]);
-        let sql = read_plan_to_query(&tree).sql().to_string();
+        let sql = read_plan_to_query(&tree, dialect()).sql().to_string();
 
         assert!(sql.contains("LEFT JOIN LATERAL"));
         assert!(sql.contains("json_agg"));
@@ -709,7 +716,7 @@ mod tests {
             apply_defaults: false,
         });
 
-        let b = mutate_plan_to_query(&plan);
+        let b = mutate_plan_to_query(&plan, dialect());
         let sql = b.sql();
         assert!(sql.starts_with("INSERT INTO "));
         assert!(sql.contains("json_to_recordset"));
@@ -732,7 +739,7 @@ mod tests {
             apply_defaults: false,
         });
 
-        let sql = mutate_plan_to_query(&plan).sql().to_string();
+        let sql = mutate_plan_to_query(&plan, dialect()).sql().to_string();
         assert!(sql.contains("ON CONFLICT"));
         assert!(sql.contains("DO UPDATE SET"));
         assert!(sql.contains("EXCLUDED"));
@@ -754,7 +761,7 @@ mod tests {
             apply_defaults: false,
         });
 
-        let sql = mutate_plan_to_query(&plan).sql().to_string();
+        let sql = mutate_plan_to_query(&plan, dialect()).sql().to_string();
         assert!(sql.contains("DO NOTHING"));
     }
 
@@ -775,7 +782,7 @@ mod tests {
             apply_defaults: false,
         });
 
-        let sql = mutate_plan_to_query(&plan).sql().to_string();
+        let sql = mutate_plan_to_query(&plan, dialect()).sql().to_string();
         assert!(sql.starts_with("UPDATE "));
         assert!(sql.contains("SET "));
         assert!(sql.contains("WHERE"));
@@ -796,7 +803,7 @@ mod tests {
             returning: vec![],
         });
 
-        let sql = mutate_plan_to_query(&plan).sql().to_string();
+        let sql = mutate_plan_to_query(&plan, dialect()).sql().to_string();
         assert!(sql.starts_with("DELETE FROM "));
         assert!(sql.contains("WHERE"));
     }
@@ -836,7 +843,7 @@ mod tests {
             returning: vec![],
         };
 
-        let sql = call_plan_to_query(&plan).sql().to_string();
+        let sql = call_plan_to_query(&plan, dialect()).sql().to_string();
         assert!(sql.starts_with("SELECT * FROM \"public\".\"add_numbers\"("));
         assert!(sql.contains(":="));
     }
@@ -853,7 +860,7 @@ mod tests {
             returning: vec![],
         };
 
-        let b = call_plan_to_query(&plan);
+        let b = call_plan_to_query(&plan, dialect());
         assert!(b.sql().contains("$1"));
         assert_eq!(b.param_count(), 1);
     }
@@ -870,7 +877,7 @@ mod tests {
             returning: vec![],
         };
 
-        let sql = call_plan_to_query(&plan).sql().to_string();
+        let sql = call_plan_to_query(&plan, dialect()).sql().to_string();
         assert_eq!(sql, "SELECT * FROM \"public\".\"get_time\"()");
     }
 
@@ -898,7 +905,7 @@ mod tests {
             returning: vec![],
         };
 
-        let sql = call_plan_to_query(&plan).sql().to_string();
+        let sql = call_plan_to_query(&plan, dialect()).sql().to_string();
         assert!(sql.contains("VARIADIC ARRAY["));
     }
 
@@ -926,7 +933,7 @@ mod tests {
             apply_defaults: true,
         });
 
-        let sql = mutate_plan_to_query(&plan).sql().to_string();
+        let sql = mutate_plan_to_query(&plan, dialect()).sql().to_string();
         assert!(sql.contains("DEFAULT VALUES"));
     }
 }

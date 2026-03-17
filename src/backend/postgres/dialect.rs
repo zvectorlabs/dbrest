@@ -79,6 +79,17 @@ impl SqlDialect for PgDialect {
         b.push(")");
     }
 
+    fn push_type_cast_suffix(&self, b: &mut SqlBuilder, ty: &str) {
+        b.push("::");
+        b.push(ty);
+    }
+
+    fn push_array_type_cast_suffix(&self, b: &mut SqlBuilder, ty: &str) {
+        b.push("::");
+        b.push(ty);
+        b.push("[]");
+    }
+
     fn quote_ident(&self, ident: &str) -> String {
         format!("\"{}\"", ident.replace('"', "\"\""))
     }
