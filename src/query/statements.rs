@@ -28,6 +28,7 @@
 //! ```
 
 use crate::api_request::preferences::PreferCount;
+use crate::backend::SqlDialect;
 use crate::plan::call_plan::CallPlan;
 use crate::plan::mutate_plan::MutatePlan;
 use crate::plan::read_plan::ReadPlanTree;
@@ -73,8 +74,9 @@ pub fn main_read(
     max_rows: Option<i64>,
     headers_only: bool,
     handler: Option<&crate::schema_cache::media_handler::MediaHandler>,
+    dialect: &dyn SqlDialect,
 ) -> SqlBuilder {
-    let inner = builder::read_plan_to_query(read_plan);
+    let inner = builder::read_plan_to_query(read_plan, dialect);
     let mut b = SqlBuilder::new();
 
     // CTE: pgrst_source
@@ -85,7 +87,7 @@ pub fn main_read(
     // Optional count CTE
     let has_exact_count = matches!(prefer_count, Some(PreferCount::Exact));
     if has_exact_count {
-        let count_q = builder::read_plan_to_count_query(read_plan);
+        let count_q = builder::read_plan_to_count_query(read_plan, dialect);
         b.push(", pgrst_count AS (");
         b.push_builder(&count_q);
         b.push(")");
@@ -105,9 +107,9 @@ pub fn main_read(
     b.push(" AS total_result_set");
 
     // page_total
-    b.push(", pg_catalog.count(");
-    b.push_ident("_pgrest_t");
-    b.push(") AS page_total");
+    b.push(", ");
+    dialect.count_expr(&mut b, "_pgrest_t");
+    b.push(" AS page_total");
 
     // body
     if headers_only {
@@ -115,16 +117,18 @@ pub fn main_read(
     } else {
         b.push(", ");
         if let Some(h) = handler {
-            fragment::handler_agg_with_media(&mut b, h, false);
+            fragment::handler_agg_with_media(&mut b, h, false, dialect);
         } else {
-            fragment::handler_agg(&mut b, false);
+            fragment::handler_agg(&mut b, false, dialect);
         }
         b.push(" AS body");
     }
 
     // response_headers & response_status
-    b.push(", nullif(current_setting('response.headers', true), '') AS response_headers");
-    b.push(", nullif(current_setting('response.status', true), '') AS response_status");
+    b.push(", ");
+    dialect.get_session_var(&mut b, "response.headers", "response_headers");
+    b.push(", ");
+    dialect.get_session_var(&mut b, "response.status", "response_status");
 
     // FROM pgrst_source
     b.push(" FROM (SELECT * FROM pgrst_source");
@@ -176,14 +180,12 @@ pub fn main_write(
     _read_plan: &ReadPlanTree,
     return_representation: bool,
     handler: Option<&crate::schema_cache::media_handler::MediaHandler>,
+    dialect: &dyn SqlDialect,
 ) -> SqlBuilder {
-    let inner = builder::mutate_plan_to_query(mutate_plan);
+    let inner = builder::mutate_plan_to_query(mutate_plan, dialect);
     let has_returning = !mutate_plan.returning().is_empty();
     let mut b = SqlBuilder::new();
 
-    // CTE: pgrst_source — always include a RETURNING clause so we can count
-    // affected rows.  When the plan has explicit RETURNING columns we use
-    // those; otherwise we append `RETURNING 1` to get a countable result set.
     b.push("WITH pgrst_source AS (");
     b.push_builder(&inner);
     if !has_returning {
@@ -197,18 +199,18 @@ pub fn main_write(
     // total_result_set (mutations don't support count)
     b.push("'' AS total_result_set");
 
-    // page_total — always count from the CTE
-    b.push(", pg_catalog.count(");
-    b.push_ident("_pgrest_t");
-    b.push(") AS page_total");
+    // page_total
+    b.push(", ");
+    dialect.count_expr(&mut b, "_pgrest_t");
+    b.push(" AS page_total");
 
     // body
     if return_representation && has_returning {
         b.push(", ");
         if let Some(h) = handler {
-            fragment::handler_agg_with_media(&mut b, h, false);
+            fragment::handler_agg_with_media(&mut b, h, false, dialect);
         } else {
-            fragment::handler_agg(&mut b, false);
+            fragment::handler_agg(&mut b, false, dialect);
         }
         b.push(" AS body");
     } else {
@@ -216,8 +218,10 @@ pub fn main_write(
     }
 
     // response_headers & response_status
-    b.push(", nullif(current_setting('response.headers', true), '') AS response_headers");
-    b.push(", nullif(current_setting('response.status', true), '') AS response_status");
+    b.push(", ");
+    dialect.get_session_var(&mut b, "response.headers", "response_headers");
+    b.push(", ");
+    dialect.get_session_var(&mut b, "response.status", "response_status");
 
     // FROM pgrst_source
     b.push(" FROM (SELECT * FROM pgrst_source) AS ");
@@ -260,8 +264,9 @@ pub fn main_call(
     prefer_count: Option<PreferCount>,
     max_rows: Option<i64>,
     handler: Option<&crate::schema_cache::media_handler::MediaHandler>,
+    dialect: &dyn SqlDialect,
 ) -> SqlBuilder {
-    let inner = builder::call_plan_to_query(call_plan);
+    let inner = builder::call_plan_to_query(call_plan, dialect);
     let mut b = SqlBuilder::new();
 
     // CTE: pgrst_source
@@ -283,33 +288,34 @@ pub fn main_call(
     b.push(" AS total_result_set");
 
     // page_total
-    // For scalar functions, always 1; for set-returning, count the rows
     if call_plan.scalar {
         b.push(", 1 AS page_total");
     } else {
-        b.push(", pg_catalog.count(");
-        b.push_ident("_pgrest_t");
-        b.push(") AS page_total");
+        b.push(", ");
+        dialect.count_expr(&mut b, "_pgrest_t");
+        b.push(" AS page_total");
     }
 
     // body
     b.push(", ");
     if call_plan.scalar {
-        // Scalar function: select the scalar value directly and wrap in row_to_json
+        // Scalar function: row_to_json(pgrst_source.*)::text
+        // We use a specialized form because the source is "table.*" not just an alias
         b.push("row_to_json(pgrst_source.*)::text");
     } else if let Some(h) = handler {
-        fragment::handler_agg_with_media(&mut b, h, false);
+        fragment::handler_agg_with_media(&mut b, h, false, dialect);
     } else {
-        fragment::handler_agg(&mut b, false);
+        fragment::handler_agg(&mut b, false, dialect);
     }
     b.push(" AS body");
 
     // response_headers & response_status
-    b.push(", nullif(current_setting('response.headers', true), '') AS response_headers");
-    b.push(", nullif(current_setting('response.status', true), '') AS response_status");
+    b.push(", ");
+    dialect.get_session_var(&mut b, "response.headers", "response_headers");
+    b.push(", ");
+    dialect.get_session_var(&mut b, "response.status", "response_status");
 
     // FROM pgrst_source
-    // For scalar functions, select directly; for set-returning, use subquery
     if call_plan.scalar {
         b.push(" FROM pgrst_source");
     } else {
@@ -335,6 +341,7 @@ pub fn main_call(
 mod tests {
     use super::*;
     use crate::api_request::types::Payload;
+    use crate::backend::postgres::PgDialect;
     use crate::plan::call_plan::{CallArgs, CallParams, CallPlan};
     use crate::plan::mutate_plan::{InsertPlan, MutatePlan};
     use crate::plan::read_plan::{ReadPlan, ReadPlanTree};
@@ -342,6 +349,10 @@ mod tests {
     use crate::types::identifiers::QualifiedIdentifier;
     use bytes::Bytes;
     use smallvec::SmallVec;
+
+    fn dialect() -> &'static dyn SqlDialect {
+        &PgDialect
+    }
 
     fn test_qi() -> QualifiedIdentifier {
         QualifiedIdentifier::new("public", "users")
@@ -371,7 +382,7 @@ mod tests {
         plan.select = vec![select_field("id"), select_field("name")];
         let tree = ReadPlanTree::leaf(plan);
 
-        let b = main_read(&tree, None, None, false, None);
+        let b = main_read(&tree, None, None, false, None, dialect());
         let sql = b.sql();
 
         assert!(sql.starts_with("WITH pgrst_source AS ("));
@@ -387,7 +398,7 @@ mod tests {
         let plan = ReadPlan::root(test_qi());
         let tree = ReadPlanTree::leaf(plan);
 
-        let b = main_read(&tree, Some(PreferCount::Exact), None, false, None);
+        let b = main_read(&tree, Some(PreferCount::Exact), None, false, None, dialect());
         let sql = b.sql();
 
         assert!(sql.contains("pgrst_count"));
@@ -399,7 +410,7 @@ mod tests {
         let plan = ReadPlan::root(test_qi());
         let tree = ReadPlanTree::leaf(plan);
 
-        let b = main_read(&tree, None, None, true, None);
+        let b = main_read(&tree, None, None, true, None, dialect());
         let sql = b.sql();
 
         assert!(sql.contains("NULL AS body"));
@@ -410,7 +421,7 @@ mod tests {
         let plan = ReadPlan::root(test_qi());
         let tree = ReadPlanTree::leaf(plan);
 
-        let b = main_read(&tree, None, Some(100), false, None);
+        let b = main_read(&tree, None, Some(100), false, None, dialect());
         let sql = b.sql();
 
         assert!(sql.contains("LIMIT 100"));
@@ -434,7 +445,7 @@ mod tests {
         });
         let read = ReadPlanTree::leaf(ReadPlan::root(test_qi()));
 
-        let b = main_write(&mutate, &read, true, None);
+        let b = main_write(&mutate, &read, true, None, dialect());
         let sql = b.sql();
 
         assert!(sql.starts_with("WITH pgrst_source AS ("));
@@ -456,7 +467,7 @@ mod tests {
         });
         let read = ReadPlanTree::leaf(ReadPlan::root(test_qi()));
 
-        let b = main_write(&mutate, &read, false, None);
+        let b = main_write(&mutate, &read, false, None, dialect());
         let sql = b.sql();
 
         assert!(sql.contains("NULL AS body"));
@@ -478,7 +489,7 @@ mod tests {
             returning: vec![],
         };
 
-        let b = main_call(&call, None, None, None);
+        let b = main_call(&call, None, None, None, dialect());
         let sql = b.sql();
 
         assert!(sql.starts_with("WITH pgrst_source AS ("));
@@ -498,7 +509,7 @@ mod tests {
             returning: vec![],
         };
 
-        let b = main_call(&call, None, None, None);
+        let b = main_call(&call, None, None, None, dialect());
         let sql = b.sql();
 
         // Scalar uses row_to_json instead of json_agg
@@ -517,7 +528,7 @@ mod tests {
             returning: vec![],
         };
 
-        let b = main_call(&call, Some(PreferCount::Exact), None, None);
+        let b = main_call(&call, Some(PreferCount::Exact), None, None, dialect());
         let sql = b.sql();
 
         assert!(sql.contains("pg_catalog.count(*)"));
@@ -535,7 +546,7 @@ mod tests {
             returning: vec![],
         };
 
-        let b = main_call(&call, None, Some(50), None);
+        let b = main_call(&call, None, Some(50), None, dialect());
         let sql = b.sql();
 
         assert!(sql.contains("LIMIT 50"));

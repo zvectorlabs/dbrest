@@ -44,6 +44,7 @@ pub mod statements;
 // Re-export key types
 pub use sql_builder::{SqlBuilder, SqlParam};
 
+use crate::backend::SqlDialect;
 use crate::config::AppConfig;
 use crate::plan::{ActionPlan, CrudPlan, DbActionPlan};
 
@@ -106,6 +107,7 @@ impl MainQuery {
 pub fn main_query(
     action_plan: &ActionPlan,
     config: &AppConfig,
+    dialect: &dyn SqlDialect,
     method: &str,
     path: &str,
     role: Option<&str>,
@@ -116,6 +118,7 @@ pub fn main_query(
     // Session variables
     let tx_vars = Some(pre_query::tx_var_query(
         config,
+        dialect,
         method,
         path,
         role,
@@ -130,7 +133,7 @@ pub fn main_query(
     // Main query based on action plan type
     let main = match action_plan {
         ActionPlan::Db(db_plan) => match db_plan {
-            DbActionPlan::DbCrud { plan, .. } => Some(build_crud_query(plan, config)),
+            DbActionPlan::DbCrud { plan, .. } => Some(build_crud_query(plan, config, dialect)),
             DbActionPlan::MayUseDb(_inspect) => {
                 // Schema inspection — placeholder for future phases
                 None
@@ -161,7 +164,7 @@ pub fn main_query(
 /// | `CallReadPlan`    | `statements::main_call`  | CTE function call        |
 ///
 /// Returns the assembled `SqlBuilder` ready for execution.
-fn build_crud_query(plan: &CrudPlan, config: &AppConfig) -> SqlBuilder {
+fn build_crud_query(plan: &CrudPlan, config: &AppConfig, dialect: &dyn SqlDialect) -> SqlBuilder {
     match plan {
         CrudPlan::WrappedReadPlan {
             read_plan,
@@ -169,14 +172,13 @@ fn build_crud_query(plan: &CrudPlan, config: &AppConfig) -> SqlBuilder {
             handler,
             ..
         } => {
-            // For now, we don't extract prefer_count from the plan —
-            // this will be wired up when we integrate with the full request handler
             statements::main_read(
                 read_plan,
                 None,
                 config.db_max_rows,
                 *headers_only,
                 Some(&handler.0),
+                dialect,
             )
         }
         CrudPlan::MutateReadPlan {
@@ -185,18 +187,18 @@ fn build_crud_query(plan: &CrudPlan, config: &AppConfig) -> SqlBuilder {
             handler,
             ..
         } => {
-            // Default to returning representation (will be controlled by Prefer header)
             let return_representation = !mutate_plan.returning().is_empty();
             statements::main_write(
                 mutate_plan,
                 read_plan,
                 return_representation,
                 Some(&handler.0),
+                dialect,
             )
         }
         CrudPlan::CallReadPlan {
             call_plan, handler, ..
-        } => statements::main_call(call_plan, None, config.db_max_rows, Some(&handler.0)),
+        } => statements::main_call(call_plan, None, config.db_max_rows, Some(&handler.0), dialect),
     }
 }
 
@@ -208,6 +210,7 @@ fn build_crud_query(plan: &CrudPlan, config: &AppConfig) -> SqlBuilder {
 mod tests {
     use super::*;
     use crate::api_request::types::{InvokeMethod, Mutation, Payload};
+    use crate::backend::postgres::PgDialect;
     use crate::plan::TxMode;
     use crate::plan::call_plan::{CallArgs, CallParams, CallPlan};
     use crate::plan::mutate_plan::{InsertPlan, MutatePlan};
@@ -218,6 +221,10 @@ mod tests {
     use crate::types::media::MediaType;
     use bytes::Bytes;
     use smallvec::SmallVec;
+
+    fn dialect() -> &'static dyn SqlDialect {
+        &PgDialect
+    }
 
     fn test_qi() -> QualifiedIdentifier {
         QualifiedIdentifier::new("test_api", "users")
@@ -347,7 +354,7 @@ mod tests {
         let plan = make_read_plan();
         let config = test_config();
 
-        let mq = main_query(&plan, &config, "GET", "/users", None, None, None, None);
+        let mq = main_query(&plan, &config, dialect(), "GET", "/users", None, None, None, None);
 
         assert!(mq.tx_vars.is_some());
         assert!(mq.pre_req.is_none()); // No pre-request configured
@@ -363,7 +370,7 @@ mod tests {
         let plan = make_mutate_plan();
         let config = test_config();
 
-        let mq = main_query(&plan, &config, "POST", "/users", None, None, None, None);
+        let mq = main_query(&plan, &config, dialect(), "POST", "/users", None, None, None, None);
 
         assert!(mq.main.is_some());
         let main_sql = mq.main.unwrap().sql().to_string();
@@ -378,6 +385,7 @@ mod tests {
         let mq = main_query(
             &plan,
             &config,
+            dialect(),
             "POST",
             "/rpc/get_time",
             None,
@@ -397,7 +405,7 @@ mod tests {
         let mut config = test_config();
         config.db_pre_request = Some(QualifiedIdentifier::new("test_api", "check_request"));
 
-        let mq = main_query(&plan, &config, "GET", "/users", None, None, None, None);
+        let mq = main_query(&plan, &config, dialect(), "GET", "/users", None, None, None, None);
 
         assert!(mq.pre_req.is_some());
         let pre_sql = mq.pre_req.unwrap().sql().to_string();
@@ -409,7 +417,7 @@ mod tests {
         let plan = ActionPlan::NoDb(crate::plan::InfoPlan::SchemaInfoPlan);
         let config = test_config();
 
-        let mq = main_query(&plan, &config, "OPTIONS", "/", None, None, None, None);
+        let mq = main_query(&plan, &config, dialect(), "OPTIONS", "/", None, None, None, None);
 
         // Info plans have no main SQL
         assert!(mq.main.is_none());

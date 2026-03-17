@@ -67,7 +67,7 @@ impl TestServer {
         config.jwt_secret = Some(TEST_JWT_SECRET.to_string());
         config_fn(&mut config);
 
-        let state = AppState::new(
+        let state = pgrest::compat::app_state_from_pool(
             pool,
             config,
             PgVersion {

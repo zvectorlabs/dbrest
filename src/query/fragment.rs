@@ -21,6 +21,7 @@ use crate::api_request::types::{
     FtsOperator, IsValue, JsonOperand, JsonOperation, LogicOperator, OpExpr, Operation,
     OrderDirection, OrderNulls, QuantOperator, SimpleOperator,
 };
+use crate::backend::SqlDialect;
 use crate::plan::read_plan::JoinCondition;
 use crate::plan::types::{
     CoercibleField, CoercibleFilter, CoercibleLogicTree, CoercibleOrderTerm, CoercibleSelectField,
@@ -176,7 +177,7 @@ pub fn fmt_table_coerce(b: &mut SqlBuilder, qi: &QualifiedIdentifier, field: &Co
 /// COUNT("id")::bigint AS "total"
 /// "name"::text AS "user_name"
 /// ```
-pub fn fmt_select_item(b: &mut SqlBuilder, qi: &QualifiedIdentifier, sel: &CoercibleSelectField) {
+pub fn fmt_select_item(b: &mut SqlBuilder, qi: &QualifiedIdentifier, sel: &CoercibleSelectField, dialect: &dyn SqlDialect) {
     // Aggregate wrapper
     if let Some(ref agg) = sel.agg_function {
         b.push(&agg.to_string().to_uppercase());
@@ -192,14 +193,12 @@ pub fn fmt_select_item(b: &mut SqlBuilder, qi: &QualifiedIdentifier, sel: &Coerc
 
         // Aggregate cast
         if let Some(ref agg_cast) = sel.agg_cast {
-            b.push("::");
-            b.push(agg_cast);
+            push_type_cast(b, dialect, Some(agg_cast.as_str()));
         }
     } else {
         // Field-level cast
         if let Some(ref cast) = sel.cast {
-            b.push("::");
-            b.push(cast);
+            push_type_cast(b, dialect, Some(cast.as_str()));
         }
     }
 
@@ -308,15 +307,18 @@ pub fn quant_operator(op: QuantOperator) -> &'static str {
 /// @@ phraseto_tsquery('english', $1)
 /// @@ websearch_to_tsquery($1)
 /// ```
-pub fn fts_operator(b: &mut SqlBuilder, op: FtsOperator, lang: &Option<String>, val: &str) {
-    b.push(" @@ ");
-    let func = match op {
+pub fn fts_operator(b: &mut SqlBuilder, dialect: &dyn SqlDialect, op: FtsOperator, lang: Option<&str>, val: &str) {
+    let operator = match op {
         FtsOperator::Fts => "to_tsquery",
         FtsOperator::FtsPlain => "plainto_tsquery",
         FtsOperator::FtsPhrase => "phraseto_tsquery",
         FtsOperator::FtsWebsearch => "websearch_to_tsquery",
     };
-    b.push(func);
+    // The fts_predicate on the dialect expects the column to already be in the builder.
+    // Here we're appending the RHS of a filter (column @@ tsquery), so we directly
+    // emit the @@ operator and the tsquery function.
+    b.push(" @@ ");
+    b.push(operator);
     b.push("(");
     if let Some(lang) = lang {
         b.push_literal(lang);
@@ -324,6 +326,7 @@ pub fn fts_operator(b: &mut SqlBuilder, op: FtsOperator, lang: &Option<String>, 
     }
     b.push_param(SqlParam::Text(val.to_string()));
     b.push(")");
+    let _ = dialect; // dialect available for future backends that use different FTS syntax
 }
 
 // ==========================================================================
@@ -346,10 +349,10 @@ pub fn fts_operator(b: &mut SqlBuilder, op: FtsOperator, lang: &Option<String>, 
 /// -- negated, field=status, op=eq, value=active
 /// NOT "status" = $1
 /// ```
-pub fn fmt_filter(b: &mut SqlBuilder, qi: &QualifiedIdentifier, filter: &CoercibleFilter) {
+pub fn fmt_filter(b: &mut SqlBuilder, qi: &QualifiedIdentifier, filter: &CoercibleFilter, dialect: &dyn SqlDialect) {
     match filter {
         CoercibleFilter::Filter { field, op_expr } => {
-            fmt_op_expr(b, qi, field, op_expr);
+            fmt_op_expr(b, qi, field, op_expr, dialect);
         }
         CoercibleFilter::NullEmbed(negated, embed_name) => {
             // Null embed check: the embedded relation subquery IS (NOT) NULL
@@ -390,6 +393,7 @@ fn fmt_op_expr(
     qi: &QualifiedIdentifier,
     field: &CoercibleField,
     op_expr: &OpExpr,
+    dialect: &dyn SqlDialect,
 ) {
     // When JSON path operators are present, don't cast parameters for simple operations.
     // This matches PostgREST behavior: rely on PostgreSQL's implicit type coercion.
@@ -409,23 +413,22 @@ fn fmt_op_expr(
                 b.push("NOT ");
             }
             fmt_field(b, qi, field);
-            fmt_operation(b, operation, col_type, has_json_path);
+            fmt_operation(b, operation, col_type, has_json_path, dialect);
         }
         OpExpr::NoOp(val) => {
             // RPC GET parameter — treat as equality
             fmt_field(b, qi, field);
             b.push(" = ");
             b.push_param(SqlParam::Text(val.to_string()));
-            push_type_cast(b, col_type);
+            push_type_cast(b, dialect, col_type);
         }
     }
 }
 
-/// Append `::type` cast to the last parameter placeholder if a column type is known.
-fn push_type_cast(b: &mut SqlBuilder, col_type: Option<&str>) {
+/// Append a type cast suffix via the dialect if a column type is known.
+fn push_type_cast(b: &mut SqlBuilder, dialect: &dyn SqlDialect, col_type: Option<&str>) {
     if let Some(ty) = col_type {
-        b.push("::");
-        b.push(ty);
+        dialect.push_type_cast_suffix(b, ty);
     }
 }
 
@@ -448,14 +451,14 @@ fn push_type_cast(b: &mut SqlBuilder, col_type: Option<&str>) {
 /// | `Is(is_val)`       | ` IS NULL` / ` IS NOT NULL` / etc.      |
 /// | `IsDistinctFrom`   | ` IS DISTINCT FROM $N::type`            |
 /// | `Fts(op, lang, v)` | ` @@ to_tsquery('lang', $N)`            |
-fn fmt_operation(b: &mut SqlBuilder, op: &Operation, col_type: Option<&str>, has_json_path: bool) {
+fn fmt_operation(b: &mut SqlBuilder, op: &Operation, col_type: Option<&str>, has_json_path: bool, dialect: &dyn SqlDialect) {
     match op {
         Operation::Simple(sop, val) => {
             b.push(" ");
             b.push(simple_operator(*sop));
             b.push(" ");
             b.push_param(SqlParam::Text(val.to_string()));
-            push_type_cast(b, col_type);
+            push_type_cast(b, dialect, col_type);
         }
         Operation::Quant(qop, quantifier, val) => {
             // Convert * wildcards to % for LIKE/ILIKE operators
@@ -473,16 +476,14 @@ fn fmt_operation(b: &mut SqlBuilder, op: &Operation, col_type: Option<&str>, has
                 b.push(q_str);
                 b.push("(");
                 b.push_param(SqlParam::Text(effective_val));
-                // Array cast: ::type[]
+                // Array cast
                 if let Some(ty) = col_type {
-                    b.push("::");
-                    b.push(ty);
-                    b.push("[]");
+                    dialect.push_array_type_cast_suffix(b, ty);
                 }
                 b.push(")");
             } else {
                 b.push_param(SqlParam::Text(effective_val));
-                push_type_cast(b, col_type);
+                push_type_cast(b, dialect, col_type);
             }
         }
         Operation::In(vals) => {
@@ -496,22 +497,12 @@ fn fmt_operation(b: &mut SqlBuilder, op: &Operation, col_type: Option<&str>, has
                     .join(",")
             );
             b.push_param(SqlParam::Text(arr));
-            // Array cast: ::type[]
-            // When col_type is provided, cast to that type
-            // When col_type is None but JSON paths are present, cast to text[] since ->>
-            // returns TEXT and PostgreSQL needs explicit array type for ANY()
-            // When col_type is None and no JSON paths, don't cast (let PostgreSQL infer)
+            // Array cast
             if let Some(ty) = col_type {
-                b.push("::");
-                b.push(ty);
-                b.push("[]");
+                dialect.push_array_type_cast_suffix(b, ty);
             } else if has_json_path {
-                // JSON path operators present: cast to text[] since ->>
-                // returns TEXT and PostgreSQL needs explicit array type for ANY()
-                b.push("::text[]");
+                dialect.push_array_type_cast_suffix(b, "text");
             }
-            // Note: When col_type is None and no JSON paths, we don't cast,
-            // matching PostgREST behavior for unknown fields
             b.push(")");
         }
         Operation::Is(is_val) => {
@@ -529,11 +520,10 @@ fn fmt_operation(b: &mut SqlBuilder, op: &Operation, col_type: Option<&str>, has
         Operation::IsDistinctFrom(val) => {
             b.push(" IS DISTINCT FROM ");
             b.push_param(SqlParam::Text(val.to_string()));
-            push_type_cast(b, col_type);
+            push_type_cast(b, dialect, col_type);
         }
         Operation::Fts(fts_op, lang, val) => {
-            let lang_str = lang.as_ref().map(|l| l.to_string());
-            fts_operator(b, *fts_op, &lang_str, val);
+            fts_operator(b, dialect, *fts_op, lang.as_deref(), val);
         }
     }
 }
@@ -555,7 +545,7 @@ fn fmt_operation(b: &mut SqlBuilder, op: &Operation, col_type: Option<&str>, has
 /// ("a" = $1 AND "b" > $2)
 /// NOT ("status" = $1 OR "status" = $2)
 /// ```
-pub fn fmt_logic_tree(b: &mut SqlBuilder, qi: &QualifiedIdentifier, tree: &CoercibleLogicTree) {
+pub fn fmt_logic_tree(b: &mut SqlBuilder, qi: &QualifiedIdentifier, tree: &CoercibleLogicTree, dialect: &dyn SqlDialect) {
     match tree {
         CoercibleLogicTree::Expr(negated, op, children) => {
             if *negated {
@@ -570,12 +560,12 @@ pub fn fmt_logic_tree(b: &mut SqlBuilder, qi: &QualifiedIdentifier, tree: &Coerc
                 if i > 0 {
                     b.push(sep);
                 }
-                fmt_logic_tree(b, qi, child);
+                fmt_logic_tree(b, qi, child, dialect);
             }
             b.push(")");
         }
         CoercibleLogicTree::Stmnt(filter) => {
-            fmt_filter(b, qi, filter);
+            fmt_filter(b, qi, filter, dialect);
         }
     }
 }
@@ -711,7 +701,7 @@ pub fn fmt_join_condition(b: &mut SqlBuilder, jc: &JoinCondition) {
 /// ```sql
 /// WHERE "id" = $1 AND "status" = $2
 /// ```
-pub fn where_clause(b: &mut SqlBuilder, qi: &QualifiedIdentifier, trees: &[CoercibleLogicTree]) {
+pub fn where_clause(b: &mut SqlBuilder, qi: &QualifiedIdentifier, trees: &[CoercibleLogicTree], dialect: &dyn SqlDialect) {
     if trees.is_empty() {
         return;
     }
@@ -720,7 +710,7 @@ pub fn where_clause(b: &mut SqlBuilder, qi: &QualifiedIdentifier, trees: &[Coerc
         if i > 0 {
             b.push(" AND ");
         }
-        fmt_logic_tree(b, qi, tree);
+        fmt_logic_tree(b, qi, tree, dialect);
     }
 }
 
@@ -740,13 +730,14 @@ pub fn returning_clause(
     b: &mut SqlBuilder,
     qi: &QualifiedIdentifier,
     fields: &[CoercibleSelectField],
+    dialect: &dyn SqlDialect,
 ) {
     if fields.is_empty() {
         return;
     }
     b.push(" RETURNING ");
     b.push_separated(", ", fields, |b, f| {
-        fmt_select_item(b, qi, f);
+        fmt_select_item(b, qi, f, dialect);
     });
 }
 
@@ -767,27 +758,8 @@ pub fn returning_clause(
 /// ```sql
 /// json_to_recordset($1) AS _("id" integer, "name" text)
 /// ```
-pub fn from_json_body(b: &mut SqlBuilder, columns: &[CoercibleField], json_body: &[u8]) {
-    // Choose json_to_recordset (array) or json_to_record (object) based on payload shape.
-    let is_array = json_body.first().map(|&c| c == b'[').unwrap_or(false);
-    let func = if is_array {
-        "json_to_recordset"
-    } else {
-        "json_to_record"
-    };
-    b.push(func);
-    b.push("(");
-    // Bind as Text so PostgreSQL receives a json-compatible string, not bytea.
-    b.push_param(SqlParam::Text(
-        String::from_utf8_lossy(json_body).into_owned(),
-    ));
-    b.push("::json) AS _(");
-    b.push_separated(", ", columns, |b, col| {
-        b.push_ident(&col.name);
-        b.push(" ");
-        b.push(col.base_type.as_deref().unwrap_or("text"));
-    });
-    b.push(")");
+pub fn from_json_body(b: &mut SqlBuilder, columns: &[CoercibleField], json_body: &[u8], dialect: &dyn SqlDialect) {
+    dialect.from_json_body(b, columns, json_body);
 }
 
 // ==========================================================================
@@ -800,9 +772,8 @@ pub fn from_json_body(b: &mut SqlBuilder, columns: &[CoercibleField], json_body:
 /// ```sql
 /// SELECT COUNT(*) AS "pgrst_filtered_count" FROM (source_query) AS _pgrst_count_t
 /// ```
-pub fn count_f(b: &mut SqlBuilder) {
-    b.push("SELECT COUNT(*) AS ");
-    b.push_ident("pgrst_filtered_count");
+pub fn count_f(b: &mut SqlBuilder, dialect: &dyn SqlDialect) {
+    dialect.count_star(b);
 }
 
 // ==========================================================================
@@ -867,6 +838,7 @@ pub fn handler_agg_with_media(
     b: &mut SqlBuilder,
     handler: &crate::schema_cache::media_handler::MediaHandler,
     _is_scalar: bool,
+    dialect: &dyn SqlDialect,
 ) {
     use crate::schema_cache::media_handler::MediaHandler;
 
@@ -875,20 +847,16 @@ pub fn handler_agg_with_media(
         | MediaHandler::BuiltinAggSingleJson(_)
         | MediaHandler::BuiltinAggArrayJsonStrip => {
             // JSON aggregation (default)
-            b.push("coalesce(json_agg(");
-            b.push_ident("_pgrest_t");
-            b.push("), '[]')::text");
+            dialect.json_agg(b, "_pgrest_t");
         }
         MediaHandler::BuiltinOvAggCsv => {
-            // CSV formatting with headers
-            // Use array_to_string and array_agg to build CSV rows
+            // CSV formatting with headers — PG-specific string_agg / json_each_text
+            // TODO: delegate to dialect.csv_agg() when adding non-PG backends
             b.push("(SELECT coalesce(");
             b.push("(SELECT ");
-            // Build CSV header from column names
             b.push("string_agg(key, ',') FROM json_object_keys(row_to_json(");
             b.push_ident("_pgrest_t");
             b.push(")) || E'\\n' || ");
-            // Build CSV rows
             b.push("string_agg(");
             b.push("(SELECT string_agg(");
             b.push("CASE WHEN value::text LIKE '%\"%' OR value::text LIKE '%,%' OR value::text LIKE '%\\n%' ");
@@ -902,8 +870,7 @@ pub fn handler_agg_with_media(
             b.push("), ''))");
         }
         MediaHandler::NoAgg => {
-            // No aggregation - typically for binary or single-row responses
-            // Return first column of first row as text
+            // No aggregation - first column of first row as text
             b.push("(SELECT (row_to_json(");
             b.push_ident("_pgrest_t");
             b.push(")->>0)::text FROM ");
@@ -913,15 +880,12 @@ pub fn handler_agg_with_media(
         MediaHandler::CustomFunc(func_qi, _) => {
             // Custom function - call it with the aggregated JSON
             b.push_qi(func_qi);
-            b.push("(coalesce(json_agg(");
-            b.push_ident("_pgrest_t");
-            b.push("), '[]')::text)");
+            b.push("(");
+            dialect.json_agg(b, "_pgrest_t");
+            b.push(")");
         }
         MediaHandler::BuiltinOvAggGeoJson => {
-            // GeoJSON aggregation (future implementation)
-            b.push("coalesce(json_agg(");
-            b.push_ident("_pgrest_t");
-            b.push("), '[]')::text");
+            dialect.json_agg(b, "_pgrest_t");
         }
     }
 }
@@ -930,22 +894,18 @@ pub fn handler_agg_with_media(
 ///
 /// # Deprecated
 /// Use `handler_agg_with_media` instead to support multiple output formats.
-pub fn handler_agg(b: &mut SqlBuilder, _is_scalar: bool) {
-    b.push("coalesce(json_agg(");
-    b.push_ident("_pgrest_t");
-    b.push("), '[]')::text");
+pub fn handler_agg(b: &mut SqlBuilder, _is_scalar: bool, dialect: &dyn SqlDialect) {
+    dialect.json_agg(b, "_pgrest_t");
 }
 
 /// Append a single-object handler aggregation (for to-one relations).
 ///
-/// # SQL Example
+/// # SQL Example (PostgreSQL)
 /// ```sql
 /// row_to_json(_pgrest_t)::text
 /// ```
-pub fn handler_agg_single(b: &mut SqlBuilder) {
-    b.push("row_to_json(");
-    b.push_ident("_pgrest_t");
-    b.push(")::text");
+pub fn handler_agg_single(b: &mut SqlBuilder, dialect: &dyn SqlDialect) {
+    dialect.row_to_json(b, "_pgrest_t");
 }
 
 // ==========================================================================
@@ -984,11 +944,16 @@ pub fn location_f(b: &mut SqlBuilder, pk_cols: &[compact_str::CompactString]) {
 mod tests {
     use super::*;
     use crate::api_request::types::*;
+    use crate::backend::postgres::PgDialect;
     use crate::plan::types::*;
     use smallvec::SmallVec;
 
     fn test_qi() -> QualifiedIdentifier {
         QualifiedIdentifier::new("public", "users")
+    }
+
+    fn dialect() -> &'static dyn SqlDialect {
+        &PgDialect
     }
 
     fn field(name: &str) -> CoercibleField {
@@ -1059,7 +1024,7 @@ mod tests {
     fn test_fmt_select_item_simple() {
         let mut b = SqlBuilder::new();
         let sel = select_field("name");
-        fmt_select_item(&mut b, &test_qi(), &sel);
+        fmt_select_item(&mut b, &test_qi(), &sel, dialect());
         assert_eq!(b.sql(), "\"public\".\"users\".\"name\" AS \"name\"");
     }
 
@@ -1073,7 +1038,7 @@ mod tests {
             cast: Some("text".into()),
             alias: Some("user_name".into()),
         };
-        fmt_select_item(&mut b, &test_qi(), &sel);
+        fmt_select_item(&mut b, &test_qi(), &sel, dialect());
         assert_eq!(
             b.sql(),
             "\"public\".\"users\".\"name\"::text AS \"user_name\""
@@ -1090,7 +1055,7 @@ mod tests {
             cast: None,
             alias: Some("total".into()),
         };
-        fmt_select_item(&mut b, &test_qi(), &sel);
+        fmt_select_item(&mut b, &test_qi(), &sel, dialect());
         assert_eq!(
             b.sql(),
             "COUNT(\"public\".\"users\".\"id\")::bigint AS \"total\""
@@ -1139,7 +1104,7 @@ mod tests {
                 operation: Operation::Quant(QuantOperator::Equal, None, "5".into()),
             },
         };
-        fmt_filter(&mut b, &test_qi(), &filter);
+        fmt_filter(&mut b, &test_qi(), &filter, dialect());
         assert_eq!(b.sql(), "\"public\".\"users\".\"id\"=$1");
     }
 
@@ -1153,7 +1118,7 @@ mod tests {
                 operation: Operation::Quant(QuantOperator::Equal, None, "active".into()),
             },
         };
-        fmt_filter(&mut b, &test_qi(), &filter);
+        fmt_filter(&mut b, &test_qi(), &filter, dialect());
         assert_eq!(b.sql(), "NOT \"public\".\"users\".\"status\"=$1");
     }
 
@@ -1167,7 +1132,7 @@ mod tests {
                 operation: Operation::Is(IsValue::Null),
             },
         };
-        fmt_filter(&mut b, &test_qi(), &filter);
+        fmt_filter(&mut b, &test_qi(), &filter, dialect());
         assert_eq!(b.sql(), "\"public\".\"users\".\"deleted_at\" IS NULL");
     }
 
@@ -1181,7 +1146,7 @@ mod tests {
                 operation: Operation::In(vec!["active".into(), "pending".into()]),
             },
         };
-        fmt_filter(&mut b, &test_qi(), &filter);
+        fmt_filter(&mut b, &test_qi(), &filter, dialect());
         assert_eq!(b.sql(), "\"public\".\"users\".\"status\" = ANY($1)");
     }
 
@@ -1195,7 +1160,7 @@ mod tests {
                 operation: Operation::Simple(SimpleOperator::Contains, "{a,b}".into()),
             },
         };
-        fmt_filter(&mut b, &test_qi(), &filter);
+        fmt_filter(&mut b, &test_qi(), &filter, dialect());
         assert_eq!(b.sql(), "\"public\".\"users\".\"tags\" @> $1");
     }
 
@@ -1213,7 +1178,7 @@ mod tests {
                 ),
             },
         };
-        fmt_filter(&mut b, &test_qi(), &filter);
+        fmt_filter(&mut b, &test_qi(), &filter, dialect());
         assert_eq!(
             b.sql(),
             "\"public\".\"users\".\"body\" @@ to_tsquery('english', $1)"
@@ -1224,7 +1189,7 @@ mod tests {
     fn test_fmt_filter_null_embed() {
         let mut b = SqlBuilder::new();
         let filter = CoercibleFilter::NullEmbed(false, "posts".into());
-        fmt_filter(&mut b, &test_qi(), &filter);
+        fmt_filter(&mut b, &test_qi(), &filter, dialect());
         assert_eq!(b.sql(), "\"posts\" IS NULL");
     }
 
@@ -1232,7 +1197,7 @@ mod tests {
     fn test_fmt_filter_null_embed_negated() {
         let mut b = SqlBuilder::new();
         let filter = CoercibleFilter::NullEmbed(true, "posts".into());
-        fmt_filter(&mut b, &test_qi(), &filter);
+        fmt_filter(&mut b, &test_qi(), &filter, dialect());
         assert_eq!(b.sql(), "\"posts\" IS NOT NULL");
     }
 
@@ -1250,7 +1215,7 @@ mod tests {
                 operation: Operation::Quant(QuantOperator::Equal, None, "1".into()),
             },
         });
-        fmt_logic_tree(&mut b, &test_qi(), &tree);
+        fmt_logic_tree(&mut b, &test_qi(), &tree, dialect());
         assert_eq!(b.sql(), "\"public\".\"users\".\"id\"=$1");
     }
 
@@ -1277,7 +1242,7 @@ mod tests {
                 }),
             ],
         );
-        fmt_logic_tree(&mut b, &test_qi(), &tree);
+        fmt_logic_tree(&mut b, &test_qi(), &tree, dialect());
         assert_eq!(
             b.sql(),
             "(\"public\".\"users\".\"a\"=$1 AND \"public\".\"users\".\"b\">$2)"
@@ -1298,7 +1263,7 @@ mod tests {
                 },
             })],
         );
-        fmt_logic_tree(&mut b, &test_qi(), &tree);
+        fmt_logic_tree(&mut b, &test_qi(), &tree, dialect());
         assert_eq!(b.sql(), "NOT (\"public\".\"users\".\"x\"=$1)");
     }
 
@@ -1407,7 +1372,7 @@ mod tests {
     #[test]
     fn test_where_clause_empty() {
         let mut b = SqlBuilder::new();
-        where_clause(&mut b, &test_qi(), &[]);
+        where_clause(&mut b, &test_qi(), &[], dialect());
         assert_eq!(b.sql(), "");
     }
 
@@ -1421,7 +1386,7 @@ mod tests {
                 operation: Operation::Quant(QuantOperator::Equal, None, "1".into()),
             },
         });
-        where_clause(&mut b, &test_qi(), &[tree]);
+        where_clause(&mut b, &test_qi(), &[tree], dialect());
         assert_eq!(b.sql(), " WHERE \"public\".\"users\".\"id\"=$1");
     }
 
@@ -1432,7 +1397,7 @@ mod tests {
     #[test]
     fn test_returning_clause_empty() {
         let mut b = SqlBuilder::new();
-        returning_clause(&mut b, &test_qi(), &[]);
+        returning_clause(&mut b, &test_qi(), &[], dialect());
         assert_eq!(b.sql(), "");
     }
 
@@ -1440,7 +1405,7 @@ mod tests {
     fn test_returning_clause_fields() {
         let mut b = SqlBuilder::new();
         let fields = vec![select_field("id"), select_field("name")];
-        returning_clause(&mut b, &test_qi(), &fields);
+        returning_clause(&mut b, &test_qi(), &fields, dialect());
         assert!(b.sql().starts_with(" RETURNING "));
         assert!(b.sql().contains("\"id\""));
         assert!(b.sql().contains("\"name\""));
@@ -1455,7 +1420,7 @@ mod tests {
         let mut b = SqlBuilder::new();
         let cols = vec![typed_field("id", "integer"), typed_field("name", "text")];
         let json = b"[{\"id\":1,\"name\":\"test\"}]";
-        from_json_body(&mut b, &cols, json);
+        from_json_body(&mut b, &cols, json, dialect());
         assert!(b.sql().starts_with("json_to_recordset($1::json) AS _("));
         assert!(b.sql().contains("\"id\" integer"));
         assert!(b.sql().contains("\"name\" text"));
@@ -1525,14 +1490,14 @@ mod tests {
     #[test]
     fn test_handler_agg() {
         let mut b = SqlBuilder::new();
-        handler_agg(&mut b, false);
+        handler_agg(&mut b, false, dialect());
         assert_eq!(b.sql(), "coalesce(json_agg(\"_pgrest_t\"), '[]')::text");
     }
 
     #[test]
     fn test_handler_agg_single() {
         let mut b = SqlBuilder::new();
-        handler_agg_single(&mut b);
+        handler_agg_single(&mut b, dialect());
         assert_eq!(b.sql(), "row_to_json(\"_pgrest_t\")::text");
     }
 

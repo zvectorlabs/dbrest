@@ -21,14 +21,14 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use bytes::Bytes;
-use sqlx::Row;
 
 use crate::api_request;
 use crate::api_request::preferences::{PreferRepresentation, Preferences};
 use crate::auth::types::AuthResult;
+use crate::backend::StatementResult;
 use crate::error::Error;
 use crate::plan::{self, ActionPlan, CrudPlan, DbActionPlan};
-use crate::query::{self, SqlBuilder, SqlParam};
+use crate::query::{self};
 use crate::schema_cache::SchemaCache;
 use crate::types::media::MediaType;
 
@@ -68,7 +68,7 @@ fn flatten_headers(headers: &HeaderMap) -> Vec<(String, String)> {
         .collect()
 }
 
-/// Execute a `MainQuery` against the pool inside a transaction.
+/// Execute a `MainQuery` against the database backend inside a transaction.
 ///
 /// Runs tx_vars, pre_req, and main query in order within a single
 /// transaction, returning the CTE result set from the main query.
@@ -81,335 +81,18 @@ async fn execute_main_query(
         .db_queries_total
         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
-    let pool = &state.pool;
-    let mut tx = pool.begin().await.map_err(|e| Error::Database {
-        code: None,
-        message: e.to_string(),
-        detail: None,
-        hint: None,
-    })?;
-
-    // 1. Set session variables
-    if let Some(ref tv) = mq.tx_vars {
-        exec_raw(&mut tx, tv).await?;
-    }
-
-    // 2. Call pre-request function
-    if let Some(ref pr) = mq.pre_req {
-        exec_raw(&mut tx, pr).await?;
-    }
-
-    // 3. Execute the main query
-    let result = if let Some(ref main) = mq.main {
-        exec_statement(&mut tx, main).await?
-    } else {
-        StatementResult::empty()
-    };
-
-    tx.commit().await.map_err(|e| Error::Database {
-        code: None,
-        message: e.to_string(),
-        detail: None,
-        hint: None,
-    })?;
-
-    Ok(result)
+    state
+        .db
+        .exec_in_transaction(
+            mq.tx_vars.as_ref(),
+            mq.pre_req.as_ref(),
+            mq.main.as_ref(),
+        )
+        .await
 }
 
-/// Execute a raw SQL builder (e.g. tx_vars, pre_req) — no result set.
-async fn exec_raw(conn: &mut sqlx::PgConnection, builder: &SqlBuilder) -> Result<(), Error> {
-    let sql = builder.sql();
-    let params = builder.params();
-    let mut q = sqlx::query(sql);
-    for p in params {
-        match p {
-            SqlParam::Text(t) => q = q.bind(t.as_str()),
-            SqlParam::Json(j) => q = q.bind(j.to_vec()),
-            SqlParam::Binary(b) => q = q.bind(b.to_vec()),
-            SqlParam::Null => q = q.bind(Option::<String>::None),
-        }
-    }
-    q.execute(&mut *conn).await.map_err(map_db_error)?;
-    Ok(())
-}
-
-/// Execute a CTE-wrapped statement and parse the five-column result set.
-async fn exec_statement(
-    conn: &mut sqlx::PgConnection,
-    builder: &SqlBuilder,
-) -> Result<StatementResult, Error> {
-    let sql = builder.sql();
-    let params = builder.params();
-    let mut q = sqlx::query(sql);
-    for p in params {
-        match p {
-            SqlParam::Text(t) => q = q.bind(t.as_str()),
-            SqlParam::Json(j) => q = q.bind(j.to_vec()),
-            SqlParam::Binary(b) => q = q.bind(b.to_vec()),
-            SqlParam::Null => q = q.bind(Option::<String>::None),
-        }
-    }
-    let rows = q.fetch_all(&mut *conn).await.map_err(map_db_error)?;
-
-    if rows.is_empty() {
-        return Ok(StatementResult::empty());
-    }
-
-    let row = &rows[0];
-
-    // total_result_set — may be '' (empty string) or a number
-    let total: Option<i64> = row
-        .try_get::<String, _>("total_result_set")
-        .ok()
-        .and_then(|s| s.parse::<i64>().ok());
-
-    let page_total: i64 = row.try_get("page_total").unwrap_or(0);
-
-    // body — character varying containing JSON
-    let body_str: String = row.try_get("body").unwrap_or_else(|_| "[]".to_string());
-
-    // response_headers — text from current_setting('response.headers', true), parse as JSON
-    // Column is aliased as "response_headers" in the SQL
-    let response_headers: Option<serde_json::Value> = row
-        .try_get::<Option<String>, _>("response_headers")
-        .ok()
-        .flatten()
-        .and_then(|s| {
-            if s.is_empty() {
-                None
-            } else {
-                serde_json::from_str(&s).ok()
-            }
-        });
-
-    // response_status — text from current_setting('response.status', true), parse as i32
-    // Column is aliased as "response_status" in the SQL
-    let response_status: Option<i32> = row
-        .try_get::<Option<String>, _>("response_status")
-        .ok()
-        .flatten()
-        .and_then(|s| {
-            if s.is_empty() {
-                None
-            } else {
-                s.parse::<i32>().ok()
-            }
-        });
-
-    Ok(StatementResult {
-        total,
-        page_total,
-        body: body_str,
-        response_headers,
-        response_status,
-    })
-}
-
-/// Map a sqlx error to our Error type, detecting constraint violations and other PostgreSQL errors.
-fn map_db_error(e: sqlx::Error) -> Error {
-    // Try to extract PostgreSQL-specific error information first
-    let (code, message, detail, hint) = match &e {
-        sqlx::Error::Database(db_err) => {
-            let code = db_err.code().map(|c| c.to_string());
-            let message = db_err.message().to_string();
-            let detail = db_err.constraint().map(|c| c.to_string());
-
-            // Try to downcast to PgDatabaseError to get hint
-            // We need to use the concrete type, not the trait
-            let hint = if let Some(pg_err) =
-                db_err.try_downcast_ref::<sqlx::postgres::PgDatabaseError>()
-            {
-                pg_err.hint().map(|s| s.to_string())
-            } else {
-                None
-            };
-
-            (code, message, detail, hint)
-        }
-        _ => {
-            // Non-database error, return generic error
-            return Error::Database {
-                code: None,
-                message: e.to_string(),
-                detail: None,
-                hint: None,
-            };
-        }
-    };
-
-    if code.is_some() || !message.is_empty() {
-        // Map PostgreSQL error codes to specific Error variants
-        match code.as_deref() {
-            // Constraint violations
-            Some("23505") => return Error::UniqueViolation(message),
-            Some("23503") => return Error::ForeignKeyViolation(message),
-            Some("23514") => return Error::CheckViolation(message),
-            Some("23502") => return Error::NotNullViolation(message),
-            Some("23P01") => return Error::ExclusionViolation(message),
-
-            // Permission errors
-            Some("42501") => {
-                // Extract role from message if possible, otherwise use "unknown"
-                let role =
-                    extract_role_from_message(&message).unwrap_or_else(|| "unknown".to_string());
-                return Error::PermissionDenied { role };
-            }
-
-            // Not found errors
-            Some("42883") => {
-                // Error code 42883 can be either "undefined_function" or "operator does not exist"
-                // Check if it's an operator error first
-                if message.contains("operator") {
-                    // This is an operator error, not a function error
-                    // Return as a database error with appropriate detail
-                    return Error::Database {
-                        code: Some("42883".to_string()),
-                        message: message.clone(),
-                        detail: Some("Operator error: The requested operator is not available for the given data types.".to_string()),
-                        hint: Some("Check that the filter operator and column types are compatible.".to_string()),
-                    };
-                }
-                // Otherwise, it's a function error
-                let func_name =
-                    extract_name_from_message(&message, "function").unwrap_or_else(|| {
-                        tracing::debug!(
-                            "Could not extract function name from PostgreSQL error: {}",
-                            message
-                        );
-                        "unknown".to_string()
-                    });
-                return Error::FunctionNotFound { name: func_name };
-            }
-            Some("42P01") => {
-                // undefined_table
-                let table_name = extract_name_from_message(&message, "relation")
-                    .unwrap_or_else(|| "unknown".to_string());
-                return Error::TableNotFound {
-                    name: table_name,
-                    suggestion: None,
-                };
-            }
-            Some("42703") => {
-                // undefined_column
-                // PostgreSQL error format: "column users.nonexistent_field does not exist"
-                // or "column nonexistent_field does not exist"
-                // Find the part after "column" keyword
-                if let Some(col_start) = message.find("column ") {
-                    let after_col = &message[col_start + 7..]; // Skip "column "
-                    // Find the next space or "does"
-                    let col_end = after_col.find(" does").unwrap_or(after_col.len());
-                    let col_ref = after_col[..col_end].trim();
-
-                    // Parse "table.column" or just "column"
-                    let (table_name, col_name) = if let Some(dot_pos) = col_ref.find('.') {
-                        // Format: "table.column"
-                        let table = col_ref[..dot_pos].trim_matches('"').to_string();
-                        let col = col_ref[dot_pos + 1..].trim_matches('"').to_string();
-                        (table, col)
-                    } else {
-                        // Format: just "column"
-                        let col = col_ref.trim_matches('"').to_string();
-                        ("unknown".to_string(), col)
-                    };
-                    return Error::ColumnNotFound {
-                        table: table_name,
-                        column: col_name,
-                    };
-                }
-                return Error::InvalidQueryParam {
-                    param: "column".to_string(),
-                    message,
-                };
-            }
-
-            // RAISE exceptions (P0001)
-            Some("P0001") => {
-                // Check if response.status was set via GUC (we'd need to check the result, but for now use default)
-                return Error::RaisedException {
-                    message,
-                    status: None, // Will be overridden by response.status GUC if set
-                };
-            }
-
-            // PostgREST custom codes (PT***)
-            Some(code) if code.starts_with("PT") => {
-                // Extract status code from PT code (e.g., PT400 -> 400)
-                if let Some(status_str) = code.strip_prefix("PT")
-                    && let Ok(status) = status_str.parse::<u16>()
-                {
-                    return Error::PgrstRaise { message, status };
-                }
-            }
-
-            _ => {}
-        }
-
-        // Default: return generic Database error with all details
-        return Error::Database {
-            code,
-            message,
-            detail,
-            hint,
-        };
-    }
-
-    // Non-database errors (connection, pool, etc.)
-    Error::Database {
-        code: None,
-        message: e.to_string(),
-        detail: None,
-        hint: None,
-    }
-}
-
-/// Extract role name from PostgreSQL error message.
-fn extract_role_from_message(msg: &str) -> Option<String> {
-    // PostgreSQL messages often have format like "permission denied for role <role>"
-    if let Some(start) = msg.find("role ") {
-        let rest = &msg[start + 5..];
-        if let Some(end) = rest.find([' ', '\n', '\r']) {
-            return Some(rest[..end].to_string());
-        }
-        return Some(rest.to_string());
-    }
-    None
-}
-
-/// Extract name (function, table, column) from PostgreSQL error message.
-fn extract_name_from_message(msg: &str, keyword: &str) -> Option<String> {
-    // Look for patterns like "function <name>", "relation <name>", "column <name>"
-    if let Some(start) = msg.find(keyword) {
-        let rest = &msg[start + keyword.len()..];
-        // Skip whitespace
-        let rest = rest.trim_start();
-        // Find the name (up to space, comma, or parenthesis)
-        if let Some(end) = rest.find([' ', ',', '(', '\n', '\r']) {
-            let name = rest[..end].trim_matches('"').to_string();
-            if !name.is_empty() {
-                return Some(name);
-            }
-        }
-        // If no delimiter, try to extract quoted or unquoted name
-        let name = rest
-            .split_whitespace()
-            .next()?
-            .trim_matches('"')
-            .to_string();
-        if !name.is_empty() {
-            return Some(name);
-        }
-    }
-    None
-}
-
-/// Parsed result from a CTE-wrapped statement.
-struct StatementResult {
-    total: Option<i64>,
-    page_total: i64,
-    body: String,
-    response_headers: Option<serde_json::Value>,
-    response_status: Option<i32>,
-}
+// Error mapping has been moved to the backend module.
+// See crate::backend::postgres::executor::map_sqlx_error
 
 /// Apply GUC overrides from `response.status` and `response.headers` to a response builder.
 ///
@@ -482,17 +165,6 @@ fn apply_guc_overrides(
     Ok(builder)
 }
 
-impl StatementResult {
-    fn empty() -> Self {
-        Self {
-            total: None,
-            page_total: 0,
-            body: "[]".to_string(),
-            response_headers: None,
-            response_status: None,
-        }
-    }
-}
 
 // ==========================================================================
 // Core request processing pipeline
@@ -551,6 +223,7 @@ async fn process_request(
     let mq = query::main_query(
         &action_plan,
         &config,
+        state.dialect.as_ref(),
         method,
         path,
         Some(role_name),

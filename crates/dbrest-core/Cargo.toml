@@ -1,0 +1,76 @@
+[package]
+name = "dbrest-core"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.91"
+description = "Database-agnostic core for the dbrest REST API"
+license = "MIT"
+
+[dependencies]
+# Core async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Web framework
+axum = "0.7"
+http = "1"
+hyper = { version = "1", features = ["server"] }
+hyper-util = { version = "0.1", features = ["tokio", "server-auto", "http2"] }
+
+# Error handling
+thiserror = "2"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Optimized types
+compact_str = { version = "0.8", features = ["serde"] }
+smallvec = { version = "1", features = ["serde"] }
+bytes = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Encoding
+base64 = "0.22"
+
+# Concurrency
+arc-swap = "1"
+
+# Collections
+indexmap = { version = "2", features = ["serde"] }
+
+# Async traits
+async-trait = "0.1"
+
+# API Request parsing
+bitflags = "2"
+form_urlencoded = "1"
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["cors", "compression-gzip", "trace"] }
+
+# JWT
+jsonwebtoken = "9"
+
+# Caching
+moka = { version = "0.12", features = ["future"] }
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# CLI
+clap = { version = "4", features = ["derive", "env"] }
+
+# Streaming
+futures = "0.3"
+
+[dev-dependencies]
+tokio-test = "0.4"
+mockall = "0.13"
+tempfile = "3"
+insta = "1.42"
+serial_test = "3"
+hyper = { version = "1", features = ["full"] }
+jsonwebtoken = "9"
+chrono = "0.4"

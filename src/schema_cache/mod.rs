@@ -103,7 +103,7 @@ impl SchemaCache {
     }
 
     /// Load schema cache from database using the provided introspector
-    pub async fn load<I: DbIntrospector>(
+    pub async fn load<I: DbIntrospector + ?Sized>(
         introspector: &I,
         config: &AppConfig,
     ) -> Result<Self, Error> {
