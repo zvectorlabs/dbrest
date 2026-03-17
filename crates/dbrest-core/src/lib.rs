@@ -17,6 +17,7 @@ pub mod error;
 pub mod openapi;
 pub mod plan;
 pub mod query;
+pub mod routing;
 pub mod schema_cache;
 pub mod types;
 
@@ -33,5 +34,6 @@ pub use config::{AppConfig, load_config};
 pub use error::Error;
 pub use plan::action_plan;
 pub use schema_cache::{SchemaCache, SchemaCacheHolder};
+pub use routing::{LocalRouter, NamespaceId, Route, Router, RoutingError};
 pub use types::identifiers::{QualifiedIdentifier, RelIdentifier};
 pub use types::media::MediaType;
