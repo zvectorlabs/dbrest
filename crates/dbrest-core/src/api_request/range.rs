@@ -166,7 +166,7 @@ impl fmt::Display for Range {
 /// # Examples
 ///
 /// ```
-/// use pgrest::api_request::range::parse_range_header;
+/// use dbrest::api_request::range::parse_range_header;
 ///
 /// let r = parse_range_header("items=0-24").unwrap();
 /// assert_eq!(r.offset, 0);

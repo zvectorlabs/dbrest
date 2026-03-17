@@ -1,6 +1,6 @@
-# PgREST Benchmark Suite
+# dbrest Benchmark Suite
 
-Comprehensive benchmark suite for PgREST using 100% Rust-native tools.
+Comprehensive benchmark suite for dbrest using 100% Rust-native tools.
 
 ## Overview
 
@@ -14,7 +14,7 @@ This benchmark suite consists of three tiers:
 
 - Rust 1.91+
 - PostgreSQL 17+ (for integration benchmarks and load tests)
-- Running PgREST server on `localhost:3000` (for integration benchmarks and load tests)
+- Running dbrest server on `localhost:3000` (for integration benchmarks and load tests)
 
 ## Running Benchmarks
 
@@ -36,12 +36,12 @@ Results are saved to `target/criterion/micro_benchmarks/` with HTML reports.
 
 ### Integration Benchmarks
 
-Integration benchmarks require a running PgREST server with test data:
+Integration benchmarks require a running dbrest server with test data:
 
 1. **Start PostgreSQL** (if not already running):
    ```bash
    # Using Docker
-   docker run -d --name pgrest-bench \
+   docker run -d --name dbrest-bench \
      -e POSTGRES_PASSWORD=postgres \
      -p 5432:5432 \
      postgres:17
@@ -53,7 +53,7 @@ Integration benchmarks require a running PgREST server with test data:
    psql -h localhost -U postgres -f benches/fixtures/seed_data.sql
    ```
 
-3. **Start PgREST server**:
+3. **Start dbrest server**:
    ```bash
    cargo run --release &
    # Wait for server to start
@@ -70,8 +70,8 @@ This will benchmark:
 - Embedded queries (depth 1, depth 2, multiple embeds)
 - Mutations (POST, PATCH, DELETE)
 - RPC calls (GET and POST)
-- Streaming responses (PgREST-specific)
-- Computed fields (PgREST-specific)
+- Streaming responses (dbrest-specific)
+- Computed fields (dbrest-specific)
 
 ### Load Testing
 
@@ -94,7 +94,7 @@ For benchmark comparison scripts that capture requests-per-second:
 cargo bench --bench bench_metrics
 ```
 
-Outputs JSON with throughput (req/s), latency (p50/p95/p99), and error rate. Use `./scripts/benchmark-compare.sh` for a full PgREST vs PostgREST comparison with req/s comparison table.
+Outputs JSON with throughput (req/s), latency (p50/p95/p99), and error rate. Use `./scripts/benchmark-compare.sh` for a full dbrest vs PostgREST comparison with req/s comparison table.
 
 ## Interpreting Results
 
@@ -142,7 +142,7 @@ This provides realistic data volumes for benchmarking.
 
 ### "Connection refused" errors
 
-Ensure PgREST is running on `localhost:3000`:
+Ensure dbrest is running on `localhost:3000`:
 ```bash
 curl http://localhost:3000/
 ```

@@ -1,4 +1,4 @@
-//! Rust-native load tester for PgREST
+//! Rust-native load tester for dbrest
 //!
 //! Custom load testing implementation using tokio + reqwest for concurrent
 //! HTTP load testing. Provides type-safe request definitions, configurable

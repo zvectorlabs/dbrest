@@ -8,14 +8,14 @@
 //!
 //! 1. Extract token from `Authorization` header.
 //! 2. If no token and anonymous role is configured → anonymous access.
-//! 3. If no token and no anonymous role → 401 (`PGRST302`).
+//! 3. If no token and no anonymous role → 401 (`DBRST302`).
 //! 4. Check the JWT cache for a previous validation result.
 //! 5. On cache miss, validate via [`jwt::parse_and_validate`].
 //! 6. Store the result in the cache and attach it to the request extensions.
 //!
 //! # Error Response
 //!
-//! JWT errors produce a JSON error body with the appropriate PGRST error
+//! JWT errors produce a JSON error body with the appropriate DBRST error
 //! code and a `WWW-Authenticate` header when the status is 401.
 
 use std::sync::Arc;
@@ -42,7 +42,7 @@ use super::types::AuthResult;
 /// fields are `Arc` or `Clone`-cheap).
 ///
 /// The `config` field is an `ArcSwap` so that live config reloads
-/// (triggered via `NOTIFY pgrst, 'reload config'`) are visible to the
+/// (triggered via `NOTIFY dbrst, 'reload config'`) are visible to the
 /// auth middleware without restarting the server.
 #[derive(Debug, Clone)]
 pub struct AuthState {
@@ -88,7 +88,7 @@ impl AuthState {
 ///
 /// ```ignore
 /// use axum::{Router, middleware};
-/// use pgrest::auth::middleware::{auth_middleware, AuthState};
+/// use dbrest::auth::middleware::{auth_middleware, AuthState};
 ///
 /// let state = AuthState::new(config.into());
 /// let app = Router::new()

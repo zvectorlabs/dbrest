@@ -1,4 +1,4 @@
-//! MutatePlan types for PgREST
+//! MutatePlan types for dbrest
 //!
 //! Defines the plan types for INSERT, UPDATE, DELETE, and UPSERT operations.
 //! Matches the Haskell `MutatePlan` data type.

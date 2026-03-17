@@ -14,8 +14,8 @@
 //! # Example
 //!
 //! ```ignore
-//! use pgrest::auth::jwt::parse_and_validate;
-//! use pgrest::config::AppConfig;
+//! use dbrest::auth::jwt::parse_and_validate;
+//! use dbrest::config::AppConfig;
 //!
 //! let config = AppConfig { jwt_secret: Some("my-secret".into()), ..Default::default() };
 //! let result = parse_and_validate("eyJ...", &config)?;
@@ -327,7 +327,7 @@ mod tests {
 
         let err = parse_and_validate(&token, &config).unwrap_err();
         assert!(matches!(err, JwtError::Claims(JwtClaimsError::Expired)));
-        assert_eq!(err.code(), "PGRST303");
+        assert_eq!(err.code(), "DBRST303");
     }
 
     #[test]

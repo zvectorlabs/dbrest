@@ -1,4 +1,4 @@
--- Benchmark seed data for PgREST performance testing
+-- Benchmark seed data for dbrest performance testing
 -- This file generates realistic test data for benchmarking
 -- Reuses schema from tests/fixtures/schema.sql
 

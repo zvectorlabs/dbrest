@@ -1,18 +1,18 @@
-//! Error handling for PgREST
+//! Error handling for dbrest
 //!
 //! This module provides:
-//! - [`enum@Error`] - Main error enum with PGRST-compatible error codes
+//! - [`enum@Error`] - Main error enum with DBRST-compatible error codes
 //! - [`ErrorResponse`] - JSON response format for errors
 //!
 //! # Error Codes
 //!
-//! Error codes follow PGRST conventions:
-//! - PGRST000-099: Configuration errors
-//! - PGRST100-199: API request errors
-//! - PGRST200-299: Schema cache errors
-//! - PGRST300-399: Authentication errors
-//! - PGRST400-499: Request/action errors
-//! - PGRST500-599: Database errors
+//! Error codes follow DBRST conventions:
+//! - DBRST000-099: Configuration errors
+//! - DBRST100-199: API request errors
+//! - DBRST200-299: Schema cache errors
+//! - DBRST300-399: Authentication errors
+//! - DBRST400-499: Request/action errors
+//! - DBRST500-599: Database errors
 
 pub mod codes;
 pub mod response;
@@ -21,13 +21,13 @@ pub use response::ErrorResponse;
 
 use thiserror::Error;
 
-/// Main error type for PgREST
+/// Main error type for dbrest
 ///
-/// Each variant maps to a specific PGRST error code and HTTP status code.
+/// Each variant maps to a specific DBRST error code and HTTP status code.
 #[derive(Debug, Error)]
 pub enum Error {
     // =========================================
-    // Configuration Errors (PGRST000-099)
+    // Configuration Errors (DBRST000-099)
     // =========================================
     #[error("Database connection failed: {0}")]
     DbConnection(String),
@@ -42,7 +42,7 @@ pub enum Error {
     ConnectionRetryTimeout,
 
     // =========================================
-    // API Request Errors (PGRST100-199)
+    // API Request Errors (DBRST100-199)
     // =========================================
     #[error("Invalid query parameter '{param}': {message}")]
     InvalidQueryParam { param: String, message: String },
@@ -115,8 +115,8 @@ pub enum Error {
     #[error("Bad operator on the '{target}' embedded resource")]
     UnacceptableFilter { target: String },
 
-    #[error("Could not parse JSON in the \"RAISE SQLSTATE 'PGRST'\" error: {0}")]
-    PgrstParseError(String),
+    #[error("Could not parse JSON in the \"RAISE SQLSTATE 'DBRST'\" error: {0}")]
+    DbrstParseError(String),
 
     #[error("Invalid preferences given with handling=strict: {0}")]
     InvalidPreferencesStrict(String),
@@ -142,7 +142,7 @@ pub enum Error {
     MaxAffectedRpcViolation,
 
     // =========================================
-    // Schema Cache Errors (PGRST200-299)
+    // Schema Cache Errors (DBRST200-299)
     // =========================================
     #[error("Table not found: {name}")]
     TableNotFound {
@@ -177,7 +177,7 @@ pub enum Error {
     AmbiguousFunction { name: String },
 
     // =========================================
-    // JWT/Auth Errors (PGRST300-399)
+    // JWT/Auth Errors (DBRST300-399)
     // =========================================
     #[error("{0}")]
     JwtAuth(#[from] crate::auth::error::JwtError),
@@ -192,7 +192,7 @@ pub enum Error {
     PermissionDenied { role: String },
 
     // =========================================
-    // Request/Action Errors (PGRST400-499)
+    // Request/Action Errors (DBRST400-499)
     // =========================================
     #[error("Table '{table}' is not insertable")]
     NotInsertable { table: String },
@@ -219,7 +219,7 @@ pub enum Error {
     PutIncomplete,
 
     // =========================================
-    // Database Errors (PGRST500-599)
+    // Database Errors (DBRST500-599)
     // =========================================
     #[error("Database error: {message}")]
     Database {
@@ -254,7 +254,7 @@ pub enum Error {
     },
 
     #[error("PostgREST raise: {message}")]
-    PgrstRaise { message: String, status: u16 },
+    DbrstRaise { message: String, status: u16 },
 
     // =========================================
     // Internal Errors
@@ -264,7 +264,7 @@ pub enum Error {
 }
 
 impl Error {
-    /// Get the PGRST error code for this error.
+    /// Get the DBRST error code for this error.
     pub fn code(&self) -> &'static str {
         match self {
             // Config errors
@@ -297,7 +297,7 @@ impl Error {
             Error::UnsupportedMethod(_) => codes::request::UNSUPPORTED_METHOD,
             Error::RelatedOrderNotToOne { .. } => codes::request::RELATED_ORDER_NOT_TO_ONE,
             Error::UnacceptableFilter { .. } => codes::request::UNACCEPTABLE_FILTER,
-            Error::PgrstParseError(_) => codes::request::PGRST_PARSE_ERROR,
+            Error::DbrstParseError(_) => codes::request::DBRST_PARSE_ERROR,
             Error::InvalidPreferencesStrict(_) => codes::request::INVALID_PREFERENCES,
             Error::AggregatesNotAllowed => codes::request::AGGREGATES_NOT_ALLOWED,
             Error::MaxAffectedViolation { .. } => codes::request::MAX_AFFECTED_VIOLATION,
@@ -340,7 +340,7 @@ impl Error {
             Error::ExclusionViolation(_) => codes::database::EXCLUSION_VIOLATION,
             Error::MaxRowsExceeded { .. } => codes::database::MAX_ROWS_EXCEEDED,
             Error::RaisedException { .. } => codes::database::RAISED_EXCEPTION,
-            Error::PgrstRaise { .. } => codes::database::PGRST_RAISE,
+            Error::DbrstRaise { .. } => codes::database::DBRST_RAISE,
 
             // Internal
             Error::Internal(_) => codes::internal::INTERNAL_ERROR,
@@ -388,7 +388,7 @@ impl Error {
             | Error::UnsupportedMethod(_)
             | Error::RelatedOrderNotToOne { .. }
             | Error::UnacceptableFilter { .. }
-            | Error::PgrstParseError(_)
+            | Error::DbrstParseError(_)
             | Error::InvalidPreferencesStrict(_)
             | Error::AggregatesNotAllowed
             | Error::MaxAffectedViolation { .. }
@@ -433,8 +433,8 @@ impl Error {
                 .and_then(|s| StatusCode::from_u16(s).ok())
                 .unwrap_or(StatusCode::BAD_REQUEST),
 
-            // PGRST raise → use status from error
-            Error::PgrstRaise { status, .. } => {
+            // DBRST raise → use status from error
+            Error::DbrstRaise { status, .. } => {
                 StatusCode::from_u16(*status).unwrap_or(StatusCode::BAD_REQUEST)
             }
 
@@ -525,7 +525,7 @@ impl Error {
                 Some(message.clone()),
                 None,
             ),
-            Error::PgrstRaise { message, .. } => (
+            Error::DbrstRaise { message, .. } => (
                 Some(message.clone()),
                 None,
             ),
@@ -568,7 +568,7 @@ mod tests {
             name: "users".to_string(),
             suggestion: None,
         };
-        assert_eq!(err.code(), "PGRST205"); // TableNotFound uses PGRST205 per PostgREST
+        assert_eq!(err.code(), "DBRST205"); // TableNotFound uses DBRST205 per PostgREST
         assert_eq!(err.status(), http::StatusCode::NOT_FOUND);
     }
 
@@ -607,7 +607,7 @@ mod tests {
 
     #[test]
     fn test_new_error_codes() {
-        // PGRST003
+        // DBRST003
         assert_eq!(
             Error::ConnectionRetryTimeout.code(),
             codes::config::CONNECTION_RETRY_TIMEOUT
@@ -617,7 +617,7 @@ mod tests {
             http::StatusCode::SERVICE_UNAVAILABLE
         );
 
-        // PGRST106
+        // DBRST106
         assert_eq!(
             Error::SchemaNotFound("test".to_string()).code(),
             codes::request::SCHEMA_NOT_FOUND
@@ -627,37 +627,37 @@ mod tests {
             http::StatusCode::BAD_REQUEST
         );
 
-        // PGRST107
+        // DBRST107
         assert_eq!(
             Error::InvalidSpreadColumn("col".to_string()).code(),
             codes::request::INVALID_SPREAD_COLUMN
         );
 
-        // PGRST112
+        // DBRST112
         assert_eq!(
             Error::InvalidMediaHandler("handler".to_string()).code(),
             codes::request::INVALID_MEDIA_HANDLER
         );
 
-        // PGRST113
+        // DBRST113
         assert_eq!(
             Error::MediaTypeMismatch("mismatch".to_string()).code(),
             codes::request::MEDIA_TYPE_MISMATCH
         );
 
-        // PGRST114
+        // DBRST114
         assert_eq!(
             Error::UriTooLong("uri".to_string()).code(),
             codes::request::URI_TOO_LONG
         );
 
-        // PGRST115
+        // DBRST115
         assert_eq!(
             Error::InvalidAggregate("agg".to_string()).code(),
             codes::request::INVALID_AGGREGATE
         );
 
-        // PGRST505
+        // DBRST505
         assert_eq!(
             Error::NotNullViolation("msg".to_string()).code(),
             codes::database::NOT_NULL_VIOLATION
@@ -667,7 +667,7 @@ mod tests {
             http::StatusCode::BAD_REQUEST
         );
 
-        // PGRST506
+        // DBRST506
         assert_eq!(
             Error::ExclusionViolation("msg".to_string()).code(),
             codes::database::EXCLUSION_VIOLATION
@@ -677,7 +677,7 @@ mod tests {
             http::StatusCode::CONFLICT
         );
 
-        // PGRST507
+        // DBRST507
         assert_eq!(
             Error::RaisedException {
                 message: "test".to_string(),
@@ -695,17 +695,17 @@ mod tests {
             http::StatusCode::ACCEPTED
         );
 
-        // PGRST508
+        // DBRST508
         assert_eq!(
-            Error::PgrstRaise {
+            Error::DbrstRaise {
                 message: "test".to_string(),
                 status: 418
             }
             .code(),
-            codes::database::PGRST_RAISE
+            codes::database::DBRST_RAISE
         );
         assert_eq!(
-            Error::PgrstRaise {
+            Error::DbrstRaise {
                 message: "test".to_string(),
                 status: 418
             }
@@ -731,7 +731,7 @@ mod tests {
                 message: "test".to_string(),
                 status: None,
             },
-            Error::PgrstRaise {
+            Error::DbrstRaise {
                 message: "test".to_string(),
                 status: 400,
             },
@@ -836,7 +836,7 @@ mod tests {
                 message: "test".to_string(),
                 status: None,
             },
-            Error::PgrstRaise {
+            Error::DbrstRaise {
                 message: "test".to_string(),
                 status: 400,
             },

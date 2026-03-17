@@ -1,6 +1,6 @@
 //! Query parameter parsing
 //!
-//! URL query parameter parsing for PgREST.
+//! URL query parameter parsing for dbrest.
 //! Parses URL query strings into structured types for select, filter, order,
 //! logic trees, columns, and ranges.
 

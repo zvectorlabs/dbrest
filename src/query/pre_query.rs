@@ -1,6 +1,6 @@
 //! Transaction and session variable setup queries.
 //!
-//! Before executing the main SQL query, PgREST sets PostgreSQL session
+//! Before executing the main SQL query, dbrest sets PostgreSQL session
 //! variables via `set_config()` to communicate request context to
 //! database functions and triggers. This module generates those setup
 //! queries.

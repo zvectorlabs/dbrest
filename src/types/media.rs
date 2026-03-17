@@ -12,10 +12,10 @@ pub enum MediaType {
     /// application/json (default)
     #[default]
     ApplicationJson,
-    /// application/vnd.pgrst.object+json (single object)
-    ApplicationVndPgrstObject,
-    /// application/vnd.pgrst.array+json (array of objects)
-    ApplicationVndPgrstArray,
+    /// application/vnd.dbrst.object+json (single object)
+    ApplicationVndDbrstObject,
+    /// application/vnd.dbrst.array+json (array of objects)
+    ApplicationVndDbrstArray,
     /// text/csv
     TextCsv,
     /// text/plain
@@ -51,7 +51,7 @@ impl MediaType {
     /// # Examples
     ///
     /// ```
-    /// use pgrest::types::media::MediaType;
+    /// use dbrest::types::media::MediaType;
     ///
     /// assert_eq!(MediaType::parse("application/json"), MediaType::ApplicationJson);
     /// assert_eq!(MediaType::parse("text/csv"), MediaType::TextCsv);
@@ -68,8 +68,8 @@ impl MediaType {
 
         match media_type.as_str() {
             "application/json" => MediaType::ApplicationJson,
-            "application/vnd.pgrst.object+json" => MediaType::ApplicationVndPgrstObject,
-            "application/vnd.pgrst.array+json" => MediaType::ApplicationVndPgrstArray,
+            "application/vnd.dbrst.object+json" => MediaType::ApplicationVndDbrstObject,
+            "application/vnd.dbrst.array+json" => MediaType::ApplicationVndDbrstArray,
             "text/csv" => MediaType::TextCsv,
             "text/plain" => MediaType::TextPlain,
             "application/octet-stream" => MediaType::ApplicationOctetStream,
@@ -99,8 +99,8 @@ impl MediaType {
     pub fn as_str(&self) -> &str {
         match self {
             MediaType::ApplicationJson => "application/json",
-            MediaType::ApplicationVndPgrstObject => "application/vnd.pgrst.object+json",
-            MediaType::ApplicationVndPgrstArray => "application/vnd.pgrst.array+json",
+            MediaType::ApplicationVndDbrstObject => "application/vnd.dbrst.object+json",
+            MediaType::ApplicationVndDbrstArray => "application/vnd.dbrst.array+json",
             MediaType::TextCsv => "text/csv",
             MediaType::TextPlain => "text/plain",
             MediaType::ApplicationOctetStream => "application/octet-stream",
@@ -117,15 +117,15 @@ impl MediaType {
         matches!(
             self,
             MediaType::ApplicationJson
-                | MediaType::ApplicationVndPgrstObject
-                | MediaType::ApplicationVndPgrstArray
+                | MediaType::ApplicationVndDbrstObject
+                | MediaType::ApplicationVndDbrstArray
                 | MediaType::ApplicationOpenApi
         )
     }
 
     /// Check if this media type expects a single object response.
     pub fn is_singular(&self) -> bool {
-        matches!(self, MediaType::ApplicationVndPgrstObject)
+        matches!(self, MediaType::ApplicationVndDbrstObject)
     }
 
     /// Check if this is a text-based media type.
@@ -233,15 +233,15 @@ mod tests {
     #[test]
     fn test_media_type_is_json() {
         assert!(MediaType::ApplicationJson.is_json());
-        assert!(MediaType::ApplicationVndPgrstObject.is_json());
+        assert!(MediaType::ApplicationVndDbrstObject.is_json());
         assert!(!MediaType::TextCsv.is_json());
     }
 
     #[test]
     fn test_media_type_is_singular() {
-        assert!(MediaType::ApplicationVndPgrstObject.is_singular());
+        assert!(MediaType::ApplicationVndDbrstObject.is_singular());
         assert!(!MediaType::ApplicationJson.is_singular());
-        assert!(!MediaType::ApplicationVndPgrstArray.is_singular());
+        assert!(!MediaType::ApplicationVndDbrstArray.is_singular());
     }
 
     #[test]

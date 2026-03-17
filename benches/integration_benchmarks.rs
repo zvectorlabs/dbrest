@@ -1,6 +1,6 @@
 //! Integration benchmarks - HTTP request/response performance
 //!
-//! These benchmarks require a running PgREST server on localhost:3000
+//! These benchmarks require a running dbrest server on localhost:3000
 //! with the test database schema loaded and seeded with benchmark data.
 
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
@@ -238,7 +238,7 @@ fn bench_rpc_calls(c: &mut Criterion) {
 }
 
 // ============================================================================
-// Streaming (PgREST-Specific)
+// Streaming (dbrest-Specific)
 // ============================================================================
 
 fn bench_streaming(c: &mut Criterion) {
@@ -276,7 +276,7 @@ fn bench_streaming(c: &mut Criterion) {
 }
 
 // ============================================================================
-// Computed Fields (PgREST-Specific)
+// Computed Fields (dbrest-Specific)
 // ============================================================================
 
 fn bench_computed_fields(c: &mut Criterion) {

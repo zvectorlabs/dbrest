@@ -1,10 +1,10 @@
 # Streaming Large Responses
 
-PgREST can stream large result sets to reduce memory usage and improve response times for large datasets.
+dbrest can stream large result sets to reduce memory usage and improve response times for large datasets.
 
 ## How Streaming Works
 
-When a response exceeds the configured threshold, PgREST automatically streams the response instead of buffering it in memory.
+When a response exceeds the configured threshold, dbrest automatically streams the response instead of buffering it in memory.
 
 ### Benefits
 
@@ -51,8 +51,8 @@ server-streaming-threshold = 52428800  # 50MB
 ### Environment Variables
 
 ```bash
-export PGRST_SERVER_STREAMING_ENABLED="true"
-export PGRST_SERVER_STREAMING_THRESHOLD="10485760"
+export DBREST_SERVER_STREAMING_ENABLED="true"
+export DBREST_SERVER_STREAMING_THRESHOLD="10485760"
 ```
 
 ## When Streaming Occurs

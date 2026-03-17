@@ -1,4 +1,4 @@
-//! Plan module for PgREST
+//! Plan module for dbrest
 //!
 //! Transforms `ApiRequest` + `SchemaCache` into typed execution plans.
 //! This is the core request planner that sits between API request parsing
@@ -459,7 +459,7 @@ fn build_children(
                 )?;
                 // Unique alias: depth + sibling index
                 child_tree.node.rel_agg_alias =
-                    CompactString::from(format!("pgrst_agg_{}_{}", depth, sibling_idx));
+                    CompactString::from(format!("dbrst_agg_{}_{}", depth, sibling_idx));
                 sibling_idx += 1;
                 children.push(child_tree);
             }
@@ -483,7 +483,7 @@ fn build_children(
                     true, // spread
                 )?;
                 child_tree.node.rel_agg_alias =
-                    CompactString::from(format!("pgrst_agg_{}_{}", depth, sibling_idx));
+                    CompactString::from(format!("dbrst_agg_{}_{}", depth, sibling_idx));
                 sibling_idx += 1;
                 children.push(child_tree);
             }

@@ -1,4 +1,4 @@
-//! CallPlan types for PgREST
+//! CallPlan types for dbrest
 //!
 //! Defines the plan types for RPC function calls.
 //! Matches the Haskell `CallPlan` (`FunctionCall`) data type.

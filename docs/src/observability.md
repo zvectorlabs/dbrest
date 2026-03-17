@@ -1,6 +1,6 @@
 # Observability
 
-PgREST provides several mechanisms for monitoring and observing your API's behavior, including logging, timing headers, and admin endpoints.
+dbrest provides several mechanisms for monitoring and observing your API's behavior, including logging, timing headers, and admin endpoints.
 
 ## Logging
 
@@ -22,12 +22,12 @@ Available levels (from least to most verbose):
 ### Environment Variable
 
 ```bash
-export PGRST_LOG_LEVEL="info"
+export DBREST_LOG_LEVEL="info"
 ```
 
 ### Structured Logging
 
-PgREST uses structured logging with the `tracing` crate, providing:
+dbrest uses structured logging with the `tracing` crate, providing:
 - Timestamps
 - Log levels
 - Contextual information
@@ -41,7 +41,7 @@ Enable SQL query logging:
 log-query = true
 ```
 
-This logs all SQL queries executed by PgREST, useful for debugging and performance analysis.
+This logs all SQL queries executed by dbrest, useful for debugging and performance analysis.
 
 **Warning**: Enabling query logging can be verbose and may expose sensitive data. Use only in development or with caution in production.
 
@@ -50,13 +50,13 @@ This logs all SQL queries executed by PgREST, useful for debugging and performan
 Logs are written to stderr by default. In production, redirect to a log file or logging service:
 
 ```bash
-./pgrest --config config.toml 2>&1 | tee pgrest.log
+./dbrest --config config.toml 2>&1 | tee dbrest.log
 ```
 
 Or with systemd, logs go to journald:
 
 ```bash
-journalctl -u pgrest -f
+journalctl -u dbrest -f
 ```
 
 ## Server-Timing Header
@@ -125,7 +125,7 @@ Use Server-Timing to:
 
 ## Admin Server
 
-The admin server provides endpoints for monitoring and managing PgREST.
+The admin server provides endpoints for monitoring and managing dbrest.
 
 ### Enable Admin Server
 
@@ -210,7 +210,7 @@ Set up alerts for:
 
 ```bash
 # Send logs to centralized logging
-./pgrest --config config.toml 2>&1 | \
+./dbrest --config config.toml 2>&1 | \
   fluent-bit -i stdin -o http \
     -p Host=logs.example.com \
     -p Port=443 \

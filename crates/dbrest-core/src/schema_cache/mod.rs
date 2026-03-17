@@ -1,6 +1,6 @@
 //! Schema Cache module
 //!
-//! The schema cache is the heart of PgREST. It introspects the PostgreSQL database
+//! The schema cache is the heart of dbrest. It introspects the PostgreSQL database
 //! and caches:
 //! - Tables/Views metadata
 //! - Column information
@@ -32,9 +32,7 @@ pub mod routine;
 pub mod table;
 
 // Re-export main types
-pub use db::{
-    ComputedFieldRow, DbIntrospector, RelationshipRow, RoutineRow, TableRow,
-};
+pub use db::{ComputedFieldRow, DbIntrospector, RelationshipRow, RoutineRow, TableRow};
 pub use media_handler::{MediaHandler, MediaHandlerMap, ResolvedHandler};
 pub use relationship::{
     AnyRelationship, Cardinality, ComputedRelationship, Junction, Relationship,

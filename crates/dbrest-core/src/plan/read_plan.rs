@@ -1,4 +1,4 @@
-//! ReadPlan types for PgREST
+//! ReadPlan types for dbrest
 //!
 //! Defines the ReadPlan struct and ReadPlanTree (rose tree) for representing
 //! query plans for reading data from the database, including embedded relations.
@@ -170,7 +170,7 @@ impl ReadPlan {
             rel_to_parent: None,
             rel_join_conds: Vec::new(),
             rel_alias: None,
-            rel_agg_alias: CompactString::from("pgrst_agg"),
+            rel_agg_alias: CompactString::from("dbrst_agg"),
             rel_hint: None,
             rel_join_type: None,
             rel_spread: None,
@@ -192,7 +192,7 @@ impl ReadPlan {
             rel_to_parent: None,
             rel_join_conds: Vec::new(),
             rel_alias: None,
-            rel_agg_alias: CompactString::from(format!("pgrst_agg_{}", depth)),
+            rel_agg_alias: CompactString::from(format!("dbrst_agg_{}", depth)),
             rel_hint: None,
             rel_join_type: None,
             rel_spread: None,
@@ -227,7 +227,7 @@ mod tests {
     fn test_read_plan_child() {
         let plan = ReadPlan::child(test_qi("posts"), "posts".into(), 1);
         assert_eq!(plan.depth, 1);
-        assert_eq!(plan.rel_agg_alias.as_str(), "pgrst_agg_1");
+        assert_eq!(plan.rel_agg_alias.as_str(), "dbrst_agg_1");
     }
 
     #[test]

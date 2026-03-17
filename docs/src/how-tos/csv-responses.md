@@ -1,6 +1,6 @@
 # CSV Response Format
 
-PgREST can return data in CSV format, which is useful for data export, spreadsheet applications, and bulk data processing.
+dbrest can return data in CSV format, which is useful for data export, spreadsheet applications, and bulk data processing.
 
 ## Requesting CSV Format
 
@@ -31,7 +31,7 @@ id,name,email
 
 ## CSV Escaping
 
-PgREST properly escapes CSV values:
+dbrest properly escapes CSV values:
 
 - **Commas**: Values containing commas are quoted
 - **Quotes**: Double quotes are escaped as `""`
@@ -140,7 +140,7 @@ curl -H "Accept: text/csv" \
 
 ## Importing CSV
 
-While PgREST doesn't directly import CSV, you can use PostgreSQL's `COPY` command:
+While dbrest doesn't directly import CSV, you can use PostgreSQL's `COPY` command:
 
 ```sql
 -- Create temporary table

@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:17
-    container_name: pgrest-bench-postgres
+    container_name: dbrest-bench-postgres
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
@@ -25,20 +25,20 @@ services:
           cpus: '${POSTGRES_CPU_LIMIT:-0.5}'
           memory: ${POSTGRES_MEMORY_LIMIT:-512M}
     networks:
-      - pgrest-bench
+      - dbrest-bench
 
-  pgrest:
+  dbrest:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: pgrest-bench-server
+    container_name: dbrest-bench-server
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      PGREST_CONFIG: /app/config/bench.toml
-      PGREST_DB_URI: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-postgres}
-      PGREST_SERVER_PORT: 3000
+      DBREST_CONFIG: /app/config/bench.toml
+      DBREST_DB_URI: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-postgres}
+      DBREST_SERVER_PORT: 3000
     ports:
       - "3000:3000"
     healthcheck:
@@ -50,14 +50,14 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '${PGREST_CPU_LIMIT:-0.5}'
-          memory: ${PGREST_MEMORY_LIMIT:-512M}
+          cpus: '${DBREST_CPU_LIMIT:-0.5}'
+          memory: ${DBREST_MEMORY_LIMIT:-512M}
         reservations:
-          cpus: '${PGREST_CPU_LIMIT:-0.5}'
-          memory: ${PGREST_MEMORY_LIMIT:-512M}
+          cpus: '${DBREST_CPU_LIMIT:-0.5}'
+          memory: ${DBREST_MEMORY_LIMIT:-512M}
     networks:
-      - pgrest-bench
+      - dbrest-bench
 
 networks:
-  pgrest-bench:
+  dbrest-bench:
     driver: bridge

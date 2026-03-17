@@ -24,15 +24,15 @@
 //!        set_config('role', 'web_anon', true), …
 //!
 //! -- main:
-//! WITH pgrst_source AS (
+//! WITH dbrst_source AS (
 //!   SELECT "test_api"."users"."id", "test_api"."users"."name"
 //!   FROM "test_api"."users"
 //! )
 //! SELECT NULL AS total_result_set,
-//!        pg_catalog.count(_pgrest_t) AS page_total,
-//!        coalesce(json_agg(_pgrest_t), '[]')::text AS body,
+//!        pg_catalog.count(_dbrst_t) AS page_total,
+//!        coalesce(json_agg(_dbrst_t), '[]')::text AS body,
 //!        …
-//! FROM (SELECT * FROM pgrst_source) AS _pgrest_t
+//! FROM (SELECT * FROM dbrst_source) AS _dbrst_t
 //! ```
 
 pub mod builder;
@@ -361,7 +361,7 @@ mod tests {
         assert!(mq.main.is_some());
 
         let main_sql = mq.main.unwrap().sql().to_string();
-        assert!(main_sql.contains("pgrst_source"));
+        assert!(main_sql.contains("dbrst_source"));
         assert!(main_sql.contains("\"users\""));
     }
 

@@ -16,17 +16,17 @@
 mod common;
 
 use bytes::Bytes;
-use pgrest::api_request::preferences::{PreferCount, PreferRepresentation, Preferences};
-use pgrest::api_request::{self, ApiRequest};
-use pgrest::config::AppConfig;
-use pgrest::error::Error;
-use pgrest::plan::mutate_plan::MutatePlan;
-use pgrest::plan::read_plan::ReadPlanTree;
-use pgrest::plan::{self, ActionPlan, CrudPlan, DbActionPlan};
-use pgrest::query::{self, SqlBuilder, SqlParam};
-use pgrest::query::{builder, statements};
-use pgrest::schema_cache::SchemaCache;
-use pgrest::schema_cache::db::{ColumnJson, DbIntrospector, RelationshipRow, RoutineRow, TableRow};
+use dbrest::api_request::preferences::{PreferCount, PreferRepresentation, Preferences};
+use dbrest::api_request::{self, ApiRequest};
+use dbrest::config::AppConfig;
+use dbrest::error::Error;
+use dbrest::plan::mutate_plan::MutatePlan;
+use dbrest::plan::read_plan::ReadPlanTree;
+use dbrest::plan::{self, ActionPlan, CrudPlan, DbActionPlan};
+use dbrest::query::{self, SqlBuilder, SqlParam};
+use dbrest::query::{builder, statements};
+use dbrest::schema_cache::SchemaCache;
+use dbrest::schema_cache::db::{ColumnJson, DbIntrospector, RelationshipRow, RoutineRow, TableRow};
 use sqlx::PgPool;
 use sqlx::Row;
 
@@ -286,7 +286,7 @@ impl DbIntrospector for SqlxIntrospector<'_> {
     async fn query_computed_fields(
         &self,
         _schemas: &[String],
-    ) -> Result<Vec<pgrest::schema_cache::ComputedFieldRow>, Error> {
+    ) -> Result<Vec<dbrest::schema_cache::ComputedFieldRow>, Error> {
         Ok(Vec::new())
     }
 
@@ -605,7 +605,7 @@ async fn test_read_all_users() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     assert!(
@@ -640,7 +640,7 @@ async fn test_read_select_columns() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     let arr = result.body.as_array().unwrap();
@@ -682,7 +682,7 @@ async fn test_read_filter_eq() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     assert_eq!(result.page_total, 1);
@@ -713,7 +713,7 @@ async fn test_read_order_asc() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     let arr = result.body.as_array().unwrap();
@@ -745,7 +745,7 @@ async fn test_read_order_desc() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     let arr = result.body.as_array().unwrap();
@@ -777,7 +777,7 @@ async fn test_read_limit_offset() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     assert_eq!(result.page_total, 2);
@@ -806,7 +806,7 @@ async fn test_read_filter_in() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     // Alice (active), Bob (active), Charlie (inactive) = 3
@@ -836,7 +836,7 @@ async fn test_read_filter_is_null() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     // All 4 users have NULL bio in seed data
@@ -866,7 +866,7 @@ async fn test_read_negated_filter() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     // All except Diana (pending) = 3
@@ -896,7 +896,7 @@ async fn test_read_filter_gte() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     // id 2, 3, 4
@@ -926,7 +926,7 @@ async fn test_read_multiple_filters() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     // Only Alice is active and matches *Alice*
@@ -964,7 +964,7 @@ async fn test_head_request() {
     assert!(is_headers_only(&plan), "HEAD should set headers_only=true");
 
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, true, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, true, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     // Body should be null for HEAD requests
@@ -1000,7 +1000,14 @@ async fn test_exact_count() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, Some(PreferCount::Exact), None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(
+        read_tree,
+        Some(PreferCount::Exact),
+        None,
+        false,
+        None,
+        &dbrest::PgDialect,
+    );
     let result = execute_statement(db.pool(), &stmt).await;
 
     assert_eq!(result.total, Some(4), "Exact count should return 4 users");
@@ -1030,7 +1037,14 @@ async fn test_exact_count_with_limit() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, Some(PreferCount::Exact), None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(
+        read_tree,
+        Some(PreferCount::Exact),
+        None,
+        false,
+        None,
+        &dbrest::PgDialect,
+    );
     let result = execute_statement(db.pool(), &stmt).await;
 
     assert_eq!(result.total, Some(4), "Total should be all matching rows");
@@ -1064,7 +1078,7 @@ async fn test_max_rows() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, Some(2), false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, Some(2), false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     assert_eq!(result.page_total, 2, "Should be capped at max_rows=2");
@@ -1097,7 +1111,7 @@ async fn test_read_posts_filtered_ordered() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     // 3 published posts in seed data
@@ -1135,7 +1149,7 @@ async fn test_read_view() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     // Alice and Bob are active
@@ -1169,7 +1183,7 @@ async fn test_read_tasks() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     // 3 tasks in seed data
@@ -1203,7 +1217,7 @@ async fn test_sql_generation_read_structure() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let inner = builder::read_plan_to_query(read_tree, &pgrest::PgDialect);
+    let inner = builder::read_plan_to_query(read_tree, &dbrest::PgDialect);
     let sql = inner.sql().to_string();
 
     assert!(sql.contains("SELECT "), "SQL must contain SELECT");
@@ -1239,11 +1253,11 @@ async fn test_sql_generation_cte_wrapper() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let sql = stmt.sql().to_string();
 
     assert!(
-        sql.starts_with("WITH pgrst_source AS ("),
+        sql.starts_with("WITH dbrst_source AS ("),
         "Must start with CTE"
     );
     assert!(
@@ -1257,7 +1271,7 @@ async fn test_sql_generation_cte_wrapper() {
         "Must have response_headers"
     );
     assert!(sql.contains("response_status"), "Must have response_status");
-    assert!(sql.contains("_pgrest_t"), "Must use _pgrest_t alias");
+    assert!(sql.contains("_dbrst_t"), "Must use _dbrst_t alias");
 }
 
 /// Verify the count query SQL contains COUNT(*).
@@ -1283,7 +1297,7 @@ async fn test_sql_generation_count_query() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let count_q = builder::read_plan_to_count_query(read_tree, &pgrest::PgDialect);
+    let count_q = builder::read_plan_to_count_query(read_tree, &dbrest::PgDialect);
     let sql = count_q.sql().to_string();
 
     assert!(sql.contains("COUNT(*)"), "Count query must use COUNT(*)");
@@ -1293,7 +1307,16 @@ async fn test_sql_generation_count_query() {
 #[test]
 fn test_sql_generation_tx_vars() {
     let config = test_config();
-    let b = query::pre_query::tx_var_query(&config, &pgrest::PgDialect, "GET", "/users", None, None, None, None);
+    let b = query::pre_query::tx_var_query(
+        &config,
+        &dbrest::PgDialect,
+        "GET",
+        "/users",
+        None,
+        None,
+        None,
+        None,
+    );
     let sql = b.sql().to_string();
 
     assert!(sql.starts_with("SELECT set_config("), "Must use set_config");
@@ -1328,7 +1351,17 @@ async fn test_main_query_bundle_executes() {
     .unwrap();
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
-    let mq = query::main_query(&plan, &config, &pgrest::PgDialect, "GET", "/users", None, None, None, None);
+    let mq = query::main_query(
+        &plan,
+        &config,
+        &dbrest::PgDialect,
+        "GET",
+        "/users",
+        None,
+        None,
+        None,
+        None,
+    );
 
     assert!(mq.tx_vars.is_some(), "Should have tx_vars");
     assert!(
@@ -1345,13 +1378,23 @@ async fn test_main_query_bundle_executes() {
 /// Verify main_query() with pre-request function configured.
 #[test]
 fn test_main_query_with_pre_request() {
-    use pgrest::types::identifiers::QualifiedIdentifier;
+    use dbrest::types::identifiers::QualifiedIdentifier;
 
-    let plan = ActionPlan::NoDb(pgrest::plan::InfoPlan::SchemaInfoPlan);
+    let plan = ActionPlan::NoDb(dbrest::plan::InfoPlan::SchemaInfoPlan);
     let mut config = test_config();
     config.db_pre_request = Some(QualifiedIdentifier::new("test_api", "check_request"));
 
-    let mq = query::main_query(&plan, &config, &pgrest::PgDialect, "OPTIONS", "/", None, None, None, None);
+    let mq = query::main_query(
+        &plan,
+        &config,
+        &dbrest::PgDialect,
+        "OPTIONS",
+        "/",
+        None,
+        None,
+        None,
+        None,
+    );
 
     assert!(mq.pre_req.is_some(), "Should have pre_req when configured");
     let pre_sql = mq.pre_req.unwrap().sql().to_string();
@@ -1391,7 +1434,7 @@ async fn test_write_insert_increases_count() {
     .unwrap();
     let read_plan = plan::action_plan(&config, &read_req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&read_plan);
-    let read_stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let read_stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let before = execute_statement(db.pool(), &read_stmt).await;
     assert_eq!(before.page_total, 4);
 
@@ -1432,7 +1475,7 @@ async fn test_write_delete_decreases_count() {
     .unwrap();
     let read_plan = plan::action_plan(&config, &read_req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&read_plan);
-    let read_stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let read_stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let before = execute_statement(db.pool(), &read_stmt).await;
     assert_eq!(before.page_total, 4);
 
@@ -1480,7 +1523,7 @@ async fn test_write_update_reflected_in_read() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     assert_eq!(result.page_total, 1);
@@ -1621,7 +1664,7 @@ async fn test_read_empty_result() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     assert_eq!(result.page_total, 0, "Should have no results");
@@ -1655,7 +1698,14 @@ async fn test_read_empty_with_exact_count() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, Some(PreferCount::Exact), None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(
+        read_tree,
+        Some(PreferCount::Exact),
+        None,
+        false,
+        None,
+        &dbrest::PgDialect,
+    );
     let result = execute_statement(db.pool(), &stmt).await;
 
     assert_eq!(result.total, Some(0));
@@ -1692,7 +1742,7 @@ async fn test_join_o2m_users_with_posts() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     assert_eq!(result.page_total, 4, "Should return all 4 users");
@@ -1734,7 +1784,7 @@ async fn test_join_o2m_filtered_parent() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     assert_eq!(result.page_total, 1, "Should return only Alice");
@@ -1774,7 +1824,7 @@ async fn test_join_o2m_posts_with_comments() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     assert_eq!(result.page_total, 4, "Should return all 4 posts");
@@ -1817,7 +1867,7 @@ async fn test_join_m2o_posts_with_author() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     assert_eq!(result.page_total, 4);
@@ -1854,7 +1904,7 @@ async fn test_join_nested_three_levels() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     assert_eq!(result.page_total, 1, "Should return only Alice");
@@ -1897,7 +1947,7 @@ async fn test_join_multiple_embeds() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     assert_eq!(result.page_total, 1);
@@ -1939,7 +1989,7 @@ async fn test_join_embed_with_parent_ordering() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     assert_eq!(result.page_total, 4);
@@ -1985,7 +2035,7 @@ async fn test_join_embed_with_pagination() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let result = execute_statement(db.pool(), &stmt).await;
 
     assert_eq!(result.page_total, 2, "Should return only 2 users");
@@ -2026,7 +2076,7 @@ async fn test_join_sql_contains_lateral() {
     let read_tree = expect_wrapped_read(&plan);
 
     // Check the inner query SQL
-    let inner = builder::read_plan_to_query(read_tree, &pgrest::PgDialect);
+    let inner = builder::read_plan_to_query(read_tree, &dbrest::PgDialect);
     let sql = inner.sql().to_string();
 
     assert!(
@@ -2064,11 +2114,11 @@ async fn test_join_cte_wrapper_with_embed() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let sql = stmt.sql().to_string();
 
     assert!(
-        sql.starts_with("WITH pgrst_source AS ("),
+        sql.starts_with("WITH dbrst_source AS ("),
         "Must start with CTE"
     );
     assert!(
@@ -2110,7 +2160,14 @@ async fn test_join_embed_with_exact_count() {
 
     let plan = plan::action_plan(&config, &req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&plan);
-    let stmt = statements::main_read(read_tree, Some(PreferCount::Exact), None, false, None, &pgrest::PgDialect);
+    let stmt = statements::main_read(
+        read_tree,
+        Some(PreferCount::Exact),
+        None,
+        false,
+        None,
+        &dbrest::PgDialect,
+    );
     let result = execute_statement(db.pool(), &stmt).await;
 
     // Count should be parent rows (4 users), not joined rows
@@ -2156,7 +2213,7 @@ async fn test_insert_post_then_verify_embed() {
     let insert_plan = plan::action_plan(&config, &insert_req, &cache).unwrap();
     let (mutate, read) = expect_mutate_read(&insert_plan);
     let return_rep = !mutate.returning().is_empty();
-    let insert_stmt = statements::main_write(mutate, read, return_rep, None, &pgrest::PgDialect);
+    let insert_stmt = statements::main_write(mutate, read, return_rep, None, &dbrest::PgDialect);
     let insert_result = execute_statement(db.pool(), &insert_stmt).await;
 
     // The insert should affect 1 row and return the new post
@@ -2181,7 +2238,7 @@ async fn test_insert_post_then_verify_embed() {
 
     let read_plan = plan::action_plan(&config, &read_req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&read_plan);
-    let read_stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let read_stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let read_result = execute_statement(db.pool(), &read_stmt).await;
 
     assert_eq!(read_result.page_total, 1);
@@ -2228,7 +2285,7 @@ async fn test_update_post_then_verify_author_embed() {
     let update_plan = plan::action_plan(&config, &update_req, &cache).unwrap();
     let (mutate, read) = expect_mutate_read(&update_plan);
     let return_rep = !mutate.returning().is_empty();
-    let update_stmt = statements::main_write(mutate, read, return_rep, None, &pgrest::PgDialect);
+    let update_stmt = statements::main_write(mutate, read, return_rep, None, &dbrest::PgDialect);
     let update_result = execute_statement(db.pool(), &update_stmt).await;
 
     assert_eq!(update_result.page_total, 1, "Should update exactly 1 post");
@@ -2251,7 +2308,7 @@ async fn test_update_post_then_verify_author_embed() {
 
     let read_plan = plan::action_plan(&config, &read_req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&read_plan);
-    let read_stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let read_stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let read_result = execute_statement(db.pool(), &read_stmt).await;
 
     assert_eq!(read_result.page_total, 1);
@@ -2291,7 +2348,7 @@ async fn test_delete_posts_then_verify_empty_embed() {
 
     let delete_plan = plan::action_plan(&config, &delete_req, &cache).unwrap();
     let (mutate, read) = expect_mutate_read(&delete_plan);
-    let delete_stmt = statements::main_write(mutate, read, false, None, &pgrest::PgDialect);
+    let delete_stmt = statements::main_write(mutate, read, false, None, &dbrest::PgDialect);
     let delete_result = execute_statement(db.pool(), &delete_stmt).await;
 
     assert_eq!(delete_result.page_total, 2, "Bob had 2 posts to delete");
@@ -2310,7 +2367,7 @@ async fn test_delete_posts_then_verify_empty_embed() {
 
     let read_plan = plan::action_plan(&config, &read_req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&read_plan);
-    let read_stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let read_stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let read_result = execute_statement(db.pool(), &read_stmt).await;
 
     assert_eq!(read_result.page_total, 1, "Bob should still exist");
@@ -2349,7 +2406,7 @@ async fn test_insert_comment_verify_relationships() {
     let insert_plan = plan::action_plan(&config, &insert_req, &cache).unwrap();
     let (mutate, read) = expect_mutate_read(&insert_plan);
     let return_rep = !mutate.returning().is_empty();
-    let insert_stmt = statements::main_write(mutate, read, return_rep, None, &pgrest::PgDialect);
+    let insert_stmt = statements::main_write(mutate, read, return_rep, None, &dbrest::PgDialect);
     let insert_result = execute_statement(db.pool(), &insert_stmt).await;
     assert_eq!(insert_result.page_total, 1);
 
@@ -2367,7 +2424,7 @@ async fn test_insert_comment_verify_relationships() {
 
     let read_plan = plan::action_plan(&config, &read_req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&read_plan);
-    let read_stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let read_stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let read_result = execute_statement(db.pool(), &read_stmt).await;
 
     assert_eq!(read_result.page_total, 1);
@@ -2408,7 +2465,7 @@ async fn test_insert_user_then_post_verify_chain() {
     let user_plan = plan::action_plan(&config, &user_req, &cache).unwrap();
     let (mutate, read) = expect_mutate_read(&user_plan);
     let return_rep = !mutate.returning().is_empty();
-    let user_stmt = statements::main_write(mutate, read, return_rep, None, &pgrest::PgDialect);
+    let user_stmt = statements::main_write(mutate, read, return_rep, None, &dbrest::PgDialect);
     let user_result = execute_statement(db.pool(), &user_stmt).await;
     assert_eq!(user_result.page_total, 1);
 
@@ -2443,7 +2500,7 @@ async fn test_insert_user_then_post_verify_chain() {
 
     let read_plan = plan::action_plan(&config, &read_req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&read_plan);
-    let read_stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let read_stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let read_result = execute_statement(db.pool(), &read_stmt).await;
 
     assert_eq!(read_result.page_total, 1);
@@ -2492,7 +2549,7 @@ async fn test_delete_user_cascades_to_relations() {
 
     let delete_plan = plan::action_plan(&config, &delete_req, &cache).unwrap();
     let (mutate, read) = expect_mutate_read(&delete_plan);
-    let delete_stmt = statements::main_write(mutate, read, false, None, &pgrest::PgDialect);
+    let delete_stmt = statements::main_write(mutate, read, false, None, &dbrest::PgDialect);
     let delete_result = execute_statement(db.pool(), &delete_stmt).await;
     assert_eq!(delete_result.page_total, 1, "Should delete exactly 1 user");
 
@@ -2520,7 +2577,7 @@ async fn test_delete_user_cascades_to_relations() {
     .unwrap();
     let read_plan = plan::action_plan(&config, &read_req, &cache).unwrap();
     let read_tree = expect_wrapped_read(&read_plan);
-    let read_stmt = statements::main_read(read_tree, None, None, false, None, &pgrest::PgDialect);
+    let read_stmt = statements::main_read(read_tree, None, None, false, None, &dbrest::PgDialect);
     let read_result = execute_statement(db.pool(), &read_stmt).await;
     assert_eq!(read_result.page_total, 0, "Charlie should no longer exist");
 }

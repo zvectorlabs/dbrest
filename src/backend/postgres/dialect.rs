@@ -29,7 +29,7 @@ impl SqlDialect for PgDialect {
 
     fn count_star(&self, b: &mut SqlBuilder) {
         b.push("SELECT COUNT(*) AS ");
-        b.push_ident("pgrst_filtered_count");
+        b.push_ident("dbrst_filtered_count");
     }
 
     fn set_session_var(&self, b: &mut SqlBuilder, key: &str, value: &str) {

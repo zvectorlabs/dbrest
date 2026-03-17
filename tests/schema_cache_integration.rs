@@ -12,8 +12,8 @@
 
 mod common;
 
-use pgrest::config::AppConfig;
-use pgrest::schema_cache::{
+use dbrest::config::AppConfig;
+use dbrest::schema_cache::{
     SchemaCache,
     db::{ColumnJson, DbIntrospector, RelationshipRow, RoutineRow, TableRow},
 };
@@ -32,7 +32,7 @@ impl<'a> SqlxIntrospector<'a> {
 
 #[async_trait::async_trait]
 impl DbIntrospector for SqlxIntrospector<'_> {
-    async fn query_tables(&self, schemas: &[String]) -> Result<Vec<TableRow>, pgrest::Error> {
+    async fn query_tables(&self, schemas: &[String]) -> Result<Vec<TableRow>, dbrest::Error> {
         // Simplified query for testing
         let rows = sqlx::query_as::<
             _,
@@ -74,7 +74,7 @@ impl DbIntrospector for SqlxIntrospector<'_> {
         .bind(schemas)
         .fetch_all(self.pool)
         .await
-        .map_err(|e| pgrest::Error::Database {
+        .map_err(|e| dbrest::Error::Database {
             code: None,
             message: e.to_string(),
             detail: None,
@@ -102,7 +102,7 @@ impl DbIntrospector for SqlxIntrospector<'_> {
         Ok(result)
     }
 
-    async fn query_relationships(&self) -> Result<Vec<RelationshipRow>, pgrest::Error> {
+    async fn query_relationships(&self) -> Result<Vec<RelationshipRow>, dbrest::Error> {
         let rows = sqlx::query_as::<_, (String, String, String, String, bool, String, bool)>(
             r#"
             SELECT
@@ -124,7 +124,7 @@ impl DbIntrospector for SqlxIntrospector<'_> {
         )
         .fetch_all(self.pool)
         .await
-        .map_err(|e| pgrest::Error::Database {
+        .map_err(|e| dbrest::Error::Database {
             code: None,
             message: e.to_string(),
             detail: None,
@@ -159,7 +159,7 @@ impl DbIntrospector for SqlxIntrospector<'_> {
         Ok(result)
     }
 
-    async fn query_routines(&self, schemas: &[String]) -> Result<Vec<RoutineRow>, pgrest::Error> {
+    async fn query_routines(&self, schemas: &[String]) -> Result<Vec<RoutineRow>, dbrest::Error> {
         let rows = sqlx::query_as::<_, (String, String, Option<String>, String, bool)>(
             r#"
             SELECT
@@ -179,7 +179,7 @@ impl DbIntrospector for SqlxIntrospector<'_> {
         .bind(schemas)
         .fetch_all(self.pool)
         .await
-        .map_err(|e| pgrest::Error::Database {
+        .map_err(|e| dbrest::Error::Database {
             code: None,
             message: e.to_string(),
             detail: None,
@@ -206,8 +206,8 @@ impl DbIntrospector for SqlxIntrospector<'_> {
     async fn query_computed_fields(
         &self,
         schemas: &[String],
-    ) -> Result<Vec<pgrest::schema_cache::ComputedFieldRow>, pgrest::Error> {
-        use pgrest::schema_cache::queries::computed_fields::COMPUTED_FIELDS_QUERY;
+    ) -> Result<Vec<dbrest::schema_cache::ComputedFieldRow>, dbrest::Error> {
+        use dbrest::schema_cache::queries::computed_fields::COMPUTED_FIELDS_QUERY;
 
         let rows = sqlx::query_as::<_, (String, String, String, String, String, bool)>(
             COMPUTED_FIELDS_QUERY,
@@ -215,7 +215,7 @@ impl DbIntrospector for SqlxIntrospector<'_> {
         .bind(schemas)
         .fetch_all(self.pool)
         .await
-        .map_err(|e| pgrest::Error::Database {
+        .map_err(|e| dbrest::Error::Database {
             code: None,
             message: e.to_string(),
             detail: None,
@@ -233,7 +233,7 @@ impl DbIntrospector for SqlxIntrospector<'_> {
                     return_type,
                     returns_set,
                 )| {
-                    pgrest::schema_cache::ComputedFieldRow {
+                    dbrest::schema_cache::ComputedFieldRow {
                         table_schema,
                         table_name,
                         function_schema,
@@ -246,11 +246,11 @@ impl DbIntrospector for SqlxIntrospector<'_> {
             .collect())
     }
 
-    async fn query_timezones(&self) -> Result<Vec<String>, pgrest::Error> {
+    async fn query_timezones(&self) -> Result<Vec<String>, dbrest::Error> {
         let rows: Vec<(String,)> = sqlx::query_as("SELECT name FROM pg_timezone_names LIMIT 100")
             .fetch_all(self.pool)
             .await
-            .map_err(|e| pgrest::Error::Database {
+            .map_err(|e| dbrest::Error::Database {
                 code: None,
                 message: e.to_string(),
                 detail: None,
@@ -266,7 +266,7 @@ impl SqlxIntrospector<'_> {
         &self,
         schema: &str,
         table: &str,
-    ) -> Result<Vec<ColumnJson>, pgrest::Error> {
+    ) -> Result<Vec<ColumnJson>, dbrest::Error> {
         let rows = sqlx::query_as::<
             _,
             (
@@ -302,7 +302,7 @@ impl SqlxIntrospector<'_> {
         .bind(table)
         .fetch_all(self.pool)
         .await
-        .map_err(|e| pgrest::Error::Database {
+        .map_err(|e| dbrest::Error::Database {
             code: None,
             message: e.to_string(),
             detail: None,
@@ -332,7 +332,7 @@ impl SqlxIntrospector<'_> {
     async fn get_fk_columns(
         &self,
         constraint: &str,
-    ) -> Result<Vec<(String, String)>, pgrest::Error> {
+    ) -> Result<Vec<(String, String)>, dbrest::Error> {
         let rows = sqlx::query_as::<_, (String, String)>(
             r#"
             SELECT cols.attname, refs.attname
@@ -347,7 +347,7 @@ impl SqlxIntrospector<'_> {
         .bind(constraint)
         .fetch_all(self.pool)
         .await
-        .map_err(|e| pgrest::Error::Database {
+        .map_err(|e| dbrest::Error::Database {
             code: None,
             message: e.to_string(),
             detail: None,
@@ -430,7 +430,7 @@ async fn test_load_relationships() {
     assert!(cache.relationship_count() > 0);
 
     // Posts should have relationship to users
-    let posts_qi = pgrest::QualifiedIdentifier::new("test_api", "posts");
+    let posts_qi = dbrest::QualifiedIdentifier::new("test_api", "posts");
     let rels = cache.find_relationships(&posts_qi);
     assert!(!rels.is_empty());
 
@@ -536,7 +536,7 @@ async fn test_self_referencing_relationship() {
     let cache = SchemaCache::load(&introspector, &config).await.unwrap();
 
     // Comments has self-referencing FK (parent_id)
-    let comments_qi = pgrest::QualifiedIdentifier::new("test_api", "comments");
+    let comments_qi = dbrest::QualifiedIdentifier::new("test_api", "comments");
     let rels = cache.find_relationships(&comments_qi);
 
     // Should have a self-referencing relationship
@@ -602,7 +602,7 @@ async fn test_load_computed_fields() {
     let cache = SchemaCache::load(&introspector, &config).await.unwrap();
 
     // Find users table
-    let users_qi = pgrest::types::QualifiedIdentifier::new("test_api", "users");
+    let users_qi = dbrest::types::QualifiedIdentifier::new("test_api", "users");
     let users_table = cache
         .tables
         .get(&users_qi)
@@ -663,7 +663,7 @@ async fn test_computed_fields_with_extra_search_path() {
     let cache = SchemaCache::load(&introspector, &config).await.unwrap();
 
     // Find users table
-    let users_qi = pgrest::types::QualifiedIdentifier::new("test_api", "users");
+    let users_qi = dbrest::types::QualifiedIdentifier::new("test_api", "users");
     let users_table = cache
         .tables
         .get(&users_qi)

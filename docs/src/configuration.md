@@ -1,11 +1,11 @@
 # Configuration
 
-PgREST can be configured using a configuration file, environment variables, or command-line arguments. Configuration values follow a precedence order where later sources override earlier ones.
+dbrest can be configured using a configuration file, environment variables, or command-line arguments. Configuration values follow a precedence order where later sources override earlier ones.
 
 ## Configuration Precedence
 
 1. **Command-line arguments** (highest priority)
-2. **Environment variables** (`PGRST_*` prefix)
+2. **Environment variables** (`DBREST_*` prefix)
 3. **Configuration file** (key=value format)
 4. **Default values** (lowest priority)
 
@@ -34,24 +34,24 @@ Values can be quoted with single or double quotes, or left unquoted. Comments st
 
 ## Environment Variables
 
-Environment variables use the `PGRST_` prefix. The prefix is stripped and underscores are converted to hyphens:
+Environment variables use the `DBREST_` prefix. The prefix is stripped and underscores are converted to hyphens:
 
 ```bash
-export PGRST_DB_URI="postgresql://user:password@localhost:5432/mydb"
-export PGRST_DB_SCHEMAS="public,api"
-export PGRST_SERVER_PORT=3000
+export DBREST_DB_URI="postgresql://user:password@localhost:5432/mydb"
+export DBREST_DB_SCHEMAS="public,api"
+export DBREST_SERVER_PORT=3000
 ```
 
 ## Command-Line Arguments
 
 ```bash
-pgrest --config config.toml --db-uri "postgresql://..." --port 3000
+dbrest --config config.toml --db-uri "postgresql://..." --port 3000
 ```
 
 Available CLI flags:
-- `--config`, `-c` - Path to configuration file (env: `PGREST_CONFIG`)
-- `--db-uri` - Database connection URI (env: `PGREST_DB_URI`)
-- `--port`, `-p` - Server bind port (env: `PGREST_SERVER_PORT`)
+- `--config`, `-c` - Path to configuration file (env: `DBREST_CONFIG`)
+- `--db-uri` - Database connection URI (env: `DBREST_DB_URI`)
+- `--port`, `-p` - Server bind port (env: `DBREST_SERVER_PORT`)
 
 ## Configuration Reference
 
@@ -59,80 +59,80 @@ Available CLI flags:
 
 | Config Key | Environment Variable | Type | Default | Description |
 |------------|---------------------|------|---------|-------------|
-| `db-uri` | `PGRST_DB_URI` | String | `postgresql://` | PostgreSQL connection URI |
-| `db-schemas` | `PGRST_DB_SCHEMAS` | Comma-separated list | `public` | Schemas to expose (first is default) |
-| `db-anon-role` | `PGRST_DB_ANON_ROLE` | String | `None` | Anonymous role for unauthenticated requests |
-| `db-pool` | `PGRST_DB_POOL` | Integer | `10` | Connection pool size |
-| `db-pool-acquisition-timeout` | `PGRST_DB_POOL_ACQUISITION_TIMEOUT` | Integer (seconds) | `10` | Pool acquisition timeout |
-| `db-pool-max-lifetime` | `PGRST_DB_POOL_MAX_LIFETIME` | Integer (seconds) | `1800` | Maximum connection lifetime |
-| `db-pool-max-idletime` | `PGRST_DB_POOL_MAX_IDLETIME` | Integer (seconds) | `30` | Maximum idle time before closing connection |
-| `db-pool-automatic-recovery` | `PGRST_DB_POOL_AUTOMATIC_RECOVERY` | Boolean | `true` | Enable automatic pool recovery |
-| `db-prepared-statements` | `PGRST_DB_PREPARED_STATEMENTS` | Boolean | `true` | Use prepared statements |
-| `db-pre-request` | `PGRST_DB_PRE_REQUEST` | Qualified identifier | `None` | Pre-request function to call (schema.name) |
-| `db-root-spec` | `PGRST_DB_ROOT_SPEC` | Qualified identifier | `None` | Root spec function for `/` endpoint |
-| `db-extra-search-path` | `PGRST_DB_EXTRA_SEARCH_PATH` | Comma-separated list | `public` | Extra schemas for search_path |
-| `db-hoisted-tx-settings` | `PGRST_DB_HOISTED_TX_SETTINGS` | Comma-separated list | `statement_timeout,plan_filter.statement_cost_limit,default_transaction_isolation` | Transaction settings to hoist |
-| `db-max-rows` | `PGRST_DB_MAX_ROWS` | Integer | `None` | Maximum rows to return (no limit if unset) |
-| `db-plan-enabled` | `PGRST_DB_PLAN_ENABLED` | Boolean | `false` | Enable EXPLAIN output |
-| `db-tx-end` | `PGRST_DB_TX_END` | String | `commit` | Transaction end behavior: `commit`, `commit-allow-override`, `rollback`, `rollback-allow-override` |
-| `db-tx-read-isolation` | `PGRST_DB_TX_READ_ISOLATION` | String | `read-committed` | Isolation level for read transactions: `read-committed`, `repeatable-read`, `serializable` |
-| `db-tx-write-isolation` | `PGRST_DB_TX_WRITE_ISOLATION` | String | `read-committed` | Isolation level for write transactions: `read-committed`, `repeatable-read`, `serializable` |
-| `db-aggregates-enabled` | `PGRST_DB_AGGREGATES_ENABLED` | Boolean | `false` | Enable aggregate functions |
-| `db-config` | `PGRST_DB_CONFIG` | Boolean | `true` | Load config from database |
-| `db-pre-config` | `PGRST_DB_PRE_CONFIG` | Qualified identifier | `None` | Pre-config function to call |
-| `db-channel` | `PGRST_DB_CHANNEL` | String | `pgrst` | NOTIFY channel name |
-| `db-channel-enabled` | `PGRST_DB_CHANNEL_ENABLED` | Boolean | `true` | Enable NOTIFY listener |
+| `db-uri` | `DBREST_DB_URI` | String | `postgresql://` | PostgreSQL connection URI |
+| `db-schemas` | `DBREST_DB_SCHEMAS` | Comma-separated list | `public` | Schemas to expose (first is default) |
+| `db-anon-role` | `DBREST_DB_ANON_ROLE` | String | `None` | Anonymous role for unauthenticated requests |
+| `db-pool` | `DBREST_DB_POOL` | Integer | `10` | Connection pool size |
+| `db-pool-acquisition-timeout` | `DBREST_DB_POOL_ACQUISITION_TIMEOUT` | Integer (seconds) | `10` | Pool acquisition timeout |
+| `db-pool-max-lifetime` | `DBREST_DB_POOL_MAX_LIFETIME` | Integer (seconds) | `1800` | Maximum connection lifetime |
+| `db-pool-max-idletime` | `DBREST_DB_POOL_MAX_IDLETIME` | Integer (seconds) | `30` | Maximum idle time before closing connection |
+| `db-pool-automatic-recovery` | `DBREST_DB_POOL_AUTOMATIC_RECOVERY` | Boolean | `true` | Enable automatic pool recovery |
+| `db-prepared-statements` | `DBREST_DB_PREPARED_STATEMENTS` | Boolean | `true` | Use prepared statements |
+| `db-pre-request` | `DBREST_DB_PRE_REQUEST` | Qualified identifier | `None` | Pre-request function to call (schema.name) |
+| `db-root-spec` | `DBREST_DB_ROOT_SPEC` | Qualified identifier | `None` | Root spec function for `/` endpoint |
+| `db-extra-search-path` | `DBREST_DB_EXTRA_SEARCH_PATH` | Comma-separated list | `public` | Extra schemas for search_path |
+| `db-hoisted-tx-settings` | `DBREST_DB_HOISTED_TX_SETTINGS` | Comma-separated list | `statement_timeout,plan_filter.statement_cost_limit,default_transaction_isolation` | Transaction settings to hoist |
+| `db-max-rows` | `DBREST_DB_MAX_ROWS` | Integer | `None` | Maximum rows to return (no limit if unset) |
+| `db-plan-enabled` | `DBREST_DB_PLAN_ENABLED` | Boolean | `false` | Enable EXPLAIN output |
+| `db-tx-end` | `DBREST_DB_TX_END` | String | `commit` | Transaction end behavior: `commit`, `commit-allow-override`, `rollback`, `rollback-allow-override` |
+| `db-tx-read-isolation` | `DBREST_DB_TX_READ_ISOLATION` | String | `read-committed` | Isolation level for read transactions: `read-committed`, `repeatable-read`, `serializable` |
+| `db-tx-write-isolation` | `DBREST_DB_TX_WRITE_ISOLATION` | String | `read-committed` | Isolation level for write transactions: `read-committed`, `repeatable-read`, `serializable` |
+| `db-aggregates-enabled` | `DBREST_DB_AGGREGATES_ENABLED` | Boolean | `false` | Enable aggregate functions |
+| `db-config` | `DBREST_DB_CONFIG` | Boolean | `true` | Load config from database |
+| `db-pre-config` | `DBREST_DB_PRE_CONFIG` | Qualified identifier | `None` | Pre-config function to call |
+| `db-channel` | `DBREST_DB_CHANNEL` | String | `dbrst` | NOTIFY channel name |
+| `db-channel-enabled` | `DBREST_DB_CHANNEL_ENABLED` | Boolean | `true` | Enable NOTIFY listener |
 
 ### Server Settings
 
 | Config Key | Environment Variable | Type | Default | Description |
 |------------|---------------------|------|---------|-------------|
-| `server-host` | `PGRST_SERVER_HOST` | String | `!4` | Server bind host (`!4` = IPv4, `!6` = IPv6) |
-| `server-port` | `PGRST_SERVER_PORT` | Integer | `3000` | Server bind port |
-| `server-unix-socket` | `PGRST_SERVER_UNIX_SOCKET` | Path | `None` | Unix socket path (if set, overrides host/port) |
-| `server-unix-socket-mode` | `PGRST_SERVER_UNIX_SOCKET_MODE` | Octal | `660` | Unix socket file mode |
-| `server-cors-allowed-origins` | `PGRST_SERVER_CORS_ALLOWED_ORIGINS` | Comma-separated list | `None` | CORS allowed origins (allows all if unset) |
-| `server-trace-header` | `PGRST_SERVER_TRACE_HEADER` | String | `None` | Trace header name |
-| `server-timing-enabled` | `PGRST_SERVER_TIMING_ENABLED` | Boolean | `false` | Enable Server-Timing header |
+| `server-host` | `DBREST_SERVER_HOST` | String | `!4` | Server bind host (`!4` = IPv4, `!6` = IPv6) |
+| `server-port` | `DBREST_SERVER_PORT` | Integer | `3000` | Server bind port |
+| `server-unix-socket` | `DBREST_SERVER_UNIX_SOCKET` | Path | `None` | Unix socket path (if set, overrides host/port) |
+| `server-unix-socket-mode` | `DBREST_SERVER_UNIX_SOCKET_MODE` | Octal | `660` | Unix socket file mode |
+| `server-cors-allowed-origins` | `DBREST_SERVER_CORS_ALLOWED_ORIGINS` | Comma-separated list | `None` | CORS allowed origins (allows all if unset) |
+| `server-trace-header` | `DBREST_SERVER_TRACE_HEADER` | String | `None` | Trace header name |
+| `server-timing-enabled` | `DBREST_SERVER_TIMING_ENABLED` | Boolean | `false` | Enable Server-Timing header |
 
 ### Admin Server Settings
 
 | Config Key | Environment Variable | Type | Default | Description |
 |------------|---------------------|------|---------|-------------|
-| `admin-server-host` | `PGRST_ADMIN_SERVER_HOST` | String | `!4` | Admin server bind host |
-| `admin-server-port` | `PGRST_ADMIN_SERVER_PORT` | Integer | `None` | Admin server bind port (disabled if unset) |
+| `admin-server-host` | `DBREST_ADMIN_SERVER_HOST` | String | `!4` | Admin server bind host |
+| `admin-server-port` | `DBREST_ADMIN_SERVER_PORT` | Integer | `None` | Admin server bind port (disabled if unset) |
 
 ### JWT Settings
 
 | Config Key | Environment Variable | Type | Default | Description |
 |------------|---------------------|------|---------|-------------|
-| `jwt-secret` | `PGRST_JWT_SECRET` | String | `None` | JWT secret (or JWKS JSON). Must be at least 32 characters |
-| `jwt-secret-is-base64` | `PGRST_JWT_SECRET_IS_BASE64` | Boolean | `false` | JWT secret is base64 encoded |
-| `jwt-aud` | `PGRST_JWT_AUD` | String | `None` | Expected JWT audience |
-| `jwt-role-claim-key` | `PGRST_JWT_ROLE_CLAIM_KEY` | JSON path | `role` | Path to role claim in JWT (e.g., `role`, `user.role`) |
-| `jwt-cache-max-entries` | `PGRST_JWT_CACHE_MAX_ENTRIES` | Integer | `1000` | JWT cache maximum entries |
+| `jwt-secret` | `DBREST_JWT_SECRET` | String | `None` | JWT secret (or JWKS JSON). Must be at least 32 characters |
+| `jwt-secret-is-base64` | `DBREST_JWT_SECRET_IS_BASE64` | Boolean | `false` | JWT secret is base64 encoded |
+| `jwt-aud` | `DBREST_JWT_AUD` | String | `None` | Expected JWT audience |
+| `jwt-role-claim-key` | `DBREST_JWT_ROLE_CLAIM_KEY` | JSON path | `role` | Path to role claim in JWT (e.g., `role`, `user.role`) |
+| `jwt-cache-max-entries` | `DBREST_JWT_CACHE_MAX_ENTRIES` | Integer | `1000` | JWT cache maximum entries |
 
 ### Logging Settings
 
 | Config Key | Environment Variable | Type | Default | Description |
 |------------|---------------------|------|---------|-------------|
-| `log-level` | `PGRST_LOG_LEVEL` | String | `error` | Log level: `crit`, `error`, `warn`, `info`, `debug` |
-| `log-query` | `PGRST_LOG_QUERY` | Boolean | `false` | Log SQL queries |
+| `log-level` | `DBREST_LOG_LEVEL` | String | `error` | Log level: `crit`, `error`, `warn`, `info`, `debug` |
+| `log-query` | `DBREST_LOG_QUERY` | Boolean | `false` | Log SQL queries |
 
 ### OpenAPI Settings
 
 | Config Key | Environment Variable | Type | Default | Description |
 |------------|---------------------|------|---------|-------------|
-| `openapi-mode` | `PGRST_OPENAPI_MODE` | String | `follow-privileges` | OpenAPI generation mode: `follow-privileges`, `ignore-privileges`, `disabled` |
-| `openapi-security-active` | `PGRST_OPENAPI_SECURITY_ACTIVE` | Boolean | `false` | Include security definitions in OpenAPI |
-| `openapi-server-proxy-uri` | `PGRST_OPENAPI_SERVER_PROXY_URI` | String | `None` | OpenAPI server proxy URI |
+| `openapi-mode` | `DBREST_OPENAPI_MODE` | String | `follow-privileges` | OpenAPI generation mode: `follow-privileges`, `ignore-privileges`, `disabled` |
+| `openapi-security-active` | `DBREST_OPENAPI_SECURITY_ACTIVE` | Boolean | `false` | Include security definitions in OpenAPI |
+| `openapi-server-proxy-uri` | `DBREST_OPENAPI_SERVER_PROXY_URI` | String | `None` | OpenAPI server proxy URI |
 
 ### Streaming Settings
 
 | Config Key | Environment Variable | Type | Default | Description |
 |------------|---------------------|------|---------|-------------|
-| `server-streaming-enabled` | `PGRST_SERVER_STREAMING_ENABLED` | Boolean | `true` | Enable streaming responses for large result sets |
-| `server-streaming-threshold` | `PGRST_SERVER_STREAMING_THRESHOLD` | Integer (bytes) | `10485760` (10MB) | Threshold in bytes for streaming |
+| `server-streaming-enabled` | `DBREST_SERVER_STREAMING_ENABLED` | Boolean | `true` | Enable streaming responses for large result sets |
+| `server-streaming-threshold` | `DBREST_SERVER_STREAMING_THRESHOLD` | Integer (bytes) | `10485760` (10MB) | Threshold in bytes for streaming |
 
 ### App Settings
 
@@ -190,19 +190,19 @@ db-tx-write-isolation = "serializable"
 ### Using Environment Variables
 
 ```bash
-export PGRST_DB_URI="postgresql://user:password@localhost:5432/mydb"
-export PGRST_DB_SCHEMAS="api,public"
-export PGRST_DB_ANON_ROLE="anon"
-export PGRST_SERVER_PORT=3000
-export PGRST_JWT_SECRET="your-secret-key"
-export PGRST_LOG_LEVEL="info"
+export DBREST_DB_URI="postgresql://user:password@localhost:5432/mydb"
+export DBREST_DB_SCHEMAS="api,public"
+export DBREST_DB_ANON_ROLE="anon"
+export DBREST_SERVER_PORT=3000
+export DBREST_JWT_SECRET="your-secret-key"
+export DBREST_LOG_LEVEL="info"
 
-./pgrest
+./dbrest
 ```
 
 ## Validation
 
-PgREST validates configuration on startup and will exit with an error if:
+dbrest validates configuration on startup and will exit with an error if:
 
 - `db-schemas` is empty
 - `db-schemas` includes system schemas (`pg_catalog`, `information_schema`)

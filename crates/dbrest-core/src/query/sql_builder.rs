@@ -275,8 +275,8 @@ impl Default for SqlBuilder {
 ///
 /// # Example
 /// ```
-/// assert_eq!(pgrest::query::sql_builder::escape_ident("col"), "col");
-/// assert_eq!(pgrest::query::sql_builder::escape_ident("a\"b"), "a\"\"b");
+/// assert_eq!(dbrest::query::sql_builder::escape_ident("col"), "col");
+/// assert_eq!(dbrest::query::sql_builder::escape_ident("a\"b"), "a\"\"b");
 /// ```
 pub fn escape_ident(s: &str) -> String {
     s.replace('"', "\"\"")
@@ -286,7 +286,7 @@ pub fn escape_ident(s: &str) -> String {
 ///
 /// # Example
 /// ```
-/// assert_eq!(pgrest::query::sql_builder::quote_ident("col"), "\"col\"");
+/// assert_eq!(dbrest::query::sql_builder::quote_ident("col"), "\"col\"");
 /// ```
 pub fn quote_ident(s: &str) -> String {
     format!("\"{}\"", escape_ident(s))
@@ -303,8 +303,8 @@ pub fn escape_literal(s: &str) -> String {
 ///
 /// # Example
 /// ```
-/// assert_eq!(pgrest::query::sql_builder::quote_literal("it's"), "'it''s'");
-/// assert_eq!(pgrest::query::sql_builder::quote_literal("a\\b"), "E'a\\b'");
+/// assert_eq!(dbrest::query::sql_builder::quote_literal("it's"), "'it''s'");
+/// assert_eq!(dbrest::query::sql_builder::quote_literal("a\\b"), "E'a\\b'");
 /// ```
 pub fn quote_literal(s: &str) -> String {
     let escaped = escape_literal(s);

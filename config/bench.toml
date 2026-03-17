@@ -1,5 +1,5 @@
-# PgREST benchmark configuration
-# This config is used when running PgREST in Docker for benchmarks
+# dbrest benchmark configuration
+# This config is used when running dbrest in Docker for benchmarks
 # Format: key = value (simple key-value pairs, not TOML)
 
 # Database settings

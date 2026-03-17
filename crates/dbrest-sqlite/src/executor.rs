@@ -3,8 +3,8 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
-use sqlx::{Column, Row};
 use sqlx::sqlite::SqlitePoolOptions;
+use sqlx::{Column, Row};
 
 use dbrest_core::backend::{DatabaseBackend, DbVersion, StatementResult};
 use dbrest_core::error::Error;
@@ -31,12 +31,10 @@ impl SqliteBackend {
 
     /// Ensure the session vars temp table exists on a connection.
     async fn ensure_vars_table(conn: &mut sqlx::SqliteConnection) -> Result<(), Error> {
-        sqlx::query(
-            "CREATE TEMP TABLE IF NOT EXISTS _dbrest_vars(key TEXT PRIMARY KEY, val TEXT)"
-        )
-        .execute(&mut *conn)
-        .await
-        .map_err(map_sqlx_error)?;
+        sqlx::query("CREATE TEMP TABLE IF NOT EXISTS _dbrest_vars(key TEXT PRIMARY KEY, val TEXT)")
+            .execute(&mut *conn)
+            .await
+            .map_err(map_sqlx_error)?;
         Ok(())
     }
 }
@@ -207,7 +205,11 @@ impl DatabaseBackend for SqliteBackend {
         Ok(())
     }
 
-    async fn exec_statement(&self, sql: &str, params: &[SqlParam]) -> Result<StatementResult, Error> {
+    async fn exec_statement(
+        &self,
+        sql: &str,
+        params: &[SqlParam],
+    ) -> Result<StatementResult, Error> {
         let q = sqlx::query(sql);
         let q = bind_params(q, params);
         let rows = q.fetch_all(&self.pool).await.map_err(map_sqlx_error)?;
@@ -264,15 +266,10 @@ impl DatabaseBackend for SqliteBackend {
                 // Build CREATE TEMP TABLE with generic column names
                 // Then use the actual column names from the row metadata
                 let columns: Vec<String> = (0..ncols)
-                    .map(|i| {
-                        rows[0]
-                            .column(i)
-                            .name()
-                            .to_string()
-                    })
+                    .map(|i| rows[0].column(i).name().to_string())
                     .collect();
 
-                let mut create_sql = String::from("CREATE TEMP TABLE IF NOT EXISTS _pgrst_mut(");
+                let mut create_sql = String::from("CREATE TEMP TABLE IF NOT EXISTS _dbrst_mut(");
                 for (i, col) in columns.iter().enumerate() {
                     if i > 0 {
                         create_sql.push_str(", ");
@@ -289,7 +286,7 @@ impl DatabaseBackend for SqliteBackend {
 
                 // Insert each row
                 for row in &rows {
-                    let mut insert_sql = String::from("INSERT INTO _pgrst_mut VALUES(");
+                    let mut insert_sql = String::from("INSERT INTO _dbrst_mut VALUES(");
                     for i in 0..ncols {
                         if i > 0 {
                             insert_sql.push_str(", ");
@@ -308,7 +305,7 @@ impl DatabaseBackend for SqliteBackend {
                 }
             } else {
                 // No rows returned — still create the temp table with a dummy schema
-                sqlx::query("CREATE TEMP TABLE IF NOT EXISTS _pgrst_mut(__dummy TEXT)")
+                sqlx::query("CREATE TEMP TABLE IF NOT EXISTS _dbrst_mut(__dummy TEXT)")
                     .execute(&mut *tx)
                     .await
                     .map_err(map_sqlx_error)?;
@@ -332,7 +329,7 @@ impl DatabaseBackend for SqliteBackend {
 
         // 5. Clean up temp table if we created one
         if mutation.is_some() {
-            let _ = sqlx::query("DROP TABLE IF EXISTS _pgrst_mut")
+            let _ = sqlx::query("DROP TABLE IF EXISTS _dbrst_mut")
                 .execute(&mut *tx)
                 .await;
         }

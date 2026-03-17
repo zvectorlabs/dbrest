@@ -1,12 +1,12 @@
 # Enabling CORS
 
-Cross-Origin Resource Sharing (CORS) allows web applications running on different domains to access your PgREST API.
+Cross-Origin Resource Sharing (CORS) allows web applications running on different domains to access your dbrest API.
 
 ## Configuration
 
 ### Allow All Origins (Development)
 
-By default, if `server-cors-allowed-origins` is not set, PgREST allows requests from any origin. This is useful for development but should be restricted in production.
+By default, if `server-cors-allowed-origins` is not set, dbrest allows requests from any origin. This is useful for development but should be restricted in production.
 
 ### Restrict to Specific Origins (Production)
 
@@ -19,7 +19,7 @@ server-cors-allowed-origins = "https://example.com,https://app.example.com"
 Or via environment variable:
 
 ```bash
-export PGRST_SERVER_CORS_ALLOWED_ORIGINS="https://example.com,https://app.example.com"
+export DBREST_SERVER_CORS_ALLOWED_ORIGINS="https://example.com,https://app.example.com"
 ```
 
 ### Single Origin
@@ -32,7 +32,7 @@ server-cors-allowed-origins = "https://example.com"
 
 ## CORS Headers
 
-PgREST automatically handles CORS headers for:
+dbrest automatically handles CORS headers for:
 
 - **Allowed Methods**: GET, POST, PATCH, PUT, DELETE, OPTIONS, HEAD
 - **Allowed Headers**: Authorization, Content-Type, Accept, Range, Prefer, Accept-Profile, Content-Profile
@@ -40,7 +40,7 @@ PgREST automatically handles CORS headers for:
 
 ## Preflight Requests
 
-PgREST automatically responds to OPTIONS (preflight) requests with appropriate CORS headers.
+dbrest automatically responds to OPTIONS (preflight) requests with appropriate CORS headers.
 
 ### Example Preflight Request
 
@@ -106,14 +106,14 @@ xhr.send();
 
 **Solution**: 
 - Use `credentials: 'include'` in fetch or `withCredentials: true` in XHR
-- Ensure server allows credentials (PgREST does by default)
+- Ensure server allows credentials (dbrest does by default)
 
 ### Preflight Fails
 
 **Problem**: OPTIONS request fails or returns wrong headers.
 
 **Solution**: 
-- PgREST handles OPTIONS automatically
+- dbrest handles OPTIONS automatically
 - Verify `server-cors-allowed-origins` includes your origin
 - Check browser console for specific error messages
 

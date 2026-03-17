@@ -166,7 +166,7 @@ pub fn map_sqlx_error(e: sqlx::Error) -> Error {
                 if let Some(status_str) = code.strip_prefix("PT")
                     && let Ok(status) = status_str.parse::<u16>()
                 {
-                    return Error::PgrstRaise { message, status };
+                    return Error::DbrstRaise { message, status };
                 }
             }
 

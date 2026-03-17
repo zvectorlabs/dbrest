@@ -30,7 +30,7 @@ impl SqlDialect for PgDialect {
 
     fn count_star(&self, b: &mut SqlBuilder) {
         b.push("SELECT COUNT(*) AS ");
-        b.push_ident("pgrst_filtered_count");
+        b.push_ident("dbrst_filtered_count");
     }
 
     fn set_session_var(&self, b: &mut SqlBuilder, key: &str, value: &str) {
@@ -54,12 +54,7 @@ impl SqlDialect for PgDialect {
         b.push(ty);
     }
 
-    fn from_json_body(
-        &self,
-        b: &mut SqlBuilder,
-        columns: &[CoercibleField],
-        json_bytes: &[u8],
-    ) {
+    fn from_json_body(&self, b: &mut SqlBuilder, columns: &[CoercibleField], json_bytes: &[u8]) {
         let is_array = json_bytes.first().map(|&c| c == b'[').unwrap_or(false);
         let func = if is_array {
             "json_to_recordset"

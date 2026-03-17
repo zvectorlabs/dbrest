@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
-use pgrest::api_request::query_params;
+use dbrest::api_request::query_params;
 use std::collections::HashMap;
 
 // ============================================================================

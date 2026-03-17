@@ -155,7 +155,7 @@ async fn server_timing_middleware(
 /// Build a CORS layer from configuration.
 ///
 /// Uses `config.server_cors_allowed_origins` if set, otherwise allows any origin.
-/// Always allows the standard PgREST headers and HTTP methods.
+/// Always allows the standard dbrest headers and HTTP methods.
 pub fn create_cors_layer(config: &AppConfig) -> CorsLayer {
     use http::Method;
 

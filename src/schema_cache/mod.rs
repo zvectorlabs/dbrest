@@ -1,6 +1,6 @@
 //! Schema Cache module
 //!
-//! The schema cache is the heart of PgREST. It introspects the PostgreSQL database
+//! The schema cache is the heart of dbrest. It introspects the PostgreSQL database
 //! and caches:
 //! - Tables/Views metadata
 //! - Column information

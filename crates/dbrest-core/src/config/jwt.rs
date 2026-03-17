@@ -58,7 +58,7 @@ impl JsPathExp {
 /// # Examples
 ///
 /// ```
-/// use pgrest::config::jwt::{parse_js_path, JsPathExp};
+/// use dbrest::config::jwt::{parse_js_path, JsPathExp};
 ///
 /// let path = parse_js_path(".role").unwrap();
 /// assert_eq!(path, vec![JsPathExp::Key("role".into())]);
@@ -147,7 +147,7 @@ fn parse_index(chars: &mut std::iter::Peekable<std::str::Chars>) -> Result<usize
 /// # Examples
 ///
 /// ```
-/// use pgrest::config::jwt::{parse_js_path, extract_from_json};
+/// use dbrest::config::jwt::{parse_js_path, extract_from_json};
 /// use serde_json::json;
 ///
 /// let data = json!({

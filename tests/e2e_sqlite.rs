@@ -10,10 +10,10 @@ mod common;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use pgrest::app::router::create_router;
-use pgrest::app::state::AppState;
-use pgrest::backend::{DatabaseBackend, DbVersion, SqlDialect};
-use pgrest::config::AppConfig;
+use dbrest::app::router::create_router;
+use dbrest::app::state::AppState;
+use dbrest::backend::{DatabaseBackend, DbVersion, SqlDialect};
+use dbrest::config::AppConfig;
 use reqwest::{Client, StatusCode};
 use serde_json::{Value, json};
 use tokio::net::TcpListener;
@@ -270,7 +270,10 @@ async fn sqlite_e2e_select_columns() {
     assert!(first.get("id").is_some());
     assert!(first.get("name").is_some());
     // email should NOT be present when not selected
-    assert!(first.get("email").is_none(), "email should not be in response");
+    assert!(
+        first.get("email").is_none(),
+        "email should not be in response"
+    );
 }
 
 #[tokio::test]
@@ -330,9 +333,7 @@ async fn sqlite_e2e_filter_gt() {
 #[tokio::test]
 async fn sqlite_e2e_multiple_filters() {
     let server = TestServer::start().await;
-    let resp = server
-        .get("/products?price=gte.5&in_stock=eq.1")
-        .await;
+    let resp = server.get("/products?price=gte.5&in_stock=eq.1").await;
 
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();
@@ -587,9 +588,7 @@ async fn sqlite_e2e_get_countries() {
 #[tokio::test]
 async fn sqlite_e2e_filter_countries_by_population() {
     let server = TestServer::start().await;
-    let resp = server
-        .get("/countries?population=gt.100000000")
-        .await;
+    let resp = server.get("/countries?population=gt.100000000").await;
 
     assert_eq!(resp.status(), StatusCode::OK);
     let body: Value = resp.json().await.unwrap();

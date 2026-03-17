@@ -172,7 +172,7 @@ HTTP/1.1 416 Range Not Satisfiable
 Content-Range: */100
 
 {
-  "code": "PGRST116",
+  "code": "DBRST116",
   "message": "Maximum affected rows exceeded",
   "details": "Request would affect 100 rows, but max-affected=10"
 }

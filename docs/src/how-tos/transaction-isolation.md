@@ -1,6 +1,6 @@
 # Transaction Isolation Levels
 
-PgREST allows you to configure transaction isolation levels separately for read and write operations, providing control over data consistency and concurrency.
+dbrest allows you to configure transaction isolation levels separately for read and write operations, providing control over data consistency and concurrency.
 
 ## Isolation Levels
 
@@ -41,8 +41,8 @@ Options:
 ### Environment Variables
 
 ```bash
-export PGRST_DB_TX_READ_ISOLATION="repeatable-read"
-export PGRST_DB_TX_WRITE_ISOLATION="serializable"
+export DBREST_DB_TX_READ_ISOLATION="repeatable-read"
+export DBREST_DB_TX_WRITE_ISOLATION="serializable"
 ```
 
 ## Use Cases

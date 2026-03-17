@@ -14,17 +14,17 @@
 //! # SQL Example
 //!
 //! ```sql
-//! WITH pgrst_source AS (
+//! WITH dbrst_source AS (
 //!   SELECT "public"."users"."id" AS "id", "public"."users"."name" AS "name"
 //!   FROM "public"."users"
 //! )
 //! SELECT
 //!   NULL AS total_result_set,
-//!   pg_catalog.count(_pgrest_t) AS page_total,
-//!   coalesce(json_agg(_pgrest_t), '[]')::text AS body,
+//!   pg_catalog.count(_dbrst_t) AS page_total,
+//!   coalesce(json_agg(_dbrst_t), '[]')::text AS body,
 //!   nullif(current_setting('response.headers', true), '') AS response_headers,
 //!   nullif(current_setting('response.status', true), '') AS response_status
-//! FROM (SELECT * FROM pgrst_source) AS _pgrest_t
+//! FROM (SELECT * FROM dbrst_source) AS _dbrst_t
 //! ```
 
 use crate::api_request::preferences::PreferCount;
@@ -57,16 +57,16 @@ use super::sql_builder::SqlBuilder;
 /// # SQL Example
 ///
 /// ```sql
-/// WITH pgrst_source AS (
+/// WITH dbrst_source AS (
 ///   SELECT … FROM "public"."users" WHERE …
 /// )
 /// SELECT
 ///   NULL AS total_result_set,
-///   pg_catalog.count(_pgrest_t) AS page_total,
-///   coalesce(json_agg(_pgrest_t), '[]')::text AS body,
+///   pg_catalog.count(_dbrst_t) AS page_total,
+///   coalesce(json_agg(_dbrst_t), '[]')::text AS body,
 ///   nullif(current_setting('response.headers', true), '') AS response_headers,
 ///   nullif(current_setting('response.status', true), '') AS response_status
-/// FROM (SELECT * FROM pgrst_source) AS _pgrest_t
+/// FROM (SELECT * FROM dbrst_source) AS _dbrst_t
 /// ```
 pub fn main_read(
     read_plan: &ReadPlanTree,
@@ -79,8 +79,8 @@ pub fn main_read(
     let inner = builder::read_plan_to_query(read_plan, dialect);
     let mut b = SqlBuilder::new();
 
-    // CTE: pgrst_source
-    b.push("WITH pgrst_source AS (");
+    // CTE: dbrst_source
+    b.push("WITH dbrst_source AS (");
     b.push_builder(&inner);
     b.push(")");
 
@@ -88,7 +88,7 @@ pub fn main_read(
     let has_exact_count = matches!(prefer_count, Some(PreferCount::Exact));
     if has_exact_count {
         let count_q = builder::read_plan_to_count_query(read_plan, dialect);
-        b.push(", pgrst_count AS (");
+        b.push(", dbrst_count AS (");
         b.push_builder(&count_q);
         b.push(")");
     }
@@ -99,8 +99,8 @@ pub fn main_read(
     // total_result_set
     if has_exact_count {
         b.push("(SELECT ");
-        b.push_ident("pgrst_filtered_count");
-        b.push(" FROM pgrst_count)");
+        b.push_ident("dbrst_filtered_count");
+        b.push(" FROM dbrst_count)");
     } else {
         b.push("NULL");
     }
@@ -108,7 +108,7 @@ pub fn main_read(
 
     // page_total
     b.push(", ");
-    dialect.count_expr(&mut b, "_pgrest_t");
+    dialect.count_expr(&mut b, "_dbrst_t");
     b.push(" AS page_total");
 
     // Extract column names for non-PG backends that need them
@@ -134,8 +134,8 @@ pub fn main_read(
     b.push(", ");
     dialect.get_session_var(&mut b, "response.status", "response_status");
 
-    // FROM pgrst_source
-    b.push(" FROM (SELECT * FROM pgrst_source");
+    // FROM dbrst_source
+    b.push(" FROM (SELECT * FROM dbrst_source");
 
     // Apply max_rows if configured
     if let Some(max) = max_rows {
@@ -144,14 +144,14 @@ pub fn main_read(
     }
 
     b.push(") AS ");
-    b.push_ident("_pgrest_t");
+    b.push_ident("_dbrst_t");
 
     b
 }
 
 /// Extract the output column names from a read plan's select list.
 ///
-/// These are the names that will appear in the `_pgrest_t` alias and
+/// These are the names that will appear in the `_dbrst_t` alias and
 /// are needed by backends that cannot aggregate a row alias (e.g. SQLite).
 /// Returns an empty vec for `SELECT *` plans (full_row / star selects).
 fn select_column_names(tree: &ReadPlanTree) -> Vec<String> {
@@ -183,7 +183,7 @@ fn select_column_names(tree: &ReadPlanTree) -> Vec<String> {
 ///
 /// # Behaviour
 ///
-/// - The mutation CTE (`pgrst_source`) contains the INSERT/UPDATE/DELETE
+/// - The mutation CTE (`dbrst_source`) contains the INSERT/UPDATE/DELETE
 /// - If `return_representation` is true, the response body includes the
 ///   returned rows as JSON
 /// - The location header expression is included for INSERT operations
@@ -191,16 +191,16 @@ fn select_column_names(tree: &ReadPlanTree) -> Vec<String> {
 /// # SQL Example
 ///
 /// ```sql
-/// WITH pgrst_source AS (
+/// WITH dbrst_source AS (
 ///   INSERT INTO "public"."users"("name") VALUES ($1) RETURNING "id", "name"
 /// )
 /// SELECT
 ///   '' AS total_result_set,
-///   pg_catalog.count(_pgrest_t) AS page_total,
-///   coalesce(json_agg(_pgrest_t), '[]')::text AS body,
+///   pg_catalog.count(_dbrst_t) AS page_total,
+///   coalesce(json_agg(_dbrst_t), '[]')::text AS body,
 ///   nullif(current_setting('response.headers', true), '') AS response_headers,
 ///   nullif(current_setting('response.status', true), '') AS response_status
-/// FROM (SELECT * FROM pgrst_source) AS _pgrest_t
+/// FROM (SELECT * FROM dbrst_source) AS _dbrst_t
 /// ```
 pub fn main_write(
     mutate_plan: &MutatePlan,
@@ -213,7 +213,7 @@ pub fn main_write(
     let has_returning = !mutate_plan.returning().is_empty();
     let mut b = SqlBuilder::new();
 
-    b.push("WITH pgrst_source AS (");
+    b.push("WITH dbrst_source AS (");
     b.push_builder(&inner);
     if !has_returning {
         b.push(" RETURNING 1");
@@ -228,16 +228,20 @@ pub fn main_write(
 
     // page_total
     b.push(", ");
-    dialect.count_expr(&mut b, "_pgrest_t");
+    dialect.count_expr(&mut b, "_dbrst_t");
     b.push(" AS page_total");
 
     // Extract column names from the RETURNING clause for non-PG backends
-    let col_names: Vec<String> = mutate_plan.returning().iter().map(|sf| {
-        sf.alias
-            .as_ref()
-            .map(|a| a.to_string())
-            .unwrap_or_else(|| sf.field.name.to_string())
-    }).collect();
+    let col_names: Vec<String> = mutate_plan
+        .returning()
+        .iter()
+        .map(|sf| {
+            sf.alias
+                .as_ref()
+                .map(|a| a.to_string())
+                .unwrap_or_else(|| sf.field.name.to_string())
+        })
+        .collect();
     let col_refs: Vec<&str> = col_names.iter().map(|s| s.as_str()).collect();
 
     // body
@@ -259,9 +263,9 @@ pub fn main_write(
     b.push(", ");
     dialect.get_session_var(&mut b, "response.status", "response_status");
 
-    // FROM pgrst_source
-    b.push(" FROM (SELECT * FROM pgrst_source) AS ");
-    b.push_ident("_pgrest_t");
+    // FROM dbrst_source
+    b.push(" FROM (SELECT * FROM dbrst_source) AS ");
+    b.push_ident("_dbrst_t");
 
     b
 }
@@ -270,10 +274,10 @@ pub fn main_write(
 ///
 /// Returns `(mutation, aggregation)` where:
 /// - `mutation` is the bare INSERT/UPDATE/DELETE with RETURNING
-/// - `aggregation` is a SELECT that aggregates rows from `_pgrst_mut` temp table
+/// - `aggregation` is a SELECT that aggregates rows from `_dbrst_mut` temp table
 ///
 /// The executor is responsible for:
-/// 1. Creating `_pgrst_mut` temp table from the mutation RETURNING rows
+/// 1. Creating `_dbrst_mut` temp table from the mutation RETURNING rows
 /// 2. Running the aggregation SELECT
 pub fn main_write_split(
     mutate_plan: &MutatePlan,
@@ -288,7 +292,7 @@ pub fn main_write_split(
         mutation.push(" RETURNING 1");
     }
 
-    // Build the aggregation SELECT from _pgrst_mut
+    // Build the aggregation SELECT from _dbrst_mut
     let mut b = SqlBuilder::new();
     b.push("SELECT ");
 
@@ -297,16 +301,20 @@ pub fn main_write_split(
 
     // page_total
     b.push(", ");
-    dialect.count_expr(&mut b, "_pgrest_t");
+    dialect.count_expr(&mut b, "_dbrst_t");
     b.push(" AS page_total");
 
     // Extract column names from the RETURNING clause
-    let col_names: Vec<String> = mutate_plan.returning().iter().map(|sf| {
-        sf.alias
-            .as_ref()
-            .map(|a| a.to_string())
-            .unwrap_or_else(|| sf.field.name.to_string())
-    }).collect();
+    let col_names: Vec<String> = mutate_plan
+        .returning()
+        .iter()
+        .map(|sf| {
+            sf.alias
+                .as_ref()
+                .map(|a| a.to_string())
+                .unwrap_or_else(|| sf.field.name.to_string())
+        })
+        .collect();
     let col_refs: Vec<&str> = col_names.iter().map(|s| s.as_str()).collect();
 
     // body
@@ -328,11 +336,11 @@ pub fn main_write_split(
     b.push(", ");
     dialect.get_session_var(&mut b, "response.status", "response_status");
 
-    // FROM _pgrst_mut (the temp table populated by the executor)
+    // FROM _dbrst_mut (the temp table populated by the executor)
     b.push(" FROM ");
-    b.push_ident("_pgrst_mut");
+    b.push_ident("_dbrst_mut");
     b.push(" AS ");
-    b.push_ident("_pgrest_t");
+    b.push_ident("_dbrst_t");
 
     (mutation, b)
 }
@@ -355,16 +363,16 @@ pub fn main_write_split(
 /// # SQL Example
 ///
 /// ```sql
-/// WITH pgrst_source AS (
+/// WITH dbrst_source AS (
 ///   SELECT * FROM "public"."get_users"()
 /// )
 /// SELECT
 ///   NULL AS total_result_set,
-///   pg_catalog.count(_pgrest_t) AS page_total,
-///   coalesce(json_agg(_pgrest_t), '[]')::text AS body,
+///   pg_catalog.count(_dbrst_t) AS page_total,
+///   coalesce(json_agg(_dbrst_t), '[]')::text AS body,
 ///   nullif(current_setting('response.headers', true), '') AS response_headers,
 ///   nullif(current_setting('response.status', true), '') AS response_status
-/// FROM (SELECT * FROM pgrst_source) AS _pgrest_t
+/// FROM (SELECT * FROM dbrst_source) AS _dbrst_t
 /// ```
 pub fn main_call(
     call_plan: &CallPlan,
@@ -376,8 +384,8 @@ pub fn main_call(
     let inner = builder::call_plan_to_query(call_plan, dialect);
     let mut b = SqlBuilder::new();
 
-    // CTE: pgrst_source
-    b.push("WITH pgrst_source AS (");
+    // CTE: dbrst_source
+    b.push("WITH dbrst_source AS (");
     b.push_builder(&inner);
     b.push(")");
 
@@ -388,7 +396,7 @@ pub fn main_call(
 
     // total_result_set
     if has_exact_count {
-        dialect.count_star_from(&mut b, "pgrst_source");
+        dialect.count_star_from(&mut b, "dbrst_source");
     } else {
         b.push("NULL");
     }
@@ -399,7 +407,7 @@ pub fn main_call(
         b.push(", 1 AS page_total");
     } else {
         b.push(", ");
-        dialect.count_expr(&mut b, "_pgrest_t");
+        dialect.count_expr(&mut b, "_dbrst_t");
         b.push(" AS page_total");
     }
 
@@ -407,7 +415,7 @@ pub fn main_call(
     b.push(", ");
     if call_plan.scalar {
         // Scalar function: convert the CTE row to JSON text
-        dialect.row_to_json_star(&mut b, "pgrst_source");
+        dialect.row_to_json_star(&mut b, "dbrst_source");
     } else if let Some(h) = handler {
         fragment::handler_agg_with_media(&mut b, h, false, dialect);
     } else {
@@ -421,11 +429,11 @@ pub fn main_call(
     b.push(", ");
     dialect.get_session_var(&mut b, "response.status", "response_status");
 
-    // FROM pgrst_source
+    // FROM dbrst_source
     if call_plan.scalar {
-        b.push(" FROM pgrst_source");
+        b.push(" FROM dbrst_source");
     } else {
-        b.push(" FROM (SELECT * FROM pgrst_source");
+        b.push(" FROM (SELECT * FROM dbrst_source");
 
         if let Some(max) = max_rows {
             b.push(" LIMIT ");
@@ -433,7 +441,7 @@ pub fn main_call(
         }
 
         b.push(") AS ");
-        b.push_ident("_pgrest_t");
+        b.push_ident("_dbrst_t");
     }
 
     b
@@ -447,11 +455,11 @@ pub fn main_call(
 mod tests {
     use super::*;
     use crate::api_request::types::Payload;
-    use crate::test_helpers::TestPgDialect;
     use crate::plan::call_plan::{CallArgs, CallParams, CallPlan};
     use crate::plan::mutate_plan::{InsertPlan, MutatePlan};
     use crate::plan::read_plan::{ReadPlan, ReadPlanTree};
     use crate::plan::types::*;
+    use crate::test_helpers::TestPgDialect;
     use crate::types::identifiers::QualifiedIdentifier;
     use bytes::Bytes;
     use smallvec::SmallVec;
@@ -491,7 +499,7 @@ mod tests {
         let b = main_read(&tree, None, None, false, None, dialect());
         let sql = b.sql();
 
-        assert!(sql.starts_with("WITH pgrst_source AS ("));
+        assert!(sql.starts_with("WITH dbrst_source AS ("));
         assert!(sql.contains("AS total_result_set"));
         assert!(sql.contains("AS page_total"));
         assert!(sql.contains("AS body"));
@@ -504,11 +512,18 @@ mod tests {
         let plan = ReadPlan::root(test_qi());
         let tree = ReadPlanTree::leaf(plan);
 
-        let b = main_read(&tree, Some(PreferCount::Exact), None, false, None, dialect());
+        let b = main_read(
+            &tree,
+            Some(PreferCount::Exact),
+            None,
+            false,
+            None,
+            dialect(),
+        );
         let sql = b.sql();
 
-        assert!(sql.contains("pgrst_count"));
-        assert!(sql.contains("pgrst_filtered_count"));
+        assert!(sql.contains("dbrst_count"));
+        assert!(sql.contains("dbrst_filtered_count"));
     }
 
     #[test]
@@ -554,7 +569,7 @@ mod tests {
         let b = main_write(&mutate, &read, true, None, dialect());
         let sql = b.sql();
 
-        assert!(sql.starts_with("WITH pgrst_source AS ("));
+        assert!(sql.starts_with("WITH dbrst_source AS ("));
         assert!(sql.contains("INSERT INTO"));
         assert!(sql.contains("AS body"));
     }
@@ -598,7 +613,7 @@ mod tests {
         let b = main_call(&call, None, None, None, dialect());
         let sql = b.sql();
 
-        assert!(sql.starts_with("WITH pgrst_source AS ("));
+        assert!(sql.starts_with("WITH dbrst_source AS ("));
         assert!(sql.contains("get_time"));
         assert!(sql.contains("AS body"));
     }

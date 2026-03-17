@@ -10,7 +10,7 @@ use super::jwt::JsPathExp;
 
 /// Main application configuration
 ///
-/// All PgREST configuration options.
+/// All dbrest configuration options.
 #[derive(Debug, Clone)]
 pub struct AppConfig {
     // =========================================
@@ -219,7 +219,7 @@ impl Default for AppConfig {
             db_aggregates_enabled: false,
             db_config: true,
             db_pre_config: None,
-            db_channel: "pgrst".to_string(),
+            db_channel: "dbrst".to_string(),
             db_channel_enabled: true,
 
             // Server settings
@@ -387,7 +387,7 @@ mod tests {
         assert_eq!(config.db_schemas, vec!["public"]);
         assert_eq!(config.server_port, 3000);
         assert_eq!(config.db_pool_size, 10);
-        assert_eq!(config.db_channel, "pgrst");
+        assert_eq!(config.db_channel, "dbrst");
         assert!(config.db_channel_enabled);
     }
 

@@ -17,7 +17,7 @@ use super::types::{AppConfig, IsolationLevel, LogLevel, OpenApiMode};
 /// Load configuration from file and environment
 ///
 /// Order of precedence (highest to lowest):
-/// 1. Environment variables (PGRST_*)
+/// 1. Environment variables (DBRST_*)
 /// 2. Config file values
 /// 3. Default values
 ///
@@ -111,11 +111,11 @@ fn parse_key_value(line: &str) -> Option<(String, String)> {
 
 /// Apply environment variable overrides
 ///
-/// Environment variables with the PGRST_ prefix override config file values.
+/// Environment variables with the DBRST_ prefix override config file values.
 /// The prefix is stripped and underscores are converted to hyphens.
 fn apply_env_overrides(config: &mut AppConfig) -> Result<(), ConfigError> {
     for (key, value) in env::vars() {
-        if let Some(config_key) = key.strip_prefix("PGRST_") {
+        if let Some(config_key) = key.strip_prefix("DBRST_") {
             let config_key = config_key.to_lowercase().replace('_', "-");
             // Ignore errors for unknown keys from environment
             let _ = apply_config_value(config, &config_key, &value);
@@ -456,7 +456,7 @@ fn post_process_config(config: &mut AppConfig) -> Result<(), ConfigError> {
             "?"
         };
         config.db_uri = format!(
-            "{}{}fallback_application_name=pgrest",
+            "{}{}fallback_application_name=dbrest",
             config.db_uri, separator
         );
     }

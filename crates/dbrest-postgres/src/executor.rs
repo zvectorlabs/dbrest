@@ -6,11 +6,11 @@ use async_trait::async_trait;
 use sqlx::Row;
 use sqlx::postgres::PgPoolOptions;
 
+use crate::introspector::SqlxIntrospector;
 use dbrest_core::backend::{DatabaseBackend, DbVersion, StatementResult};
 use dbrest_core::error::Error;
 use dbrest_core::query::sql_builder::{SqlBuilder, SqlParam};
 use dbrest_core::schema_cache::db::DbIntrospector;
-use crate::introspector::SqlxIntrospector;
 
 /// PostgreSQL backend backed by `sqlx::PgPool`.
 pub struct PgBackend {
@@ -89,8 +89,8 @@ pub fn map_sqlx_error(e: sqlx::Error) -> Error {
 
             // Permission errors
             Some("42501") => {
-                let role = extract_role_from_message(&message)
-                    .unwrap_or_else(|| "unknown".to_string());
+                let role =
+                    extract_role_from_message(&message).unwrap_or_else(|| "unknown".to_string());
                 return Error::PermissionDenied { role };
             }
 
@@ -166,7 +166,7 @@ pub fn map_sqlx_error(e: sqlx::Error) -> Error {
                 if let Some(status_str) = code.strip_prefix("PT")
                     && let Ok(status) = status_str.parse::<u16>()
                 {
-                    return Error::PgrstRaise { message, status };
+                    return Error::DbrstRaise { message, status };
                 }
             }
 
@@ -324,7 +324,11 @@ impl DatabaseBackend for PgBackend {
         Ok(())
     }
 
-    async fn exec_statement(&self, sql: &str, params: &[SqlParam]) -> Result<StatementResult, Error> {
+    async fn exec_statement(
+        &self,
+        sql: &str,
+        params: &[SqlParam],
+    ) -> Result<StatementResult, Error> {
         let q = sqlx::query(sql);
         let q = bind_params(q, params);
         let rows = q.fetch_all(&self.pool).await.map_err(map_sqlx_error)?;
@@ -408,12 +412,15 @@ impl DatabaseBackend for PgBackend {
                 hint: None,
             })?;
 
-        listener.listen(channel).await.map_err(|e| Error::Database {
-            code: None,
-            message: e.to_string(),
-            detail: None,
-            hint: None,
-        })?;
+        listener
+            .listen(channel)
+            .await
+            .map_err(|e| Error::Database {
+                code: None,
+                message: e.to_string(),
+                detail: None,
+                hint: None,
+            })?;
 
         tracing::info!(channel = channel, "Subscribed to NOTIFY channel");
 
@@ -424,8 +431,7 @@ impl DatabaseBackend for PgBackend {
                 return Ok(());
             }
 
-            let notification =
-                tokio::time::timeout(Duration::from_secs(30), listener.recv()).await;
+            let notification = tokio::time::timeout(Duration::from_secs(30), listener.recv()).await;
 
             // Extract payload as an owned String before calling on_event,
             // so the PgNotification (which borrows from the listener) is

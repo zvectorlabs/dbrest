@@ -9,9 +9,9 @@
 
 mod common;
 
-use pgrest::app::router::create_router;
-use pgrest::app::state::{AppState, PgVersion};
-use pgrest::config::AppConfig;
+use dbrest::app::router::create_router;
+use dbrest::app::state::{AppState, PgVersion};
+use dbrest::config::AppConfig;
 use reqwest::{Client, StatusCode};
 use serde_json::{Value, json};
 use sqlx::Executor;
@@ -67,7 +67,7 @@ impl TestServer {
         config.jwt_secret = Some(TEST_JWT_SECRET.to_string());
         config_fn(&mut config);
 
-        let state = pgrest::compat::app_state_from_pool(
+        let state = dbrest::compat::app_state_from_pool(
             pool,
             config,
             PgVersion {
@@ -1083,7 +1083,7 @@ async fn e2e_nonexistent_table() {
 
     // Verify error JSON format
     let json: Value = resp.json().await.unwrap();
-    assert_eq!(json["code"], "PGRST205"); // TableNotFound uses PGRST205 per PostgREST
+    assert_eq!(json["code"], "DBRST205"); // TableNotFound uses DBRST205 per PostgREST
     assert!(json.get("message").is_some());
 }
 
@@ -1126,8 +1126,8 @@ async fn e2e_constraint_violations() {
     assert_eq!(duplicate_resp.status(), StatusCode::CONFLICT);
 
     let json: Value = duplicate_resp.json().await.unwrap();
-    assert!(json["code"].as_str().unwrap().starts_with("PGRST50"));
-    assert_eq!(json["code"], "PGRST502"); // UNIQUE_VIOLATION
+    assert!(json["code"].as_str().unwrap().starts_with("DBRST50"));
+    assert_eq!(json["code"], "DBRST502"); // UNIQUE_VIOLATION
 }
 
 #[tokio::test]
@@ -1139,7 +1139,7 @@ async fn e2e_invalid_query_params() {
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
 
     let json: Value = resp.json().await.unwrap();
-    assert!(json["code"].as_str().unwrap().starts_with("PGRST1"));
+    assert!(json["code"].as_str().unwrap().starts_with("DBRST1"));
 }
 
 #[tokio::test]
@@ -1171,7 +1171,7 @@ async fn e2e_jwt_www_authenticate_header() {
 
         // Verify error JSON
         let json: Value = resp.json().await.unwrap();
-        assert!(json["code"].as_str().unwrap().starts_with("PGRST30"));
+        assert!(json["code"].as_str().unwrap().starts_with("DBRST30"));
     }
 }
 

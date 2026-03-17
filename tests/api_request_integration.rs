@@ -21,9 +21,9 @@ use http::StatusCode;
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
-use pgrest::api_request::{self, ApiRequest, preferences::Preferences};
-use pgrest::config::AppConfig;
-use pgrest::types::media::MediaType;
+use dbrest::api_request::{self, ApiRequest, preferences::Preferences};
+use dbrest::config::AppConfig;
+use dbrest::types::media::MediaType;
 
 // ==========================================================================
 // Shared test helpers
@@ -44,7 +44,7 @@ fn build_api_request(
     query: &str,
     headers: &[(String, String)],
     body: Bytes,
-) -> Result<ApiRequest, pgrest::Error> {
+) -> Result<ApiRequest, dbrest::Error> {
     let prefs = Preferences::default();
     api_request::from_request(config, &prefs, method, path, query, headers, body)
 }
@@ -786,8 +786,8 @@ mod direct_tests {
 
         assert!(matches!(
             req.action,
-            pgrest::api_request::Action::Db(
-                pgrest::api_request::types::DbAction::SchemaRead { .. }
+            dbrest::api_request::Action::Db(
+                dbrest::api_request::types::DbAction::SchemaRead { .. }
             )
         ));
     }

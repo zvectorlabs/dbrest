@@ -45,17 +45,17 @@ use super::sql_builder::{SqlBuilder, SqlParam};
 /// ```sql
 /// SELECT "public"."users"."id" AS "id",
 ///        "public"."users"."name" AS "name",
-///        _pgrest_agg_1.body AS "posts"
+///        _dbrst_agg_1.body AS "posts"
 /// FROM "public"."users"
 /// LEFT JOIN LATERAL (
-///   SELECT coalesce(json_agg(_pgrest_t), '[]')::text AS body
+///   SELECT coalesce(json_agg(_dbrst_t), '[]')::text AS body
 ///   FROM (
 ///     SELECT "public"."posts"."id" AS "id",
 ///            "public"."posts"."title" AS "title"
 ///     FROM "public"."posts"
 ///     WHERE "public"."posts"."user_id" = "public"."users"."id"
-///   ) AS _pgrest_t
-/// ) AS _pgrest_agg_1 ON TRUE
+///   ) AS _dbrst_t
+/// ) AS _dbrst_agg_1 ON TRUE
 /// WHERE "public"."users"."id" = $1
 /// ORDER BY "public"."users"."name" ASC
 /// LIMIT 10
@@ -131,11 +131,11 @@ pub fn read_plan_to_query(tree: &ReadPlanTree, dialect: &dyn SqlDialect) -> SqlB
 
         if is_to_one {
             b.push("SELECT ");
-            dialect.row_to_json(&mut b, "_pgrest_t");
+            dialect.row_to_json(&mut b, "_dbrst_t");
             b.push(" AS body FROM (");
         } else {
             b.push("SELECT ");
-            dialect.json_agg(&mut b, "_pgrest_t");
+            dialect.json_agg(&mut b, "_dbrst_t");
             b.push(" AS body FROM (");
         }
 
@@ -144,7 +144,7 @@ pub fn read_plan_to_query(tree: &ReadPlanTree, dialect: &dyn SqlDialect) -> SqlB
         b.push_builder(&child_query);
 
         b.push(") AS ");
-        b.push_ident("_pgrest_t");
+        b.push_ident("_dbrst_t");
         b.push(") AS ");
         b.push_ident(&child.node.rel_agg_alias);
         b.push(" ON TRUE");
@@ -183,12 +183,12 @@ pub fn read_plan_to_query(tree: &ReadPlanTree, dialect: &dyn SqlDialect) -> SqlB
 
 /// Convert a `ReadPlanTree` into a COUNT query.
 ///
-/// Produces `SELECT COUNT(*) FROM (source_query) AS _pgrst_count_t`.
+/// Produces `SELECT COUNT(*) FROM (source_query) AS _dbrst_count_t`.
 ///
 /// # SQL Example
 /// ```sql
-/// SELECT COUNT(*) AS "pgrst_filtered_count"
-/// FROM (SELECT … FROM "public"."users" WHERE …) AS _pgrst_count_t
+/// SELECT COUNT(*) AS "dbrst_filtered_count"
+/// FROM (SELECT … FROM "public"."users" WHERE …) AS _dbrst_count_t
 /// ```
 pub fn read_plan_to_count_query(tree: &ReadPlanTree, dialect: &dyn SqlDialect) -> SqlBuilder {
     let mut b = SqlBuilder::new();
@@ -206,7 +206,7 @@ pub fn read_plan_to_count_query(tree: &ReadPlanTree, dialect: &dyn SqlDialect) -
         fragment::where_clause(&mut b, qi, &plan.where_, dialect);
     }
 
-    b.push(") AS _pgrst_count_t");
+    b.push(") AS _dbrst_count_t");
 
     b
 }
@@ -658,7 +658,7 @@ mod tests {
         let b = read_plan_to_count_query(&tree, dialect());
 
         assert!(b.sql().contains("COUNT(*)"));
-        assert!(b.sql().contains("_pgrst_count_t"));
+        assert!(b.sql().contains("_dbrst_count_t"));
     }
 
     #[test]

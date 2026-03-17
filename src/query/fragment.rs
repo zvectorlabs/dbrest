@@ -770,7 +770,7 @@ pub fn from_json_body(b: &mut SqlBuilder, columns: &[CoercibleField], json_body:
 ///
 /// # SQL Example
 /// ```sql
-/// SELECT COUNT(*) AS "pgrst_filtered_count" FROM (source_query) AS _pgrst_count_t
+/// SELECT COUNT(*) AS "dbrst_filtered_count" FROM (source_query) AS _dbrst_count_t
 /// ```
 pub fn count_f(b: &mut SqlBuilder, dialect: &dyn SqlDialect) {
     dialect.count_star(b);
@@ -816,17 +816,17 @@ pub fn group_clause(b: &mut SqlBuilder, qi: &QualifiedIdentifier, select: &[Coer
 ///
 /// # Behaviour
 ///
-/// By default, wraps results in `coalesce(json_agg(_pgrest_t), '[]')::text`
+/// By default, wraps results in `coalesce(json_agg(_dbrst_t), '[]')::text`
 /// for JSON output.
 ///
 /// # SQL Example
 /// ```sql
-/// coalesce(json_agg(_pgrest_t), '[]')::text
+/// coalesce(json_agg(_dbrst_t), '[]')::text
 /// ```
 /// Append a handler aggregation expression based on the media type.
 ///
 /// Different media types use different aggregation strategies:
-/// - JSON: `coalesce(json_agg(_pgrest_t), '[]')::text`
+/// - JSON: `coalesce(json_agg(_dbrst_t), '[]')::text`
 /// - CSV: Custom CSV formatting with headers
 /// - Binary: Raw output (no aggregation)
 ///
@@ -847,7 +847,7 @@ pub fn handler_agg_with_media(
         | MediaHandler::BuiltinAggSingleJson(_)
         | MediaHandler::BuiltinAggArrayJsonStrip => {
             // JSON aggregation (default)
-            dialect.json_agg(b, "_pgrest_t");
+            dialect.json_agg(b, "_dbrst_t");
         }
         MediaHandler::BuiltinOvAggCsv => {
             // CSV formatting with headers — PG-specific string_agg / json_each_text
@@ -855,7 +855,7 @@ pub fn handler_agg_with_media(
             b.push("(SELECT coalesce(");
             b.push("(SELECT ");
             b.push("string_agg(key, ',') FROM json_object_keys(row_to_json(");
-            b.push_ident("_pgrest_t");
+            b.push_ident("_dbrst_t");
             b.push(")) || E'\\n' || ");
             b.push("string_agg(");
             b.push("(SELECT string_agg(");
@@ -863,29 +863,29 @@ pub fn handler_agg_with_media(
             b.push("THEN '\"' || replace(value::text, '\"', '\"\"') || '\"' ");
             b.push("ELSE value::text END, ',')");
             b.push(" FROM json_each_text(row_to_json(");
-            b.push_ident("_pgrest_t");
+            b.push_ident("_dbrst_t");
             b.push("))), E'\\n')");
             b.push(" FROM ");
-            b.push_ident("_pgrest_t");
+            b.push_ident("_dbrst_t");
             b.push("), ''))");
         }
         MediaHandler::NoAgg => {
             // No aggregation - first column of first row as text
             b.push("(SELECT (row_to_json(");
-            b.push_ident("_pgrest_t");
+            b.push_ident("_dbrst_t");
             b.push(")->>0)::text FROM ");
-            b.push_ident("_pgrest_t");
+            b.push_ident("_dbrst_t");
             b.push(" LIMIT 1)");
         }
         MediaHandler::CustomFunc(func_qi, _) => {
             // Custom function - call it with the aggregated JSON
             b.push_qi(func_qi);
             b.push("(");
-            dialect.json_agg(b, "_pgrest_t");
+            dialect.json_agg(b, "_dbrst_t");
             b.push(")");
         }
         MediaHandler::BuiltinOvAggGeoJson => {
-            dialect.json_agg(b, "_pgrest_t");
+            dialect.json_agg(b, "_dbrst_t");
         }
     }
 }
@@ -895,17 +895,17 @@ pub fn handler_agg_with_media(
 /// # Deprecated
 /// Use `handler_agg_with_media` instead to support multiple output formats.
 pub fn handler_agg(b: &mut SqlBuilder, _is_scalar: bool, dialect: &dyn SqlDialect) {
-    dialect.json_agg(b, "_pgrest_t");
+    dialect.json_agg(b, "_dbrst_t");
 }
 
 /// Append a single-object handler aggregation (for to-one relations).
 ///
 /// # SQL Example (PostgreSQL)
 /// ```sql
-/// row_to_json(_pgrest_t)::text
+/// row_to_json(_dbrst_t)::text
 /// ```
 pub fn handler_agg_single(b: &mut SqlBuilder, dialect: &dyn SqlDialect) {
-    dialect.row_to_json(b, "_pgrest_t");
+    dialect.row_to_json(b, "_dbrst_t");
 }
 
 // ==========================================================================
@@ -1491,14 +1491,14 @@ mod tests {
     fn test_handler_agg() {
         let mut b = SqlBuilder::new();
         handler_agg(&mut b, false, dialect());
-        assert_eq!(b.sql(), "coalesce(json_agg(\"_pgrest_t\"), '[]')::text");
+        assert_eq!(b.sql(), "coalesce(json_agg(\"_dbrst_t\"), '[]')::text");
     }
 
     #[test]
     fn test_handler_agg_single() {
         let mut b = SqlBuilder::new();
         handler_agg_single(&mut b, dialect());
-        assert_eq!(b.sql(), "row_to_json(\"_pgrest_t\")::text");
+        assert_eq!(b.sql(), "row_to_json(\"_dbrst_t\")::text");
     }
 
     // ------------------------------------------------------------------

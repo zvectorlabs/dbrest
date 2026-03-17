@@ -5,11 +5,11 @@
 //!
 //! # Usage
 //!
-//! PgREST-compatible clients can trigger a reload with:
+//! dbrest-compatible clients can trigger a reload with:
 //!
 //! ```sql
-//! NOTIFY pgrst, 'reload schema';
-//! NOTIFY pgrst, 'reload config';
+//! NOTIFY dbrst, 'reload schema';
+//! NOTIFY dbrst, 'reload config';
 //! ```
 //!
 //! The listener runs in a background task and reconnects on failure.
@@ -20,7 +20,7 @@ use super::state::AppState;
 
 /// Start the PostgreSQL NOTIFY listener in a background task.
 ///
-/// The listener subscribes to the configured channel (default: `pgrst`) and
+/// The listener subscribes to the configured channel (default: `dbrst`) and
 /// triggers schema cache or config reloads when notifications arrive.
 ///
 /// # Reconnection

@@ -1,6 +1,6 @@
 # Deployment
 
-This guide covers deploying PgREST in production environments using Docker and systemd.
+This guide covers deploying dbrest in production environments using Docker and systemd.
 
 ## Docker Deployment
 
@@ -9,7 +9,7 @@ This guide covers deploying PgREST in production environments using Docker and s
 Build the Docker image from the Dockerfile:
 
 ```bash
-docker build -t pgrest .
+docker build -t dbrest .
 ```
 
 ### Running with Docker
@@ -18,10 +18,10 @@ Basic run command:
 
 ```bash
 docker run -p 3000:3000 \
-  -e PGRST_DB_URI="postgresql://user:password@host:5432/dbname" \
-  -e PGRST_DB_SCHEMAS="public" \
-  -e PGRST_DB_ANON_ROLE="anon" \
-  pgrest
+  -e DBREST_DB_URI="postgresql://user:password@host:5432/dbname" \
+  -e DBREST_DB_SCHEMAS="public" \
+  -e DBREST_DB_ANON_ROLE="anon" \
+  dbrest
 ```
 
 ### Using Docker Compose
@@ -32,16 +32,16 @@ Create a `docker-compose.yml`:
 version: '3.8'
 
 services:
-  pgrest:
+  dbrest:
     build: .
     ports:
       - "3000:3000"
     environment:
-      PGRST_DB_URI: "postgresql://postgres:postgres@postgres:5432/mydb"
-      PGRST_DB_SCHEMAS: "public"
-      PGRST_DB_ANON_ROLE: "anon"
-      PGRST_SERVER_PORT: 3000
-      PGRST_JWT_SECRET: "your-secret-key-here"
+      DBREST_DB_URI: "postgresql://postgres:postgres@postgres:5432/mydb"
+      DBREST_DB_SCHEMAS: "public"
+      DBREST_DB_ANON_ROLE: "anon"
+      DBREST_SERVER_PORT: 3000
+      DBREST_JWT_SECRET: "your-secret-key-here"
     depends_on:
       - postgres
     restart: unless-stopped
@@ -74,8 +74,8 @@ Mount a config file:
 ```bash
 docker run -p 3000:3000 \
   -v $(pwd)/config.toml:/app/config.toml \
-  -e PGREST_CONFIG=/app/config.toml \
-  pgrest
+  -e DBREST_CONFIG=/app/config.toml \
+  dbrest
 ```
 
 ### Docker Health Check
@@ -95,20 +95,20 @@ healthcheck:
 
 ### Create Systemd Service File
 
-Create `/etc/systemd/system/pgrest.service`:
+Create `/etc/systemd/system/dbrest.service`:
 
 ```ini
 [Unit]
-Description=PgREST REST API for PostgreSQL
+Description=dbrest REST API for PostgreSQL
 After=network.target postgresql.service
 Requires=postgresql.service
 
 [Service]
 Type=simple
-User=pgrest
-Group=pgrest
-WorkingDirectory=/opt/pgrest
-ExecStart=/opt/pgrest/pgrest --config /etc/pgrest/config.toml
+User=dbrest
+Group=dbrest
+WorkingDirectory=/opt/dbrest
+ExecStart=/opt/dbrest/dbrest --config /etc/dbrest/config.toml
 Restart=always
 RestartSec=10
 
@@ -117,7 +117,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/log/pgrest
+ReadWritePaths=/var/log/dbrest
 
 # Environment
 Environment="RUST_LOG=info"
@@ -131,46 +131,46 @@ WantedBy=multi-user.target
 1. **Create user and directories:**
 
 ```bash
-sudo useradd -r -s /bin/false pgrest
-sudo mkdir -p /opt/pgrest
-sudo mkdir -p /etc/pgrest
-sudo mkdir -p /var/log/pgrest
+sudo useradd -r -s /bin/false dbrest
+sudo mkdir -p /opt/dbrest
+sudo mkdir -p /etc/dbrest
+sudo mkdir -p /var/log/dbrest
 ```
 
 2. **Install binary:**
 
 ```bash
-sudo cp pgrest /opt/pgrest/
-sudo chown pgrest:pgrest /opt/pgrest/pgrest
-sudo chmod +x /opt/pgrest/pgrest
+sudo cp dbrest /opt/dbrest/
+sudo chown dbrest:dbrest /opt/dbrest/dbrest
+sudo chmod +x /opt/dbrest/dbrest
 ```
 
 3. **Create configuration:**
 
 ```bash
-sudo nano /etc/pgrest/config.toml
+sudo nano /etc/dbrest/config.toml
 ```
 
 4. **Set permissions:**
 
 ```bash
-sudo chown -R pgrest:pgrest /etc/pgrest
-sudo chown -R pgrest:pgrest /var/log/pgrest
+sudo chown -R dbrest:dbrest /etc/dbrest
+sudo chown -R dbrest:dbrest /var/log/dbrest
 ```
 
 5. **Enable and start service:**
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable pgrest
-sudo systemctl start pgrest
+sudo systemctl enable dbrest
+sudo systemctl start dbrest
 ```
 
 6. **Check status:**
 
 ```bash
-sudo systemctl status pgrest
-sudo journalctl -u pgrest -f
+sudo systemctl status dbrest
+sudo journalctl -u dbrest -f
 ```
 
 ## Production Considerations
@@ -242,7 +242,7 @@ server-cors-allowed-origins = "https://example.com,https://app.example.com"
 Example Nginx configuration:
 
 ```nginx
-upstream pgrest {
+upstream dbrest {
     server localhost:3000;
 }
 
@@ -271,7 +271,7 @@ server {
     limit_req zone=api_limit burst=20 nodelay;
 
     location / {
-        proxy_pass http://pgrest;
+        proxy_pass http://dbrest;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -305,7 +305,7 @@ Monitor key metrics:
 For high availability:
 
 1. **Multiple Instances:**
-   - Run multiple PgREST instances behind a load balancer
+   - Run multiple dbrest instances behind a load balancer
    - Use sticky sessions if needed
    - Ensure all instances use the same database
 
@@ -343,10 +343,10 @@ Check logs:
 
 ```bash
 # Systemd
-sudo journalctl -u pgrest -n 50
+sudo journalctl -u dbrest -n 50
 
 # Docker
-docker logs pgrest
+docker logs dbrest
 ```
 
 Common issues:

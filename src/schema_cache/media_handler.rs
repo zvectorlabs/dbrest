@@ -1,4 +1,4 @@
-//! Media handler types for PgREST content negotiation
+//! Media handler types for dbrest content negotiation
 //!
 //! Media handlers define how database results are aggregated and formatted
 //! for different content types (JSON, CSV, binary, etc.).

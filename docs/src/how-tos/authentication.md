@@ -1,6 +1,6 @@
 # Authentication with JWT
 
-PgREST supports JWT (JSON Web Token) authentication for securing your API endpoints.
+dbrest supports JWT (JSON Web Token) authentication for securing your API endpoints.
 
 ## Configuration
 
@@ -15,7 +15,7 @@ jwt-secret = "your-very-long-secret-key-at-least-32-characters-long"
 Or via environment variable:
 
 ```bash
-export PGRST_JWT_SECRET="your-very-long-secret-key-at-least-32-characters-long"
+export DBREST_JWT_SECRET="your-very-long-secret-key-at-least-32-characters-long"
 ```
 
 **Important:** The JWT secret must be at least 32 characters long for security.
@@ -51,7 +51,7 @@ Your JWT tokens should include a role claim that maps to a PostgreSQL role:
 
 ### Custom Role Claim Path
 
-By default, PgREST looks for the role in the `role` claim. To use a different path:
+By default, dbrest looks for the role in the `role` claim. To use a different path:
 
 ```ini
 jwt-role-claim-key = "user.role"
@@ -164,7 +164,7 @@ GRANT SELECT ON users TO anon;  -- Read-only access
 
 ## JWT Caching
 
-PgREST caches validated JWT tokens to improve performance:
+dbrest caches validated JWT tokens to improve performance:
 
 ```ini
 jwt-cache-max-entries = 1000
@@ -176,7 +176,7 @@ Increase this value if you have many unique tokens in use simultaneously.
 
 ### "Invalid JWT" Error
 
-- Verify the secret matches between token generation and PgREST config
+- Verify the secret matches between token generation and dbrest config
 - Check token expiration (`exp` claim)
 - Ensure token is properly formatted (three parts separated by dots)
 

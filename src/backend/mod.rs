@@ -157,13 +157,13 @@ pub trait SqlDialect: Send + Sync {
 
     /// JSON array aggregation expression.
     ///
-    /// PostgreSQL: `coalesce(json_agg(_pgrest_t), '[]')::text`
+    /// PostgreSQL: `coalesce(json_agg(_dbrst_t), '[]')::text`
     /// MySQL:      `COALESCE(JSON_ARRAYAGG(JSON_OBJECT(...)), JSON_ARRAY())`
     fn json_agg(&self, b: &mut SqlBuilder, alias: &str);
 
     /// Single-row JSON expression.
     ///
-    /// PostgreSQL: `row_to_json(_pgrest_t)::text`
+    /// PostgreSQL: `row_to_json(_dbrst_t)::text`
     /// MySQL:      `JSON_OBJECT(...)`
     fn row_to_json(&self, b: &mut SqlBuilder, alias: &str);
 
@@ -177,7 +177,7 @@ pub trait SqlDialect: Send + Sync {
 
     /// COUNT(*) for total counts.
     ///
-    /// PostgreSQL: `SELECT COUNT(*) AS "pgrst_filtered_count"`
+    /// PostgreSQL: `SELECT COUNT(*) AS "dbrst_filtered_count"`
     fn count_star(&self, b: &mut SqlBuilder);
 
     // -- Session variables --

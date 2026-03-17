@@ -1,6 +1,6 @@
 # API Reference
 
-PgREST automatically generates REST endpoints for your PostgreSQL database tables, views, and functions. The API follows RESTful conventions and uses standard HTTP methods.
+dbrest automatically generates REST endpoints for your PostgreSQL database tables, views, and functions. The API follows RESTful conventions and uses standard HTTP methods.
 
 ## Endpoints
 
@@ -380,7 +380,7 @@ Errors are returned as JSON with appropriate HTTP status codes:
 
 ```json
 {
-  "code": "PGRST123",
+  "code": "DBRST123",
   "message": "Column not found",
   "details": "Could not find column 'unknown' in table 'users'",
   "hint": "Available columns: id, name, email"

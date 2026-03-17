@@ -1,6 +1,6 @@
 //! JWT-specific error types
 //!
-//! Maps to PGRST300-303 error codes. Each variant carries enough detail
+//! Maps to DBRST300-303 error codes. Each variant carries enough detail
 //! to produce the correct HTTP status code, `WWW-Authenticate` header,
 //! and JSON error body.
 
@@ -8,30 +8,30 @@ use std::fmt;
 
 /// Top-level JWT authentication error.
 ///
-/// Each variant maps to one PGRST3xx error code:
+/// Each variant maps to one DBRST3xx error code:
 ///
 /// | Variant | Code | HTTP |
 /// |---------|------|------|
-/// | `SecretMissing` | PGRST300 | 500 |
-/// | `Decode(_)` | PGRST301 | 401 |
-/// | `TokenRequired` | PGRST302 | 401 |
-/// | `Claims(_)` | PGRST303 | 401 |
+/// | `SecretMissing` | DBRST300 | 500 |
+/// | `Decode(_)` | DBRST301 | 401 |
+/// | `TokenRequired` | DBRST302 | 401 |
+/// | `Claims(_)` | DBRST303 | 401 |
 #[derive(Debug, Clone)]
 pub enum JwtError {
-    /// PGRST300 — no JWT secret or JWKS is configured on the server.
+    /// DBRST300 — no JWT secret or JWKS is configured on the server.
     SecretMissing,
 
-    /// PGRST301 — the token could not be decoded (structural or crypto error).
+    /// DBRST301 — the token could not be decoded (structural or crypto error).
     Decode(JwtDecodeError),
 
-    /// PGRST302 — no token was provided and anonymous access is disabled.
+    /// DBRST302 — no token was provided and anonymous access is disabled.
     TokenRequired,
 
-    /// PGRST303 — the token was decoded but a claims check failed.
+    /// DBRST303 — the token was decoded but a claims check failed.
     Claims(JwtClaimsError),
 }
 
-/// Token decode errors (PGRST301).
+/// Token decode errors (DBRST301).
 #[derive(Debug, Clone)]
 pub enum JwtDecodeError {
     /// `Authorization: Bearer ` with an empty token string.
@@ -48,7 +48,7 @@ pub enum JwtDecodeError {
     UnsupportedTokenType,
 }
 
-/// Claims validation errors (PGRST303).
+/// Claims validation errors (DBRST303).
 #[derive(Debug, Clone)]
 pub enum JwtClaimsError {
     /// `exp` claim is in the past (beyond the 30-second skew window).
@@ -140,13 +140,13 @@ impl From<JwtClaimsError> for JwtError {
 // ---------------------------------------------------------------------------
 
 impl JwtError {
-    /// PGRST error code string.
+    /// DBRST error code string.
     pub fn code(&self) -> &'static str {
         match self {
-            JwtError::SecretMissing => "PGRST300",
-            JwtError::Decode(_) => "PGRST301",
-            JwtError::TokenRequired => "PGRST302",
-            JwtError::Claims(_) => "PGRST303",
+            JwtError::SecretMissing => "DBRST300",
+            JwtError::Decode(_) => "DBRST301",
+            JwtError::TokenRequired => "DBRST302",
+            JwtError::Claims(_) => "DBRST303",
         }
     }
 
@@ -200,13 +200,13 @@ mod tests {
 
     #[test]
     fn test_error_codes() {
-        assert_eq!(JwtError::SecretMissing.code(), "PGRST300");
+        assert_eq!(JwtError::SecretMissing.code(), "DBRST300");
         assert_eq!(
             JwtError::Decode(JwtDecodeError::EmptyAuthHeader).code(),
-            "PGRST301"
+            "DBRST301"
         );
-        assert_eq!(JwtError::TokenRequired.code(), "PGRST302");
-        assert_eq!(JwtError::Claims(JwtClaimsError::Expired).code(), "PGRST303");
+        assert_eq!(JwtError::TokenRequired.code(), "DBRST302");
+        assert_eq!(JwtError::Claims(JwtClaimsError::Expired).code(), "DBRST303");
     }
 
     #[test]

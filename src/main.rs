@@ -1,4 +1,4 @@
-//! PgREST binary entry point
+//! dbrest binary entry point
 //!
 //! Parses CLI arguments, loads configuration, initialises logging,
 //! and starts the HTTP server. Supports both PostgreSQL and SQLite backends.
@@ -15,23 +15,23 @@ use dbrest_core::error::Error;
 use dbrest_postgres::{PgBackend, PgDialect};
 use dbrest_sqlite::{SqliteBackend, SqliteDialect};
 
-/// PgREST — high-performance REST API for PostgreSQL and SQLite
+/// dbrest — high-performance REST API for PostgreSQL and SQLite
 #[derive(Parser, Debug)]
-#[command(name = "pgrest", version, about)]
+#[command(name = "dbrest", version, about)]
 struct Args {
     /// Path to a configuration file
-    #[arg(short, long, env = "PGREST_CONFIG")]
+    #[arg(short, long, env = "DBREST_CONFIG")]
     config: Option<String>,
 
     /// Database connection URI (overrides config file)
     ///
     /// PostgreSQL: postgres://user:pass@host/db
     /// SQLite:     sqlite:path/to/db.sqlite or sqlite::memory:
-    #[arg(long, env = "PGREST_DB_URI")]
+    #[arg(long, env = "DBREST_DB_URI")]
     db_uri: Option<String>,
 
     /// Server bind port (overrides config file)
-    #[arg(short, long, env = "PGREST_SERVER_PORT")]
+    #[arg(short, long, env = "DBREST_SERVER_PORT")]
     port: Option<u16>,
 }
 
