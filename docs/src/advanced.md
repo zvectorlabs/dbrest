@@ -1,10 +1,10 @@
 # Advanced Topics
 
-This section covers advanced features and configurations for PgREST.
+This section covers advanced features and configurations for dbrest.
 
 ## Schema Isolation
 
-PgREST supports exposing multiple schemas while maintaining isolation between them.
+dbrest supports exposing multiple schemas while maintaining isolation between them.
 
 ### Multiple Schemas
 
@@ -175,12 +175,12 @@ curl "http://localhost:3000/users?select=role,count&group=role"
 
 ## NOTIFY Listener
 
-PgREST can listen to PostgreSQL NOTIFY events for schema cache invalidation.
+dbrest can listen to PostgreSQL NOTIFY events for schema cache invalidation.
 
 ### Configuration
 
 ```ini
-db-channel = "pgrst"
+db-channel = "dbrst"
 db-channel-enabled = true
 ```
 
@@ -189,10 +189,10 @@ db-channel-enabled = true
 Send a NOTIFY from PostgreSQL:
 
 ```sql
-NOTIFY pgrst, 'reload schema';
+NOTIFY dbrst, 'reload schema';
 ```
 
-This causes PgREST to reload its schema cache without restarting.
+This causes dbrest to reload its schema cache without restarting.
 
 ### Custom Channel
 
@@ -295,7 +295,7 @@ This allows storing some configuration in the database itself, useful for dynami
 Use Unix sockets instead of TCP:
 
 ```ini
-server-unix-socket = "/var/run/pgrest.sock"
+server-unix-socket = "/var/run/dbrest.sock"
 server-unix-socket-mode = 660
 ```
 

@@ -64,23 +64,21 @@ impl SqlDialect for SqliteDialect {
 
     fn count_star(&self, b: &mut SqlBuilder) {
         b.push("SELECT COUNT(*) AS ");
-        b.push_ident("pgrst_filtered_count");
+        b.push_ident("dbrst_filtered_count");
     }
 
     fn set_session_var(&self, _b: &mut SqlBuilder, _key: &str, _value: &str) {
         // SQLite session vars are set via build_tx_vars_statement, not as SELECT expressions.
-        unreachable!("SQLite set_session_var should not be called directly; use build_tx_vars_statement");
+        unreachable!(
+            "SQLite set_session_var should not be called directly; use build_tx_vars_statement"
+        );
     }
 
     fn session_vars_are_select_exprs(&self) -> bool {
         false
     }
 
-    fn build_tx_vars_statement(
-        &self,
-        b: &mut SqlBuilder,
-        vars: &[(&str, &str)],
-    ) {
+    fn build_tx_vars_statement(&self, b: &mut SqlBuilder, vars: &[(&str, &str)]) {
         // Single INSERT OR REPLACE with multiple VALUES rows.
         b.push("INSERT OR REPLACE INTO _dbrest_vars(key, val) VALUES ");
         for (i, (key, value)) in vars.iter().enumerate() {
@@ -126,12 +124,7 @@ impl SqlDialect for SqliteDialect {
         b.push(")");
     }
 
-    fn from_json_body(
-        &self,
-        b: &mut SqlBuilder,
-        columns: &[CoercibleField],
-        json_bytes: &[u8],
-    ) {
+    fn from_json_body(&self, b: &mut SqlBuilder, columns: &[CoercibleField], json_bytes: &[u8]) {
         // SQLite: Use json_each() to iterate over array elements,
         // then json_extract() to pull out each column.
         //
@@ -271,25 +264,25 @@ mod tests {
     #[test]
     fn test_json_agg() {
         let mut b = SqlBuilder::new();
-        dialect().json_agg(&mut b, "_pgrest_t");
+        dialect().json_agg(&mut b, "_dbrst_t");
         assert_eq!(
             b.sql(),
-            "COALESCE(json_group_array(json(\"_pgrest_t\")), '[]')"
+            "COALESCE(json_group_array(json(\"_dbrst_t\")), '[]')"
         );
     }
 
     #[test]
     fn test_count_expr() {
         let mut b = SqlBuilder::new();
-        dialect().count_expr(&mut b, "_pgrest_t");
-        assert_eq!(b.sql(), "COUNT(\"_pgrest_t\")");
+        dialect().count_expr(&mut b, "_dbrst_t");
+        assert_eq!(b.sql(), "COUNT(\"_dbrst_t\")");
     }
 
     #[test]
     fn test_count_star_from() {
         let mut b = SqlBuilder::new();
-        dialect().count_star_from(&mut b, "pgrst_source");
-        assert_eq!(b.sql(), "(SELECT COUNT(*) FROM pgrst_source)");
+        dialect().count_star_from(&mut b, "dbrst_source");
+        assert_eq!(b.sql(), "(SELECT COUNT(*) FROM dbrst_source)");
     }
 
     #[test]

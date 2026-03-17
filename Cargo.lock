@@ -686,6 +686,54 @@ dependencies = [
 ]
 
 [[package]]
+name = "dbrest"
+version = "0.1.0"
+dependencies = [
+ "arc-swap",
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "bitflags 2.10.0",
+ "bytes",
+ "chrono",
+ "clap",
+ "compact_str",
+ "criterion",
+ "dbrest-core",
+ "dbrest-postgres",
+ "dbrest-sqlite",
+ "fake",
+ "form_urlencoded",
+ "futures",
+ "http",
+ "hyper",
+ "hyper-util",
+ "indexmap 2.13.0",
+ "insta",
+ "jsonwebtoken",
+ "mockall",
+ "moka",
+ "rand",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serial_test",
+ "smallvec",
+ "sqlx",
+ "tempfile",
+ "testcontainers",
+ "testcontainers-modules",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-test",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "dbrest-core"
 version = "0.1.0"
 dependencies = [
@@ -2038,54 +2086,6 @@ name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
-
-[[package]]
-name = "pgrest"
-version = "0.1.0"
-dependencies = [
- "arc-swap",
- "async-trait",
- "axum",
- "base64 0.22.1",
- "bitflags 2.10.0",
- "bytes",
- "chrono",
- "clap",
- "compact_str",
- "criterion",
- "dbrest-core",
- "dbrest-postgres",
- "dbrest-sqlite",
- "fake",
- "form_urlencoded",
- "futures",
- "http",
- "hyper",
- "hyper-util",
- "indexmap 2.13.0",
- "insta",
- "jsonwebtoken",
- "mockall",
- "moka",
- "rand",
- "reqwest",
- "serde",
- "serde_json",
- "serial_test",
- "smallvec",
- "sqlx",
- "tempfile",
- "testcontainers",
- "testcontainers-modules",
- "thiserror",
- "tokio",
- "tokio-stream",
- "tokio-test",
- "tower",
- "tower-http",
- "tracing",
- "tracing-subscriber",
-]
 
 [[package]]
 name = "pin-project-lite"

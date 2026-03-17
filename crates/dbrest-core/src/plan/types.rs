@@ -382,7 +382,7 @@ mod tests {
     fn test_rel_select_field_json_embed() {
         let rsf = RelSelectField::JsonEmbed {
             sel_name: "clients".into(),
-            agg_alias: "pgrst_agg_0".into(),
+            agg_alias: "dbrst_agg_0".into(),
             embed_mode: RelJsonEmbedMode::JsonArray,
             empty_embed: false,
         };

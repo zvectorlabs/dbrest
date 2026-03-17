@@ -3,6 +3,8 @@
 //! This module provides helpers for setting up test databases using testcontainers
 //! (PostgreSQL) and in-memory SQLite.
 
+#![allow(dead_code)]
+
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 use testcontainers::ContainerAsync;
@@ -75,11 +77,9 @@ impl TestSqliteDb {
         sqlx::raw_sql(fixtures).execute(&pool).await?;
 
         // Create the session vars temp table (needed by SQLite dialect)
-        sqlx::query(
-            "CREATE TABLE IF NOT EXISTS _dbrest_vars(key TEXT PRIMARY KEY, val TEXT)",
-        )
-        .execute(&pool)
-        .await?;
+        sqlx::query("CREATE TABLE IF NOT EXISTS _dbrest_vars(key TEXT PRIMARY KEY, val TEXT)")
+            .execute(&pool)
+            .await?;
 
         Ok(Self { pool })
     }

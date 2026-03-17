@@ -33,7 +33,7 @@ pub use backend::{DatabaseBackend, DbVersion, SqlDialect};
 pub use config::{AppConfig, load_config};
 pub use error::Error;
 pub use plan::action_plan;
-pub use schema_cache::{SchemaCache, SchemaCacheHolder};
 pub use routing::{LocalRouter, NamespaceId, Route, Router, RoutingError};
+pub use schema_cache::{SchemaCache, SchemaCacheHolder};
 pub use types::identifiers::{QualifiedIdentifier, RelIdentifier};
 pub use types::media::MediaType;

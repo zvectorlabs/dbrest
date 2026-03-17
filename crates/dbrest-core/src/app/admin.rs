@@ -25,6 +25,20 @@ use axum::{
 
 use super::state::AppState;
 
+/// Build a JSON response, returning 500 if the builder somehow fails.
+fn json_response(body: String) -> Response {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
+        .body(Body::from(body))
+        .unwrap_or_else(|_| {
+            Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(Body::from("Internal Server Error"))
+                .expect("static 500 response must be valid")
+        })
+}
+
 /// Create the admin router.
 pub fn create_admin_router(state: AppState) -> Router {
     Router::new()
@@ -54,11 +68,8 @@ async fn readiness(State(state): State<AppState>) -> Response {
 async fn config_handler(State(state): State<AppState>) -> Response {
     let config = state.config.load();
     let body = redacted_config(&config);
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
-        .body(Body::from(serde_json::to_string_pretty(&body).unwrap()))
-        .unwrap()
+    let json = serde_json::to_string_pretty(&body).unwrap_or_else(|_| "{}".to_string());
+    json_response(json)
 }
 
 /// Serialize config to JSON with secrets redacted.
@@ -96,11 +107,8 @@ async fn metrics(State(state): State<AppState>) -> Response {
         "pg_version": format!("{}.{}.{}", state.pg_version.major, state.pg_version.minor, state.pg_version.patch),
     });
 
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
-        .body(Body::from(serde_json::to_string_pretty(&body).unwrap()))
-        .unwrap()
+    let json = serde_json::to_string_pretty(&body).unwrap_or_else(|_| "{}".to_string());
+    json_response(json)
 }
 
 #[cfg(test)]
@@ -157,12 +165,12 @@ mod tests {
     fn redacted_config_preserves_db_pool_and_channel() {
         let mut config = AppConfig::default();
         config.db_pool_size = 20;
-        config.db_channel = "pgrst".to_string();
+        config.db_channel = "dbrst".to_string();
         config.db_channel_enabled = true;
         config.db_max_rows = Some(1000);
         let json = redacted_config(&config);
         assert_eq!(json["db_pool_size"], 20);
-        assert_eq!(json["db_channel"], "pgrst");
+        assert_eq!(json["db_channel"], "dbrst");
         assert_eq!(json["db_channel_enabled"], true);
         assert_eq!(json["db_max_rows"], 1000);
     }

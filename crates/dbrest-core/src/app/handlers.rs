@@ -39,6 +39,19 @@ use super::streaming::{should_stream, stream_json_response};
 // Shared helpers
 // ==========================================================================
 
+/// Finalize a response builder into a `Response`.
+///
+/// If the builder fails (e.g. due to invalid headers from GUC overrides),
+/// returns a plain 500 Internal Server Error instead of panicking.
+fn finalize_response(builder: http::response::Builder, body: Body) -> Response {
+    builder.body(body).unwrap_or_else(|_| {
+        Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body(Body::from("Internal Server Error"))
+            .expect("static 500 response must be valid")
+    })
+}
+
 /// Parse the `Prefer` header from the request headers using `from_headers`.
 fn parse_prefer(headers: &HeaderMap) -> Preferences {
     let flat: Vec<(String, String)> = headers
@@ -118,7 +131,7 @@ fn apply_guc_overrides(
         if let Ok(status) = http::StatusCode::from_u16(status_code as u16) {
             builder = builder.status(status);
         } else {
-            // Invalid status code - return error response (PGRST112)
+            // Invalid status code - return error response (DBRST112)
             return Err(Error::InvalidConfig {
                 message: format!(
                     "response.status GUC must be a valid status code, got: {}",
@@ -155,7 +168,7 @@ fn apply_guc_overrides(
                 }
             }
         } else {
-            // If it's not an array, return error (PostgREST returns GucHeadersError PGRST111)
+            // If it's not an array, return error (PostgREST returns GucHeadersError DBRST111)
             return Err(Error::InvalidConfig {
                 message: "response.headers GUC must be a JSON array composed of objects with a single key and a string value".to_string(),
             }
@@ -165,7 +178,6 @@ fn apply_guc_overrides(
 
     Ok(builder)
 }
-
 
 // ==========================================================================
 // Core request processing pipeline
@@ -503,11 +515,12 @@ pub async fn schema_root_handler(
 
             let body = serde_json::json!({ "definitions": tables });
 
-            Response::builder()
-                .status(StatusCode::OK)
-                .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
-                .body(Body::from(serde_json::to_string(&body).unwrap()))
-                .unwrap()
+            finalize_response(
+                Response::builder()
+                    .status(StatusCode::OK)
+                    .header(header::CONTENT_TYPE, "application/json; charset=utf-8"),
+                Body::from(serde_json::to_string(&body).unwrap_or_else(|_| "{}".to_string())),
+            )
         }
         None => Error::SchemaCacheNotReady.into_response(),
     }
@@ -531,14 +544,15 @@ async fn generate_openapi_spec(
             match generator.generate() {
                 Ok(spec) => {
                     let body = serde_json::to_string(&spec).unwrap_or_else(|_| "{}".to_string());
-                    Response::builder()
-                        .status(StatusCode::OK)
-                        .header(
-                            header::CONTENT_TYPE,
-                            "application/openapi+json; charset=utf-8",
-                        )
-                        .body(Body::from(body))
-                        .unwrap()
+                    finalize_response(
+                        Response::builder()
+                            .status(StatusCode::OK)
+                            .header(
+                                header::CONTENT_TYPE,
+                                "application/openapi+json; charset=utf-8",
+                            ),
+                        Body::from(body),
+                    )
                 }
                 Err(e) => e.into_response(),
             }
@@ -604,7 +618,7 @@ fn build_read_response(
     match apply_guc_overrides(builder, result) {
         Ok(b) => {
             if headers_only {
-                b.body(Body::empty()).unwrap()
+                finalize_response(b, Body::empty())
             } else {
                 // Check if we should stream this response
                 let body_size = result.body.len();
@@ -613,9 +627,9 @@ fn build_read_response(
                     config.server_streaming_enabled,
                     config.server_streaming_threshold,
                 ) {
-                    b.body(stream_json_response(result.body.clone())).unwrap()
+                    finalize_response(b, stream_json_response(result.body.clone()))
                 } else {
-                    b.body(Body::from(result.body.clone())).unwrap()
+                    finalize_response(b, Body::from(result.body.clone()))
                 }
             }
         }
@@ -675,14 +689,14 @@ fn build_mutate_response(
                     config.server_streaming_enabled,
                     config.server_streaming_threshold,
                 ) {
-                    b.body(stream_json_response(result.body.clone())).unwrap()
+                    finalize_response(b, stream_json_response(result.body.clone()))
                 } else {
-                    b.body(Body::from(result.body.clone())).unwrap()
+                    finalize_response(b, Body::from(result.body.clone()))
                 }
             } else if matches!(prefs.representation, Some(PreferRepresentation::None)) {
-                b.body(Body::empty()).unwrap()
+                finalize_response(b, Body::empty())
             } else {
-                b.body(Body::from("")).unwrap()
+                finalize_response(b, Body::from(""))
             }
         }
         Err(err_response) => err_response,
@@ -711,9 +725,9 @@ fn build_rpc_response(
                 config.server_streaming_enabled,
                 config.server_streaming_threshold,
             ) {
-                b.body(stream_json_response(result.body.clone())).unwrap()
+                finalize_response(b, stream_json_response(result.body.clone()))
             } else {
-                b.body(Body::from(result.body.clone())).unwrap()
+                finalize_response(b, Body::from(result.body.clone()))
             }
         }
         Err(err_response) => err_response,
@@ -741,7 +755,7 @@ fn build_options_response(is_resource: bool) -> Response {
              Accept-Profile, Content-Profile",
         )
         .body(Body::empty())
-        .unwrap()
+        .expect("static OPTIONS response must be valid")
 }
 
 #[cfg(test)]
@@ -867,7 +881,7 @@ mod tests {
         match apply_guc_overrides(builder, &result) {
             Ok(_) => panic!("Should return error for invalid headers format"),
             Err(err_response) => {
-                // Should return error response (PGRST111)
+                // Should return error response (DBRST111)
                 assert!(
                     err_response.status().is_client_error()
                         || err_response.status().is_server_error()

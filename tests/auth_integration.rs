@@ -18,13 +18,13 @@ use std::sync::Arc;
 use axum::body::Body;
 use axum::extract::Request;
 use axum::response::{IntoResponse, Response};
+use dbrest::auth::error::{JwtClaimsError, JwtDecodeError, JwtError};
+use dbrest::auth::jwt;
+use dbrest::auth::middleware::{AuthState, authenticate};
+use dbrest::auth::types::AuthResult;
+use dbrest::config::AppConfig;
 use http::header;
 use jsonwebtoken::{Algorithm, EncodingKey, Header as JwtHeader};
-use pgrest::auth::error::{JwtClaimsError, JwtDecodeError, JwtError};
-use pgrest::auth::jwt;
-use pgrest::auth::middleware::{AuthState, authenticate};
-use pgrest::auth::types::AuthResult;
-use pgrest::config::AppConfig;
 use sqlx::{PgPool, Row};
 
 // ==========================================================================
@@ -196,7 +196,7 @@ fn test_jwt_expired_beyond_skew() {
 
     let err = jwt::parse_and_validate(&token, &config).unwrap_err();
     assert!(matches!(err, JwtError::Claims(JwtClaimsError::Expired)));
-    assert_eq!(err.code(), "PGRST303");
+    assert_eq!(err.code(), "DBRST303");
     assert_eq!(err.status(), http::StatusCode::UNAUTHORIZED);
 }
 
@@ -261,7 +261,7 @@ fn test_jwt_wrong_secret() {
 
     let err = jwt::parse_and_validate(&token, &config).unwrap_err();
     assert!(matches!(err, JwtError::Decode(_)));
-    assert_eq!(err.code(), "PGRST301");
+    assert_eq!(err.code(), "DBRST301");
 }
 
 #[test]
@@ -293,7 +293,7 @@ fn test_jwt_no_secret_configured() {
     config.jwt_secret = None;
     let err = jwt::parse_and_validate("a.b.c", &config).unwrap_err();
     assert!(matches!(err, JwtError::SecretMissing));
-    assert_eq!(err.code(), "PGRST300");
+    assert_eq!(err.code(), "DBRST300");
 }
 
 #[test]
@@ -392,7 +392,7 @@ fn test_jwt_custom_claims_preserved() {
 #[test]
 #[ignore]
 fn test_jwt_nested_role_claim() {
-    use pgrest::config::jwt::JsPathExp;
+    use dbrest::config::jwt::JsPathExp;
     let mut config = test_config();
     config.jwt_role_claim_key = vec![
         JsPathExp::Key("realm_access".into()),
@@ -485,7 +485,7 @@ async fn test_middleware_no_anon_no_token() {
 
     let err = authenticate(&state, &request).await.unwrap_err();
     assert!(matches!(err, JwtError::TokenRequired));
-    assert_eq!(err.code(), "PGRST302");
+    assert_eq!(err.code(), "DBRST302");
 }
 
 #[tokio::test]
@@ -556,7 +556,7 @@ async fn test_middleware_cache_invalidate() {
 fn jwt_error_response(err: JwtError) -> Response {
     let status = err.status();
     let www_auth = err.www_authenticate();
-    let body = pgrest::error::response::ErrorResponse {
+    let body = dbrest::error::response::ErrorResponse {
         code: err.code(),
         message: err.to_string(),
         details: err.details(),
@@ -660,7 +660,7 @@ async fn test_http_expired_token_401() {
         .await
         .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert_eq!(json["code"], "PGRST303");
+    assert_eq!(json["code"], "DBRST303");
 }
 
 #[tokio::test]
@@ -698,7 +698,7 @@ async fn test_http_no_anon_no_token_401() {
         .await
         .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert_eq!(json["code"], "PGRST302");
+    assert_eq!(json["code"], "DBRST302");
 }
 
 #[tokio::test]
@@ -970,7 +970,7 @@ async fn test_error_response_json_format() {
         json.get("message").is_some(),
         "Error should have 'message' field"
     );
-    assert_eq!(json["code"], "PGRST303");
+    assert_eq!(json["code"], "DBRST303");
 }
 
 #[tokio::test]
@@ -1000,5 +1000,5 @@ async fn test_error_response_wrong_secret_format() {
         .await
         .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert_eq!(json["code"], "PGRST301");
+    assert_eq!(json["code"], "DBRST301");
 }

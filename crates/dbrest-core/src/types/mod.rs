@@ -1,4 +1,4 @@
-//! Core types for PgREST
+//! Core types for dbrest
 //!
 //! This module provides fundamental types used throughout the crate:
 //!

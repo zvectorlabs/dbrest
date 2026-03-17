@@ -1,4 +1,4 @@
-# Multi-stage build for PgREST
+# Multi-stage build for dbrest
 # Stage 1: Build
 FROM rust:1.91 AS builder
 
@@ -22,26 +22,26 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN useradd -m -u 1000 pgrest
+RUN useradd -m -u 1000 dbrest
 
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder /app/target/release/pgrest /app/pgrest
+COPY --from=builder /app/target/release/dbrest /app/dbrest
 
 # Copy config directory (if it exists)
-COPY --chown=pgrest:pgrest config /app/config
+COPY --chown=dbrest:dbrest config /app/config
 
 # Switch to non-root user
-USER pgrest
+USER dbrest
 
 # Expose port
 EXPOSE 3000
 
 # Default environment variables
-ENV PGREST_CONFIG=/app/config/bench.toml
-ENV PGREST_DB_URI=postgresql://postgres:postgres@postgres:5432/postgres
-ENV PGREST_SERVER_PORT=3000
+ENV DBREST_CONFIG=/app/config/bench.toml
+ENV DBREST_DB_URI=postgresql://postgres:postgres@postgres:5432/postgres
+ENV DBREST_SERVER_PORT=3000
 
-# Run PgREST
-CMD ["/app/pgrest"]
+# Run dbrest
+CMD ["/app/dbrest"]

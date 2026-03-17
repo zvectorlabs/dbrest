@@ -1,25 +1,25 @@
 //! Configuration module
 //!
-//! This module handles loading and validating PgREST configuration from
+//! This module handles loading and validating dbrest configuration from
 //! files and environment variables.
 //!
 //! # Configuration Sources
 //!
 //! Configuration is loaded in the following order of precedence (highest first):
 //!
-//! 1. Environment variables (`PGRST_*`)
+//! 1. Environment variables (`DBRST_*`)
 //! 2. Configuration file values
 //! 3. Default values
 //!
 //! # Example
 //!
 //! ```ignore
-//! use pgrest::config::load_config;
+//! use dbrest::config::load_config;
 //! use std::collections::HashMap;
 //! use std::path::Path;
 //!
 //! let config = load_config(
-//!     Some(Path::new("/etc/pgrest/config")),
+//!     Some(Path::new("/etc/dbrest/config")),
 //!     HashMap::new(),
 //! ).await?;
 //!
@@ -28,11 +28,11 @@
 //!
 //! # Environment Variables
 //!
-//! All configuration options can be set via environment variables with the `PGRST_` prefix:
+//! All configuration options can be set via environment variables with the `DBRST_` prefix:
 //!
-//! - `PGRST_DB_URI` → `db-uri`
-//! - `PGRST_SERVER_PORT` → `server-port`
-//! - `PGRST_JWT_SECRET` → `jwt-secret`
+//! - `DBRST_DB_URI` → `db-uri`
+//! - `DBRST_SERVER_PORT` → `server-port`
+//! - `DBRST_JWT_SECRET` → `jwt-secret`
 //!
 //! Underscores in variable names are converted to hyphens.
 

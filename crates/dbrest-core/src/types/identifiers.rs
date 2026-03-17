@@ -11,7 +11,7 @@ use std::fmt;
 /// # Examples
 ///
 /// ```
-/// use pgrest::types::identifiers::QualifiedIdentifier;
+/// use dbrest::types::identifiers::QualifiedIdentifier;
 ///
 /// let qi = QualifiedIdentifier::new("public", "users");
 /// assert_eq!(qi.to_string(), "public.users");
@@ -47,7 +47,7 @@ impl QualifiedIdentifier {
     /// # Examples
     ///
     /// ```
-    /// use pgrest::types::identifiers::QualifiedIdentifier;
+    /// use dbrest::types::identifiers::QualifiedIdentifier;
     ///
     /// let qi = QualifiedIdentifier::parse("public.users").unwrap();
     /// assert_eq!(qi.schema, "public");
@@ -184,7 +184,7 @@ impl std::error::Error for ParseError {}
 /// # Examples
 ///
 /// ```
-/// use pgrest::types::identifiers::escape_ident;
+/// use dbrest::types::identifiers::escape_ident;
 ///
 /// assert_eq!(escape_ident("users"), "users");
 /// assert_eq!(escape_ident("user\"name"), "user\"\"name");
@@ -198,7 +198,7 @@ pub fn escape_ident(s: &str) -> String {
 /// # Examples
 ///
 /// ```
-/// use pgrest::types::identifiers::quote_ident;
+/// use dbrest::types::identifiers::quote_ident;
 ///
 /// assert_eq!(quote_ident("users"), "\"users\"");
 /// assert_eq!(quote_ident("user\"name"), "\"user\"\"name\"");

@@ -1,6 +1,6 @@
 //! Transaction and session variable setup queries.
 //!
-//! Before executing the main SQL query, PgREST sets PostgreSQL session
+//! Before executing the main SQL query, dbrest sets PostgreSQL session
 //! variables via `set_config()` to communicate request context to
 //! database functions and triggers. This module generates those setup
 //! queries.
@@ -136,7 +136,13 @@ pub fn tx_var_query(
 /// ```sql
 /// set_config('request.method', 'GET', true)
 /// ```
-fn push_set_var(b: &mut SqlBuilder, dialect: &dyn SqlDialect, key: &str, value: &str, first: &mut bool) {
+fn push_set_var(
+    b: &mut SqlBuilder,
+    dialect: &dyn SqlDialect,
+    key: &str,
+    value: &str,
+    first: &mut bool,
+) {
     if !*first {
         b.push(", ");
     }
@@ -207,7 +213,16 @@ mod tests {
     #[test]
     fn test_tx_var_query_with_role() {
         let config = test_config();
-        let b = tx_var_query(&config, dialect(), "POST", "/items", Some("admin"), None, None, None);
+        let b = tx_var_query(
+            &config,
+            dialect(),
+            "POST",
+            "/items",
+            Some("admin"),
+            None,
+            None,
+            None,
+        );
         let sql = b.sql();
 
         assert!(sql.contains("'role'"));

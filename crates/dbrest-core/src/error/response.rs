@@ -17,7 +17,7 @@ use super::Error;
 ///
 /// ```json
 /// {
-///   "code": "PGRST200",
+///   "code": "DBRST200",
 ///   "message": "Table not found: users",
 ///   "details": null,
 ///   "hint": "Did you mean 'user'?"
@@ -25,7 +25,7 @@ use super::Error;
 /// ```
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
-    /// PGRST error code (e.g., "PGRST200")
+    /// DBRST error code (e.g., "DBRST200")
     pub code: &'static str,
 
     /// Human-readable error message
@@ -116,8 +116,8 @@ where
 /// # Example
 ///
 /// ```rust
-/// use pgrest::bail;
-/// use pgrest::Error;
+/// use dbrest::bail;
+/// use dbrest::Error;
 ///
 /// fn validate(x: i32) -> Result<(), Error> {
 ///     if x < 0 {
@@ -141,8 +141,8 @@ macro_rules! bail {
 /// # Example
 ///
 /// ```rust
-/// use pgrest::ensure;
-/// use pgrest::Error;
+/// use dbrest::ensure;
+/// use dbrest::Error;
 ///
 /// fn validate(x: i32) -> Result<(), Error> {
 ///     ensure!(x >= 0, Error::InvalidQueryParam {
@@ -175,7 +175,7 @@ mod tests {
         let response = ErrorResponse::from(&err);
         let json = serde_json::to_string(&response).unwrap();
 
-        assert!(json.contains("PGRST100"));
+        assert!(json.contains("DBRST100"));
         assert!(json.contains("select"));
     }
 

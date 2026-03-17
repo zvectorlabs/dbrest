@@ -1,4 +1,4 @@
-# PostgREST benchmark stack - same schema and resource limits as PgREST
+# PostgREST benchmark stack - same schema and resource limits as dbrest
 # Use with: docker compose -f docker-compose.bench-postgrest.yml --env-file .env.bench up -d
 
 services:
@@ -56,11 +56,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '${PGREST_CPU_LIMIT:-1}'
-          memory: ${PGREST_MEMORY_LIMIT:-2G}
+          cpus: '${DBREST_CPU_LIMIT:-1}'
+          memory: ${DBREST_MEMORY_LIMIT:-2G}
         reservations:
-          cpus: '${PGREST_CPU_LIMIT:-1}'
-          memory: ${PGREST_MEMORY_LIMIT:-2G}
+          cpus: '${DBREST_CPU_LIMIT:-1}'
+          memory: ${DBREST_MEMORY_LIMIT:-2G}
     networks:
       - postgrest-bench
 

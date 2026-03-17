@@ -1,7 +1,7 @@
 [book]
-title = "PgREST Documentation"
-description = "User documentation for PgREST - REST API for PostgreSQL"
-authors = ["PgREST Contributors"]
+title = "dbrest Documentation"
+description = "User documentation for dbrest - REST API for PostgreSQL"
+authors = ["dbrest Contributors"]
 language = "en"
 
 [build]

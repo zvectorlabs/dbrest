@@ -26,10 +26,10 @@
 //!
 //! | Code | Meaning |
 //! |------|---------|
-//! | PGRST300 | Server lacks JWT secret |
-//! | PGRST301 | Token decode / signature error |
-//! | PGRST302 | Token required (no anonymous role) |
-//! | PGRST303 | Claims validation failed |
+//! | DBRST300 | Server lacks JWT secret |
+//! | DBRST301 | Token decode / signature error |
+//! | DBRST302 | Token required (no anonymous role) |
+//! | DBRST303 | Claims validation failed |
 
 pub mod cache;
 pub mod error;

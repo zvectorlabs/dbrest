@@ -1,4 +1,4 @@
-//! Data representation types for PgREST
+//! Data representation types for dbrest
 //!
 //! Data representations define type mapping functions that convert between
 //! database types (e.g., converting a bytea to a custom image format).

@@ -96,7 +96,7 @@ pub fn errors_scenario() -> LoadTestScenario {
 }
 
 /// Streaming large datasets scenario
-/// PgREST-specific feature
+/// dbrest-specific feature
 pub fn streaming_scenario() -> LoadTestScenario {
     LoadTestScenario {
         name: "streaming".to_string(),

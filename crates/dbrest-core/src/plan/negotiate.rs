@@ -1,4 +1,4 @@
-//! Content negotiation for PgREST
+//! Content negotiation for dbrest
 //!
 //! Resolves accepted media types against available media handlers.
 //! Matches the Haskell `Plan.Negotiate` module.
@@ -80,7 +80,7 @@ pub fn negotiate_content(
 /// Check if a media type is for EXPLAIN output
 fn is_plan_media_type(media_type: &MediaType) -> bool {
     matches!(media_type, MediaType::ApplicationOpenApi)
-        || media_type.as_str().contains("vnd.pgrst.plan")
+        || media_type.as_str().contains("vnd.dbrst.plan")
 }
 
 /// Get the default JSON handler
@@ -94,13 +94,13 @@ fn builtin_handler_for(media_type: &MediaType) -> Option<ResolvedHandler> {
         MediaType::ApplicationJson => {
             Some((MediaHandler::BuiltinOvAggJson, MediaType::ApplicationJson))
         }
-        MediaType::ApplicationVndPgrstObject => Some((
+        MediaType::ApplicationVndDbrstObject => Some((
             MediaHandler::BuiltinAggSingleJson(true),
-            MediaType::ApplicationVndPgrstObject,
+            MediaType::ApplicationVndDbrstObject,
         )),
-        MediaType::ApplicationVndPgrstArray => Some((
+        MediaType::ApplicationVndDbrstArray => Some((
             MediaHandler::BuiltinAggArrayJsonStrip,
-            MediaType::ApplicationVndPgrstArray,
+            MediaType::ApplicationVndDbrstArray,
         )),
         MediaType::TextCsv => Some((MediaHandler::BuiltinOvAggCsv, MediaType::TextCsv)),
         MediaType::ApplicationOctetStream => {
@@ -170,13 +170,13 @@ mod tests {
 
     #[test]
     fn test_negotiate_singular_object() {
-        let accepted = vec![MediaType::ApplicationVndPgrstObject];
+        let accepted = vec![MediaType::ApplicationVndDbrstObject];
         let handlers = empty_handlers();
         let rel_id = RelIdentifier::any_element();
 
         let (handler, media) =
             negotiate_content(&accepted, &handlers, &rel_id, &read_action(), false).unwrap();
-        assert_eq!(media, MediaType::ApplicationVndPgrstObject);
+        assert_eq!(media, MediaType::ApplicationVndDbrstObject);
         assert!(matches!(handler, MediaHandler::BuiltinAggSingleJson(true)));
     }
 

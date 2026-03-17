@@ -11,14 +11,14 @@
 mod common;
 
 use bytes::Bytes;
-use pgrest::api_request::preferences::{PreferRepresentation, PreferResolution, Preferences};
-use pgrest::api_request::{self, ApiRequest};
-use pgrest::config::AppConfig;
-use pgrest::error::Error;
-use pgrest::plan::{
+use dbrest::api_request::preferences::{PreferRepresentation, PreferResolution, Preferences};
+use dbrest::api_request::{self, ApiRequest};
+use dbrest::config::AppConfig;
+use dbrest::error::Error;
+use dbrest::plan::{
     ActionPlan, CallPlan, CrudPlan, DbActionPlan, InfoPlan, MutatePlan, ReadPlanTree, action_plan,
 };
-use pgrest::schema_cache::{
+use dbrest::schema_cache::{
     SchemaCache,
     db::{ColumnJson, DbIntrospector, RelationshipRow, RoutineRow, TableRow},
 };
@@ -265,7 +265,7 @@ impl DbIntrospector for SqlxIntrospector<'_> {
     async fn query_computed_fields(
         &self,
         _schemas: &[String],
-    ) -> Result<Vec<pgrest::schema_cache::ComputedFieldRow>, Error> {
+    ) -> Result<Vec<dbrest::schema_cache::ComputedFieldRow>, Error> {
         Ok(Vec::new())
     }
 

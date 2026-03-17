@@ -1,4 +1,4 @@
-# Makefile for PgREST development lifecycle
+# Makefile for dbrest development lifecycle
 # Provides convenient commands for building, testing, benchmarking, and running
 
 .PHONY: help build build-release clean run run-release test test-unit test-integration test-all test-ignored bench bench-micro bench-integration bench-load fmt lint clippy check doc docs-build docs-serve docs-clean docs-install
@@ -8,7 +8,7 @@
 
 # Variables
 CARGO := cargo
-BINARY_NAME := pgrest
+BINARY_NAME := dbrest
 BENCH_DIR := benches
 TEST_DIR := tests
 DOCS_DIR := docs
@@ -23,18 +23,18 @@ NC := \033[0m # No Color
 ##@ General
 
 help: ## Display this help message
-	@echo "$(BLUE)PgREST Development Commands$(NC)"
+	@echo "$(BLUE)dbrest Development Commands$(NC)"
 	@echo ""
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make $(BLUE)<target>$(NC)\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  $(BLUE)%-20s$(NC) %s\n", $$1, $$2 } /^##@/ { printf "\n$(GREEN)%s$(NC)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 ##@ Building
 
 build: ## Build the project in debug mode
-	@echo "$(BLUE)Building PgREST...$(NC)"
+	@echo "$(BLUE)Building dbrest...$(NC)"
 	$(CARGO) build
 
 build-release: ## Build the project in release mode
-	@echo "$(BLUE)Building PgREST (release)...$(NC)"
+	@echo "$(BLUE)Building dbrest (release)...$(NC)"
 	$(CARGO) build --release
 
 clean: ## Clean build artifacts
@@ -44,11 +44,11 @@ clean: ## Clean build artifacts
 ##@ Running
 
 run: build ## Run the server in debug mode
-	@echo "$(BLUE)Running PgREST (debug)...$(NC)"
+	@echo "$(BLUE)Running dbrest (debug)...$(NC)"
 	$(CARGO) run
 
 run-release: build-release ## Run the server in release mode
-	@echo "$(BLUE)Running PgREST (release)...$(NC)"
+	@echo "$(BLUE)Running dbrest (release)...$(NC)"
 	$(CARGO) run --release
 
 ##@ Testing
@@ -160,8 +160,8 @@ bench-setup: ## Setup benchmark database (load schema and seed data)
 	@psql -h localhost -U postgres -f $(BENCH_DIR)/fixtures/seed_data.sql || \
 		echo "$(YELLOW)Note: If psql fails, ensure PostgreSQL is running and accessible$(NC)"
 
-bench-docker-build: ## Build PgREST Docker image for benchmarks
-	@echo "$(BLUE)Building PgREST Docker image...$(NC)"
+bench-docker-build: ## Build dbrest Docker image for benchmarks
+	@echo "$(BLUE)Building dbrest Docker image...$(NC)"
 	@if ! docker info > /dev/null 2>&1; then \
 		echo "$(YELLOW)Error: Docker is not running.$(NC)"; \
 		exit 1; \

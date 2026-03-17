@@ -88,8 +88,8 @@ impl DbIntrospector for SqliteIntrospector<'_> {
                 columns_json_parts.push(col_json);
             }
 
-            let columns_json = serde_json::to_string(&columns_json_parts)
-                .unwrap_or_else(|_| "[]".to_string());
+            let columns_json =
+                serde_json::to_string(&columns_json_parts).unwrap_or_else(|_| "[]".to_string());
 
             tables.push(TableRow {
                 table_schema: "main".to_string(),
@@ -154,8 +154,10 @@ impl DbIntrospector for SqliteIntrospector<'_> {
                     continue;
                 }
                 let foreign_table_name = &cols[0].0;
-                let cols_and_fcols: Vec<(String, String)> =
-                    cols.iter().map(|(_, f, t)| (f.clone(), t.clone())).collect();
+                let cols_and_fcols: Vec<(String, String)> = cols
+                    .iter()
+                    .map(|(_, f, t)| (f.clone(), t.clone()))
+                    .collect();
 
                 let is_self = table_name == *foreign_table_name;
                 let constraint_name = format!("fk_{}_{}", table_name, id);

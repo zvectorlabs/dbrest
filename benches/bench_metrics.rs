@@ -5,7 +5,9 @@
 // Types required by load_test/scenarios (must be defined before mod load_test)
 #[derive(Debug, Clone)]
 pub enum RequestType {
-    Get { path: String },
+    Get {
+        path: String,
+    },
     Post {
         path: String,
         body: serde_json::Value,
@@ -14,7 +16,9 @@ pub enum RequestType {
         path: String,
         body: serde_json::Value,
     },
-    Delete { path: String },
+    Delete {
+        path: String,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -181,14 +185,18 @@ async fn run_load_test(config: LoadTestConfig, scenario: LoadTestScenario) -> Lo
         latency_p50_ms: percentile(&latencies, 0.50),
         latency_p95_ms: percentile(&latencies, 0.95),
         latency_p99_ms: percentile(&latencies, 0.99),
-        error_rate: if total > 0 { failed as f64 / total as f64 } else { 0.0 },
+        error_rate: if total > 0 {
+            failed as f64 / total as f64
+        } else {
+            0.0
+        },
     }
 }
 
 fn main() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let base_url =
-        std::env::var("PGREST_BENCH_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
+        std::env::var("DBREST_BENCH_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
 
     let scenarios_and_configs: Vec<(LoadTestScenario, LoadTestConfig)> = vec![
         (
@@ -251,5 +259,8 @@ fn main() {
         results.push(r);
     }
 
-    println!("PGREST_BENCH_JSON:{}", serde_json::to_string(&results).unwrap());
+    println!(
+        "DBREST_BENCH_JSON:{}",
+        serde_json::to_string(&results).unwrap()
+    );
 }

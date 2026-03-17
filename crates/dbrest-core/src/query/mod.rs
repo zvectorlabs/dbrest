@@ -24,15 +24,15 @@
 //!        set_config('role', 'web_anon', true), …
 //!
 //! -- main:
-//! WITH pgrst_source AS (
+//! WITH dbrst_source AS (
 //!   SELECT "test_api"."users"."id", "test_api"."users"."name"
 //!   FROM "test_api"."users"
 //! )
 //! SELECT NULL AS total_result_set,
-//!        pg_catalog.count(_pgrest_t) AS page_total,
-//!        coalesce(json_agg(_pgrest_t), '[]')::text AS body,
+//!        pg_catalog.count(_dbrst_t) AS page_total,
+//!        coalesce(json_agg(_dbrst_t), '[]')::text AS body,
 //!        …
-//! FROM (SELECT * FROM pgrst_source) AS _pgrest_t
+//! FROM (SELECT * FROM dbrst_source) AS _dbrst_t
 //! ```
 
 pub mod builder;
@@ -175,23 +175,28 @@ pub fn main_query(
 /// | `CallReadPlan`    | `statements::main_call`  | CTE function call        |
 ///
 /// Returns the assembled `SqlBuilder` ready for execution.
-fn build_crud_query(plan: &CrudPlan, config: &AppConfig, dialect: &dyn SqlDialect) -> (Option<SqlBuilder>, SqlBuilder) {
+fn build_crud_query(
+    plan: &CrudPlan,
+    config: &AppConfig,
+    dialect: &dyn SqlDialect,
+) -> (Option<SqlBuilder>, SqlBuilder) {
     match plan {
         CrudPlan::WrappedReadPlan {
             read_plan,
             headers_only,
             handler,
             ..
-        } => {
-            (None, statements::main_read(
+        } => (
+            None,
+            statements::main_read(
                 read_plan,
                 None,
                 config.db_max_rows,
                 *headers_only,
                 Some(&handler.0),
                 dialect,
-            ))
-        }
+            ),
+        ),
         CrudPlan::MutateReadPlan {
             read_plan,
             mutate_plan,
@@ -200,13 +205,16 @@ fn build_crud_query(plan: &CrudPlan, config: &AppConfig, dialect: &dyn SqlDialec
         } => {
             let return_representation = !mutate_plan.returning().is_empty();
             if dialect.supports_dml_cte() {
-                (None, statements::main_write(
-                    mutate_plan,
-                    read_plan,
-                    return_representation,
-                    Some(&handler.0),
-                    dialect,
-                ))
+                (
+                    None,
+                    statements::main_write(
+                        mutate_plan,
+                        read_plan,
+                        return_representation,
+                        Some(&handler.0),
+                        dialect,
+                    ),
+                )
             } else {
                 let (mutation, agg) = statements::main_write_split(
                     mutate_plan,
@@ -220,7 +228,16 @@ fn build_crud_query(plan: &CrudPlan, config: &AppConfig, dialect: &dyn SqlDialec
         }
         CrudPlan::CallReadPlan {
             call_plan, handler, ..
-        } => (None, statements::main_call(call_plan, None, config.db_max_rows, Some(&handler.0), dialect)),
+        } => (
+            None,
+            statements::main_call(
+                call_plan,
+                None,
+                config.db_max_rows,
+                Some(&handler.0),
+                dialect,
+            ),
+        ),
     }
 }
 
@@ -232,13 +249,13 @@ fn build_crud_query(plan: &CrudPlan, config: &AppConfig, dialect: &dyn SqlDialec
 mod tests {
     use super::*;
     use crate::api_request::types::{InvokeMethod, Mutation, Payload};
-    use crate::test_helpers::TestPgDialect;
     use crate::plan::TxMode;
     use crate::plan::call_plan::{CallArgs, CallParams, CallPlan};
     use crate::plan::mutate_plan::{InsertPlan, MutatePlan};
     use crate::plan::read_plan::{ReadPlan, ReadPlanTree};
     use crate::plan::types::*;
     use crate::schema_cache::media_handler::{MediaHandler, ResolvedHandler};
+    use crate::test_helpers::TestPgDialect;
     use crate::types::identifiers::QualifiedIdentifier;
     use crate::types::media::MediaType;
     use bytes::Bytes;
@@ -376,14 +393,24 @@ mod tests {
         let plan = make_read_plan();
         let config = test_config();
 
-        let mq = main_query(&plan, &config, dialect(), "GET", "/users", None, None, None, None);
+        let mq = main_query(
+            &plan,
+            &config,
+            dialect(),
+            "GET",
+            "/users",
+            None,
+            None,
+            None,
+            None,
+        );
 
         assert!(mq.tx_vars.is_some());
         assert!(mq.pre_req.is_none()); // No pre-request configured
         assert!(mq.main.is_some());
 
         let main_sql = mq.main.unwrap().sql().to_string();
-        assert!(main_sql.contains("pgrst_source"));
+        assert!(main_sql.contains("dbrst_source"));
         assert!(main_sql.contains("\"users\""));
     }
 
@@ -392,7 +419,17 @@ mod tests {
         let plan = make_mutate_plan();
         let config = test_config();
 
-        let mq = main_query(&plan, &config, dialect(), "POST", "/users", None, None, None, None);
+        let mq = main_query(
+            &plan,
+            &config,
+            dialect(),
+            "POST",
+            "/users",
+            None,
+            None,
+            None,
+            None,
+        );
 
         assert!(mq.main.is_some());
         let main_sql = mq.main.unwrap().sql().to_string();
@@ -427,7 +464,17 @@ mod tests {
         let mut config = test_config();
         config.db_pre_request = Some(QualifiedIdentifier::new("test_api", "check_request"));
 
-        let mq = main_query(&plan, &config, dialect(), "GET", "/users", None, None, None, None);
+        let mq = main_query(
+            &plan,
+            &config,
+            dialect(),
+            "GET",
+            "/users",
+            None,
+            None,
+            None,
+            None,
+        );
 
         assert!(mq.pre_req.is_some());
         let pre_sql = mq.pre_req.unwrap().sql().to_string();
@@ -439,7 +486,17 @@ mod tests {
         let plan = ActionPlan::NoDb(crate::plan::InfoPlan::SchemaInfoPlan);
         let config = test_config();
 
-        let mq = main_query(&plan, &config, dialect(), "OPTIONS", "/", None, None, None, None);
+        let mq = main_query(
+            &plan,
+            &config,
+            dialect(),
+            "OPTIONS",
+            "/",
+            None,
+            None,
+            None,
+            None,
+        );
 
         // Info plans have no main SQL
         assert!(mq.main.is_none());

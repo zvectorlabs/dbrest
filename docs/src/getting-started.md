@@ -1,28 +1,28 @@
 # Getting Started
 
-PgREST is a standalone web server that turns your PostgreSQL database into a REST API. It automatically generates REST endpoints for your database tables, views, and functions, allowing you to interact with your data using standard HTTP methods.
+dbrest is a standalone web server that turns your PostgreSQL database into a REST API. It automatically generates REST endpoints for your database tables, views, and functions, allowing you to interact with your data using standard HTTP methods.
 
 ## Prerequisites
 
 - **PostgreSQL 17+** - A running PostgreSQL database server
-- **Rust 1.91+** (if building from source) - For compiling PgREST
+- **Rust 1.91+** (if building from source) - For compiling dbrest
 - **Release binary** (if using pre-built) - Download from releases
 
 ## Installation
 
 ### From Source
 
-Build PgREST from source using Cargo:
+Build dbrest from source using Cargo:
 
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd pgrest
+cd dbrest
 
 # Build the release binary
 cargo build --release
 
-# The binary will be at target/release/pgrest
+# The binary will be at target/release/dbrest
 ```
 
 Or install directly:
@@ -37,11 +37,11 @@ Download the pre-built binary for your platform from the releases page and place
 
 ### Docker
 
-PgREST includes a Dockerfile for containerized deployments:
+dbrest includes a Dockerfile for containerized deployments:
 
 ```bash
-docker build -t pgrest .
-docker run -p 3000:3000 pgrest
+docker build -t dbrest .
+docker run -p 3000:3000 dbrest
 ```
 
 See the [Deployment](deployment.md) section for more Docker configuration options.
@@ -64,7 +64,7 @@ INSERT INTO users (name, email) VALUES
     ('Bob', 'bob@example.com');
 ```
 
-### 2. Configure PgREST
+### 2. Configure dbrest
 
 Create a configuration file `config.toml`:
 
@@ -78,10 +78,10 @@ server-port = 3000
 Or use environment variables:
 
 ```bash
-export PGRST_DB_URI="postgresql://user:password@localhost:5432/mydb"
-export PGRST_DB_SCHEMAS="public"
-export PGRST_DB_ANON_ROLE="anon"
-export PGRST_SERVER_PORT=3000
+export DBREST_DB_URI="postgresql://user:password@localhost:5432/mydb"
+export DBREST_DB_SCHEMAS="public"
+export DBREST_DB_ANON_ROLE="anon"
+export DBREST_SERVER_PORT=3000
 ```
 
 **Note:** Make sure the `anon` role exists in your database and has appropriate permissions:
@@ -96,13 +96,13 @@ GRANT SELECT ON users TO anon;
 
 ```bash
 # Using config file
-./pgrest --config config.toml
+./dbrest --config config.toml
 
 # Or using environment variables
-./pgrest
+./dbrest
 
 # Or with CLI overrides
-./pgrest --db-uri "postgresql://..." --port 3000
+./dbrest --db-uri "postgresql://..." --port 3000
 ```
 
 ### 4. Make Your First Request
