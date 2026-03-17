@@ -20,6 +20,9 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 
+use hyper_util::rt::{TokioExecutor, TokioIo};
+use hyper_util::server::conn::auto::Builder;
+use hyper_util::service::TowerToHyperService;
 use tokio::net::TcpListener;
 
 use crate::backend::{DatabaseBackend, DbVersion, SqlDialect};
@@ -93,8 +96,24 @@ pub async fn start_server_with_backend(
         tracing::info!(addr = %admin_addr, "Admin server listening");
 
         tokio::spawn(async move {
-            if let Err(e) = axum::serve(admin_listener, admin_router).await {
-                tracing::error!(error = %e, "Admin server error");
+            loop {
+                let (stream, _addr) = match admin_listener.accept().await {
+                    Ok(v) => v,
+                    Err(e) => {
+                        tracing::warn!(error = %e, "Admin TCP accept error");
+                        continue;
+                    }
+                };
+
+                let svc = admin_router.clone();
+                tokio::spawn(async move {
+                    let io = TokioIo::new(stream);
+                    let hyper_svc = TowerToHyperService::new(svc);
+                    let conn = Builder::new(TokioExecutor::new());
+                    if let Err(e) = conn.serve_connection_with_upgrades(io, hyper_svc).await {
+                        tracing::debug!(error = %e, "Admin connection error");
+                    }
+                });
             }
         });
     }
@@ -170,20 +189,53 @@ async fn start_notify_listener(
     }
 }
 
-/// Start the main server on a TCP socket.
+/// Start the main server on a TCP socket with HTTP/1.1 and HTTP/2 support.
+///
+/// Uses `hyper_util::server::conn::auto::Builder` to auto-negotiate the
+/// protocol. Browsers connecting over cleartext will use HTTP/1.1 with
+/// upgrade to h2c; behind a TLS-terminating proxy the ALPN negotiation
+/// selects HTTP/2 transparently.
 async fn serve_tcp(router: axum::Router, config: &AppConfig) -> Result<(), Error> {
     let server_ip = parse_address(&config.server_host)?;
     let server_addr = SocketAddr::new(server_ip, config.server_port);
-    let main_listener = TcpListener::bind(server_addr)
+    let listener = TcpListener::bind(server_addr)
         .await
         .map_err(|e| Error::Internal(format!("Failed to bind main server: {}", e)))?;
 
-    tracing::info!(addr = %server_addr, "dbrest server listening");
+    tracing::info!(addr = %server_addr, "dbrest server listening (HTTP/1.1 + h2c)");
 
-    axum::serve(main_listener, router)
-        .with_graceful_shutdown(shutdown_signal())
-        .await
-        .map_err(|e| Error::Internal(format!("Server error: {}", e)))
+    let shutdown = shutdown_signal();
+    tokio::pin!(shutdown);
+
+    loop {
+        tokio::select! {
+            result = listener.accept() => {
+                let (stream, _addr) = match result {
+                    Ok(v) => v,
+                    Err(e) => {
+                        tracing::warn!(error = %e, "TCP accept error");
+                        continue;
+                    }
+                };
+
+                let svc = router.clone();
+                tokio::spawn(async move {
+                    let io = TokioIo::new(stream);
+                    let hyper_svc = TowerToHyperService::new(svc);
+                    let conn = Builder::new(TokioExecutor::new());
+                    if let Err(e) = conn.serve_connection_with_upgrades(io, hyper_svc).await {
+                        tracing::debug!(error = %e, "Connection error");
+                    }
+                });
+            }
+            _ = &mut shutdown => {
+                tracing::info!("Shutting down TCP server");
+                break;
+            }
+        }
+    }
+
+    Ok(())
 }
 
 /// Start the main server on a Unix domain socket.
@@ -193,7 +245,6 @@ async fn serve_unix_socket(
     socket_path: &std::path::Path,
     mode: u32,
 ) -> Result<(), Error> {
-    use hyper_util::rt::TokioIo;
     use std::os::unix::fs::PermissionsExt;
 
     let _ = std::fs::remove_file(socket_path);
@@ -233,11 +284,9 @@ async fn serve_unix_socket(
                 let svc = router.clone();
                 tokio::spawn(async move {
                     let io = TokioIo::new(stream);
-                    let hyper_svc = hyper_util::service::TowerToHyperService::new(svc);
-                    let conn = hyper_util::server::conn::auto::Builder::new(
-                        hyper_util::rt::TokioExecutor::new(),
-                    );
-                    if let Err(e) = conn.serve_connection(io, hyper_svc).await {
+                    let hyper_svc = TowerToHyperService::new(svc);
+                    let conn = Builder::new(TokioExecutor::new());
+                    if let Err(e) = conn.serve_connection_with_upgrades(io, hyper_svc).await {
                         tracing::debug!(error = %e, "Connection error");
                     }
                 });
