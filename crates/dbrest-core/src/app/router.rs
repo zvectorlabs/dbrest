@@ -10,7 +10,7 @@ use std::sync::atomic::Ordering;
 use arc_swap::ArcSwap;
 use axum::{
     Router,
-    extract::Request,
+    extract::{DefaultBodyLimit, Request},
     middleware::{self, Next},
     response::Response,
     routing::{get, options, post},
@@ -117,6 +117,7 @@ pub fn create_router(state: AppState) -> Router {
         .layer(CompressionLayer::new())
         .layer(cors_layer)
         .layer(TraceLayer::new_for_http())
+        .layer(DefaultBodyLimit::max(config.server_max_body_size))
         .with_state(state)
 }
 

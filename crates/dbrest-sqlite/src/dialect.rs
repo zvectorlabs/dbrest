@@ -68,9 +68,9 @@ impl SqlDialect for SqliteDialect {
     }
 
     fn set_session_var(&self, _b: &mut SqlBuilder, _key: &str, _value: &str) {
-        // SQLite session vars are set via build_tx_vars_statement, not as SELECT expressions.
-        unreachable!(
-            "SQLite set_session_var should not be called directly; use build_tx_vars_statement"
+        tracing::warn!(
+            "set_session_var called on SqliteDialect — this is a no-op; \
+             use build_tx_vars_statement instead"
         );
     }
 
@@ -370,6 +370,15 @@ mod tests {
     #[test]
     fn test_supports_lateral_join() {
         assert!(!dialect().supports_lateral_join());
+    }
+
+    #[test]
+    fn test_set_session_var_does_not_panic() {
+        let d = dialect();
+        let mut b = SqlBuilder::new();
+        // Should log a warning but not panic
+        d.set_session_var(&mut b, "key", "value");
+        assert_eq!(b.sql(), "");
     }
 
     #[test]

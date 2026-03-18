@@ -291,7 +291,7 @@ pub async fn read_handler(
     {
         Ok((result, prefs, media)) => {
             let config = state.config();
-            build_read_response(&result, &prefs, is_head, &config, &media)
+            build_read_response(result, &prefs, is_head, &config, &media)
         }
         Err(e) => e.into_response(),
     }
@@ -316,7 +316,7 @@ pub async fn create_handler(
     match process_request(&state, &auth, "POST", &path, query_str, &headers, body).await {
         Ok((result, prefs, media)) => {
             let config = state.config();
-            build_mutate_response(&result, &prefs, "POST", &path, &config, &media)
+            build_mutate_response(result, &prefs, "POST", &path, &config, &media)
         }
         Err(e) => e.into_response(),
     }
@@ -341,7 +341,7 @@ pub async fn update_handler(
     match process_request(&state, &auth, "PATCH", &path, query_str, &headers, body).await {
         Ok((result, prefs, media)) => {
             let config = state.config();
-            build_mutate_response(&result, &prefs, "PATCH", &path, &config, &media)
+            build_mutate_response(result, &prefs, "PATCH", &path, &config, &media)
         }
         Err(e) => e.into_response(),
     }
@@ -375,7 +375,7 @@ pub async fn delete_handler(
     {
         Ok((result, prefs, media)) => {
             let config = state.config();
-            build_mutate_response(&result, &prefs, "DELETE", &path, &config, &media)
+            build_mutate_response(result, &prefs, "DELETE", &path, &config, &media)
         }
         Err(e) => e.into_response(),
     }
@@ -400,7 +400,7 @@ pub async fn upsert_handler(
     match process_request(&state, &auth, "PUT", &path, query_str, &headers, body).await {
         Ok((result, prefs, media)) => {
             let config = state.config();
-            build_mutate_response(&result, &prefs, "PUT", &path, &config, &media)
+            build_mutate_response(result, &prefs, "PUT", &path, &config, &media)
         }
         Err(e) => e.into_response(),
     }
@@ -434,7 +434,7 @@ pub async fn rpc_get_handler(
     {
         Ok((result, prefs, media)) => {
             let config = state.config();
-            build_rpc_response(&result, &prefs, &config, &media)
+            build_rpc_response(result, &prefs, &config, &media)
         }
         Err(e) => e.into_response(),
     }
@@ -455,7 +455,7 @@ pub async fn rpc_post_handler(
     match process_request(&state, &auth, "POST", &path, query_str, &headers, body).await {
         Ok((result, prefs, media)) => {
             let config = state.config();
-            build_rpc_response(&result, &prefs, &config, &media)
+            build_rpc_response(result, &prefs, &config, &media)
         }
         Err(e) => e.into_response(),
     }
@@ -545,12 +545,10 @@ async fn generate_openapi_spec(
                 Ok(spec) => {
                     let body = serde_json::to_string(&spec).unwrap_or_else(|_| "{}".to_string());
                     finalize_response(
-                        Response::builder()
-                            .status(StatusCode::OK)
-                            .header(
-                                header::CONTENT_TYPE,
-                                "application/openapi+json; charset=utf-8",
-                            ),
+                        Response::builder().status(StatusCode::OK).header(
+                            header::CONTENT_TYPE,
+                            "application/openapi+json; charset=utf-8",
+                        ),
                         Body::from(body),
                     )
                 }
@@ -581,7 +579,7 @@ pub async fn root_options_handler() -> Response {
 
 /// Build an HTTP response for a read result.
 fn build_read_response(
-    result: &StatementResult,
+    result: StatementResult,
     prefs: &Preferences,
     headers_only: bool,
     config: &crate::config::AppConfig,
@@ -615,7 +613,7 @@ fn build_read_response(
     }
 
     // Apply GUC overrides (response.status and response.headers)
-    match apply_guc_overrides(builder, result) {
+    match apply_guc_overrides(builder, &result) {
         Ok(b) => {
             if headers_only {
                 finalize_response(b, Body::empty())
@@ -627,9 +625,9 @@ fn build_read_response(
                     config.server_streaming_enabled,
                     config.server_streaming_threshold,
                 ) {
-                    finalize_response(b, stream_json_response(result.body.clone()))
+                    finalize_response(b, stream_json_response(result.body))
                 } else {
-                    finalize_response(b, Body::from(result.body.clone()))
+                    finalize_response(b, Body::from(result.body))
                 }
             }
         }
@@ -639,7 +637,7 @@ fn build_read_response(
 
 /// Build an HTTP response for a mutation result.
 fn build_mutate_response(
-    result: &StatementResult,
+    result: StatementResult,
     prefs: &Preferences,
     method: &str,
     path: &str,
@@ -679,7 +677,7 @@ fn build_mutate_response(
     }
 
     // Apply GUC overrides (response.status and response.headers)
-    match apply_guc_overrides(builder, result) {
+    match apply_guc_overrides(builder, &result) {
         Ok(b) => {
             if return_rep {
                 // Check if we should stream this response
@@ -689,9 +687,9 @@ fn build_mutate_response(
                     config.server_streaming_enabled,
                     config.server_streaming_threshold,
                 ) {
-                    finalize_response(b, stream_json_response(result.body.clone()))
+                    finalize_response(b, stream_json_response(result.body))
                 } else {
-                    finalize_response(b, Body::from(result.body.clone()))
+                    finalize_response(b, Body::from(result.body))
                 }
             } else if matches!(prefs.representation, Some(PreferRepresentation::None)) {
                 finalize_response(b, Body::empty())
@@ -705,7 +703,7 @@ fn build_mutate_response(
 
 /// Build an HTTP response for an RPC result.
 fn build_rpc_response(
-    result: &StatementResult,
+    result: StatementResult,
     _prefs: &Preferences,
     config: &crate::config::AppConfig,
     media: &MediaType,
@@ -716,7 +714,7 @@ fn build_rpc_response(
         .header(header::CONTENT_TYPE, content_type);
 
     // Apply GUC overrides (response.status and response.headers)
-    match apply_guc_overrides(builder, result) {
+    match apply_guc_overrides(builder, &result) {
         Ok(b) => {
             // Check if we should stream this response
             let body_size = result.body.len();
@@ -725,9 +723,9 @@ fn build_rpc_response(
                 config.server_streaming_enabled,
                 config.server_streaming_threshold,
             ) {
-                finalize_response(b, stream_json_response(result.body.clone()))
+                finalize_response(b, stream_json_response(result.body))
             } else {
-                finalize_response(b, Body::from(result.body.clone()))
+                finalize_response(b, Body::from(result.body))
             }
         }
         Err(err_response) => err_response,

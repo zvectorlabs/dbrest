@@ -27,7 +27,7 @@ pub mod test_helpers;
 
 // Re-export commonly used types
 pub use api_request::ApiRequest;
-pub use app::{AppState, start_server};
+pub use app::{AppState, Datasource, DbrestApp, DbrestRouters, start_server};
 pub use auth::{AuthResult, AuthState, JwtCache};
 pub use backend::{DatabaseBackend, DbVersion, SqlDialect};
 pub use config::{AppConfig, load_config};

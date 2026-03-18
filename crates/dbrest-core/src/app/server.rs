@@ -144,6 +144,18 @@ pub async fn start_server_with_backend(
 }
 
 /// Background NOTIFY listener using the database backend.
+///
+/// Public variant for use by [`crate::app::builder::DbrestRouters::start_listener`].
+pub async fn start_notify_listener_public(
+    db: Arc<dyn DatabaseBackend>,
+    state: AppState,
+    channel: &str,
+    cancel: tokio::sync::watch::Receiver<bool>,
+) {
+    start_notify_listener(db, state, channel, cancel).await;
+}
+
+/// Background NOTIFY listener (internal).
 async fn start_notify_listener(
     db: Arc<dyn DatabaseBackend>,
     state: AppState,

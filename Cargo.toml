@@ -12,7 +12,7 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.91"
 description = "dbrest — high-performance REST API for PostgreSQL, written in Rust"
-license = "MIT"
+license = "Apache-2.0"
 
 [dependencies]
 # Workspace crates
