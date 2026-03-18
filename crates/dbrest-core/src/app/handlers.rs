@@ -85,16 +85,23 @@ fn flatten_headers(headers: &HeaderMap) -> Vec<(String, String)> {
 ///
 /// Runs tx_vars, pre_req, and main query in order within a single
 /// transaction, returning the CTE result set from the main query.
+#[tracing::instrument(name = "db.query", skip(state, mq), fields(operation))]
 async fn execute_main_query(
     state: &AppState,
     mq: &query::MainQuery,
+    operation: &'static str,
 ) -> Result<StatementResult, Error> {
-    state
-        .metrics
-        .db_queries_total
-        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    metrics::counter!("db.query.total", "operation" => operation).increment(1);
 
-    state
+    // Log the SQL query if configured
+    if state.config().log_query
+        && let Some(ref main) = mq.main
+    {
+        tracing::info!(operation, sql = main.sql(), "Executing query");
+    }
+
+    let start = std::time::Instant::now();
+    let result = state
         .db
         .exec_in_transaction(
             mq.tx_vars.as_ref(),
@@ -102,7 +109,20 @@ async fn execute_main_query(
             mq.mutation.as_ref(),
             mq.main.as_ref(),
         )
-        .await
+        .await;
+    let duration = start.elapsed().as_secs_f64();
+    metrics::histogram!("db.query.duration", "operation" => operation).record(duration);
+
+    if let Err(ref e) = result {
+        tracing::error!(
+            operation,
+            duration_ms = format_args!("{:.1}", duration * 1000.0),
+            "Query failed: {}",
+            e
+        );
+    }
+
+    result
 }
 
 // Error mapping has been moved to the backend module.
@@ -186,6 +206,8 @@ fn apply_guc_overrides(
 /// Process a single API request through the full pipeline.
 ///
 /// This is the shared core used by all resource handlers (read, mutate, rpc).
+#[tracing::instrument(name = "process_request", skip(state, headers, body, query_str),
+    fields(method, path, role = auth.role.as_str()))]
 async fn process_request(
     state: &AppState,
     auth: &AuthResult,
@@ -256,7 +278,19 @@ async fn process_request(
     };
 
     // 5. Execute
-    let result = execute_main_query(state, &mq).await?;
+    let operation = if path.starts_with("/rpc/") {
+        "rpc"
+    } else {
+        match method {
+            "GET" | "HEAD" => "read",
+            "POST" => "create",
+            "PATCH" => "update",
+            "PUT" => "upsert",
+            "DELETE" => "delete",
+            _ => "unknown",
+        }
+    };
+    let result = execute_main_query(state, &mq, operation).await?;
 
     Ok((result, prefs, media_type))
 }

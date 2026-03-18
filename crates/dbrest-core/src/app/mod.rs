@@ -6,6 +6,7 @@
 pub mod admin;
 pub mod builder;
 pub mod handlers;
+pub mod metrics;
 pub mod router;
 pub mod server;
 pub mod state;

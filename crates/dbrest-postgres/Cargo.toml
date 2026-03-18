@@ -10,7 +10,7 @@ keywords = ["rest", "api", "database", "postgres"]
 categories = ["web-programming::http-server", "database"]
 
 [dependencies]
-dbrest-core = { path = "../dbrest-core", version = "0.8.6" }
+dbrest-core = { path = "../dbrest-core", version = "0.9.0" }
 
 # Database
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "json", "macros"] }

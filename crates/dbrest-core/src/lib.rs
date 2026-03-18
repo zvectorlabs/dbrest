@@ -29,7 +29,7 @@ pub mod test_helpers;
 pub use api_request::ApiRequest;
 pub use app::{AppState, Datasource, DbrestApp, DbrestRouters, start_server};
 pub use auth::{AuthResult, AuthState, JwtCache};
-pub use backend::{DatabaseBackend, DbVersion, SqlDialect};
+pub use backend::{DatabaseBackend, DbVersion, PoolStatus, SqlDialect};
 pub use config::{AppConfig, load_config};
 pub use error::Error;
 pub use plan::action_plan;

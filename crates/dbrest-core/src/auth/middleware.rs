@@ -119,6 +119,7 @@ pub async fn authenticate(state: &AuthState, request: &Request) -> Result<AuthRe
 ///
 /// This variant avoids borrowing the `Request` across await points, making
 /// it usable in contexts where the `Request` body is not `Sync`.
+#[tracing::instrument(name = "authenticate", skip_all)]
 pub async fn authenticate_token(
     state: &AuthState,
     token: Option<&str>,
@@ -128,6 +129,7 @@ pub async fn authenticate_token(
         Some(token) => {
             // Check cache first
             if let Some(cached) = state.cache.get(token).await {
+                metrics::counter!("jwt.cache.hit.total").increment(1);
                 return Ok((*cached).clone());
             }
 
@@ -136,6 +138,7 @@ pub async fn authenticate_token(
 
             // Cache the result
             state.cache.insert(token, result.clone()).await;
+            metrics::counter!("jwt.cache.miss.total").increment(1);
 
             Ok(result)
         }
@@ -171,6 +174,13 @@ fn extract_bearer_token(request: &Request) -> Option<&str> {
 
 /// Build an HTTP error response from a JWT error.
 pub fn jwt_error_response(err: JwtError) -> Response {
+    tracing::warn!(
+        error_code = err.code(),
+        http_status = err.status().as_u16(),
+        "Auth rejected: {}",
+        err
+    );
+
     let status = err.status();
     let www_auth = err.www_authenticate();
 

@@ -7,7 +7,7 @@ use sqlx::Row;
 use sqlx::postgres::PgPoolOptions;
 
 use crate::introspector::SqlxIntrospector;
-use dbrest_core::backend::{DatabaseBackend, DbVersion, StatementResult};
+use dbrest_core::backend::{DatabaseBackend, DbVersion, PoolStatus, StatementResult};
 use dbrest_core::error::Error;
 use dbrest_core::query::sql_builder::{SqlBuilder, SqlParam};
 use dbrest_core::schema_cache::db::DbIntrospector;
@@ -468,5 +468,13 @@ impl DatabaseBackend for PgBackend {
         } else {
             Error::Internal("Unknown database error".to_string())
         }
+    }
+
+    fn pool_status(&self) -> Option<PoolStatus> {
+        Some(PoolStatus {
+            active: self.pool.size().saturating_sub(self.pool.num_idle() as u32),
+            idle: self.pool.num_idle() as u32,
+            max_size: self.pool.options().get_max_connections(),
+        })
     }
 }
