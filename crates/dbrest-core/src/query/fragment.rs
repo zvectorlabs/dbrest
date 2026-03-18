@@ -690,7 +690,7 @@ pub fn order_clause(b: &mut SqlBuilder, qi: &QualifiedIdentifier, terms: &[Coerc
 /// ```
 pub fn limit_offset(b: &mut SqlBuilder, offset: i64, limit_to: Option<i64>) {
     if let Some(lim) = limit_to {
-        let limit = lim - offset + 1;
+        let limit = lim.saturating_sub(offset).saturating_add(1);
         b.push(" LIMIT ");
         b.push(&limit.to_string());
     }
@@ -1823,5 +1823,43 @@ mod tests {
             b.sql(),
             "\"test_api\".\"full_name\"(\"users\"), \"test_api\".\"initials\"(\"users\")"
         );
+    }
+
+    #[test]
+    fn test_limit_offset_normal() {
+        let mut b = SqlBuilder::new();
+        limit_offset(&mut b, 0, Some(9));
+        assert_eq!(b.sql(), " LIMIT 10");
+    }
+
+    #[test]
+    fn test_limit_offset_with_offset() {
+        let mut b = SqlBuilder::new();
+        limit_offset(&mut b, 5, Some(14));
+        assert_eq!(b.sql(), " LIMIT 10 OFFSET 5");
+    }
+
+    #[test]
+    fn test_limit_offset_no_limit() {
+        let mut b = SqlBuilder::new();
+        limit_offset(&mut b, 10, None);
+        assert_eq!(b.sql(), " OFFSET 10");
+    }
+
+    #[test]
+    fn test_limit_offset_saturating_no_overflow() {
+        let mut b = SqlBuilder::new();
+        limit_offset(&mut b, i64::MAX, Some(0));
+        // saturating_sub clamps to i64::MIN, saturating_add(1) brings it to i64::MIN + 1
+        // Key: no panic from overflow
+        let sql = b.sql();
+        assert!(sql.contains("LIMIT"));
+    }
+
+    #[test]
+    fn test_limit_offset_extreme_values() {
+        let mut b = SqlBuilder::new();
+        limit_offset(&mut b, 0, Some(i64::MAX));
+        assert!(b.sql().contains("LIMIT"));
     }
 }

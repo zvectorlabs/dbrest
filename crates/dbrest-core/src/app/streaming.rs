@@ -14,16 +14,14 @@ use std::task::{Context, Poll};
 /// This is useful for large result sets where we want to avoid loading
 /// the entire JSON array into memory at once.
 pub fn stream_json_array(body: String) -> Body {
-    // For now, we'll stream the body in chunks
-    // In a more sophisticated implementation, we could parse the JSON
-    // and stream individual array elements
-    let chunks: Vec<Result<Bytes, std::io::Error>> = body
-        .as_bytes()
-        .chunks(8192) // 8KB chunks
-        .map(|chunk| Ok(Bytes::from(chunk.to_vec())))
-        .collect();
-
-    let stream = stream::iter(chunks);
+    const CHUNK_SIZE: usize = 8192;
+    let bytes: Bytes = Bytes::from(body.into_bytes());
+    let len = bytes.len();
+    let offsets: Vec<usize> = (0..len).step_by(CHUNK_SIZE).collect();
+    let stream = stream::iter(offsets.into_iter().map(move |start| {
+        let end = (start + CHUNK_SIZE).min(len);
+        Ok::<_, std::io::Error>(bytes.slice(start..end))
+    }));
     Body::from_stream(stream)
 }
 
@@ -36,16 +34,14 @@ pub fn should_stream(body_size: usize, streaming_enabled: bool, threshold: u64) 
 ///
 /// Takes a pre-formatted JSON array string and streams it in chunks.
 pub fn stream_json_response(json_body: String) -> Body {
-    // Split into reasonable chunks for streaming
-    const CHUNK_SIZE: usize = 8192; // 8KB chunks
-
-    let bytes = json_body.into_bytes();
-    let chunks: Vec<Result<Bytes, std::io::Error>> = bytes
-        .chunks(CHUNK_SIZE)
-        .map(|chunk| Ok(Bytes::from(chunk.to_vec())))
-        .collect();
-
-    let stream = stream::iter(chunks);
+    const CHUNK_SIZE: usize = 8192;
+    let bytes: Bytes = Bytes::from(json_body.into_bytes());
+    let len = bytes.len();
+    let offsets: Vec<usize> = (0..len).step_by(CHUNK_SIZE).collect();
+    let stream = stream::iter(offsets.into_iter().map(move |start| {
+        let end = (start + CHUNK_SIZE).min(len);
+        Ok::<_, std::io::Error>(bytes.slice(start..end))
+    }));
     Body::from_stream(stream)
 }
 
@@ -163,12 +159,38 @@ mod tests {
         let body = Body::from_stream(stream);
 
         // Collect all chunks using axum's body utilities
-        let bytes = axum::body::to_bytes(body, usize::MAX).await.unwrap();
+        let bytes = axum::body::to_bytes(body, 10 * 1024 * 1024).await.unwrap();
         let json_str = String::from_utf8(bytes.to_vec()).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
 
         assert!(parsed.is_array());
         assert_eq!(parsed.as_array().unwrap().len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_stream_json_response_preserves_content() {
+        let original = r#"[{"id":1},{"id":2},{"id":3}]"#.to_string();
+        let body = stream_json_response(original.clone());
+        let bytes = axum::body::to_bytes(body, 10 * 1024 * 1024).await.unwrap();
+        assert_eq!(String::from_utf8(bytes.to_vec()).unwrap(), original);
+    }
+
+    #[tokio::test]
+    async fn test_stream_json_response_large_body() {
+        // Body larger than CHUNK_SIZE (8192) to test multi-chunk streaming
+        let large = "x".repeat(20_000);
+        let body = stream_json_response(large.clone());
+        let bytes = axum::body::to_bytes(body, 10 * 1024 * 1024).await.unwrap();
+        assert_eq!(bytes.len(), 20_000);
+        assert_eq!(String::from_utf8(bytes.to_vec()).unwrap(), large);
+    }
+
+    #[tokio::test]
+    async fn test_stream_json_array_preserves_content() {
+        let original = r#"[1,2,3]"#.to_string();
+        let body = stream_json_array(original.clone());
+        let bytes = axum::body::to_bytes(body, 10 * 1024 * 1024).await.unwrap();
+        assert_eq!(String::from_utf8(bytes.to_vec()).unwrap(), original);
     }
 
     #[test]

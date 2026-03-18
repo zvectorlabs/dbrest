@@ -282,6 +282,9 @@ pub fn apply_config_value(
         "server-timing-enabled" => {
             config.server_timing_enabled = parse_bool(value)?;
         }
+        "server-max-body-size" => {
+            config.server_max_body_size = parse_int(key, value)?;
+        }
 
         // Admin server
         "admin-server-host" => config.admin_server_host = value.to_string(),

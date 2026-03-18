@@ -275,7 +275,7 @@ impl DatabaseBackend for SqliteBackend {
                         create_sql.push_str(", ");
                     }
                     create_sql.push('"');
-                    create_sql.push_str(col);
+                    create_sql.push_str(&col.replace('"', "\"\""));
                     create_sql.push_str("\" TEXT");
                 }
                 create_sql.push(')');

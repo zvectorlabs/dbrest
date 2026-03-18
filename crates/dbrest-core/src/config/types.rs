@@ -112,6 +112,9 @@ pub struct AppConfig {
     /// Enable Server-Timing header
     pub server_timing_enabled: bool,
 
+    /// Maximum request body size in bytes
+    pub server_max_body_size: usize,
+
     // =========================================
     // Admin server settings
     // =========================================
@@ -230,6 +233,7 @@ impl Default for AppConfig {
             server_cors_allowed_origins: None,
             server_trace_header: None,
             server_timing_enabled: false,
+            server_max_body_size: 10 * 1024 * 1024,
 
             // Admin server
             admin_server_host: "!4".to_string(),
@@ -389,6 +393,7 @@ mod tests {
         assert_eq!(config.db_pool_size, 10);
         assert_eq!(config.db_channel, "dbrst");
         assert!(config.db_channel_enabled);
+        assert_eq!(config.server_max_body_size, 10 * 1024 * 1024);
     }
 
     #[test]

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.91"
 description = "Database-agnostic core for the dbrest REST API"
-license = "MIT"
+license = "Apache-2.0"
 
 [dependencies]
 # Core async runtime

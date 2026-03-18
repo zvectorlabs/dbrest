@@ -27,7 +27,7 @@ pub use dbrest_core::types;
 
 // Re-export commonly used types from core
 pub use dbrest_core::ApiRequest;
-pub use dbrest_core::app::{AppState, start_server};
+pub use dbrest_core::app::{AppState, Datasource, DbrestApp, DbrestRouters, start_server};
 pub use dbrest_core::auth::{AuthResult, AuthState, JwtCache};
 pub use dbrest_core::backend::{DatabaseBackend, DbVersion, SqlDialect};
 pub use dbrest_core::config::{AppConfig, load_config};
