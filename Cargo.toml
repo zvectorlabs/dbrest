@@ -13,12 +13,15 @@ edition = "2024"
 rust-version = "1.91"
 description = "dbrest — high-performance REST API for PostgreSQL, written in Rust"
 license = "Apache-2.0"
+repository = "https://github.com/zvectorlabs/dbrest"
+keywords = ["rest", "api", "database", "postgres", "sqlite"]
+categories = ["web-programming::http-server", "database"]
 
 [dependencies]
 # Workspace crates
-dbrest-core = { path = "crates/dbrest-core" }
-dbrest-postgres = { path = "crates/dbrest-postgres" }
-dbrest-sqlite = { path = "crates/dbrest-sqlite" }
+dbrest-core = { path = "crates/dbrest-core", version = "0.1.0" }
+dbrest-postgres = { path = "crates/dbrest-postgres", version = "0.1.0" }
+dbrest-sqlite = { path = "crates/dbrest-sqlite", version = "0.1.0" }
 
 # Core async runtime
 tokio = { version = "1", features = ["full"] }

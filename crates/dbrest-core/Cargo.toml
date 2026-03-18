@@ -5,6 +5,9 @@ edition = "2024"
 rust-version = "1.91"
 description = "Database-agnostic core for the dbrest REST API"
 license = "Apache-2.0"
+repository = "https://github.com/zvectorlabs/dbrest"
+keywords = ["rest", "api", "database", "core"]
+categories = ["web-programming::http-server", "database"]
 
 [dependencies]
 # Core async runtime

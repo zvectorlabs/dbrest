@@ -1,7 +1,7 @@
 # Makefile for dbrest development lifecycle
 # Provides convenient commands for building, testing, benchmarking, and running
 
-.PHONY: help build build-release clean run run-release test test-unit test-integration test-all test-ignored bench bench-micro bench-integration bench-load fmt lint clippy check doc docs-build docs-serve docs-clean docs-install
+.PHONY: help build build-release clean run run-release test test-unit test-integration test-all test-ignored bench bench-micro bench-integration bench-load fmt lint clippy check doc docs-build docs-serve docs-clean docs-install bump-version install-hooks
 
 # Default target
 .DEFAULT_GOAL := help
@@ -263,6 +263,31 @@ docs-clean: ## Remove built user documentation (docs/book)
 docs-install: ## Install mdbook (cargo install mdbook)
 	@echo "$(BLUE)Installing mdbook...$(NC)"
 	$(CARGO) install mdbook
+
+##@ Version & Hooks
+
+bump-version: ## Bump version across all crates (usage: make bump-version V=0.2.0)
+	@if [ -z "$(V)" ]; then \
+		echo "$(YELLOW)Usage: make bump-version V=0.2.0$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Bumping version to $(V) across all crates...$(NC)"
+	@sed -i 's/^version = ".*"/version = "$(V)"/' Cargo.toml
+	@sed -i 's/^version = ".*"/version = "$(V)"/' crates/dbrest-core/Cargo.toml
+	@sed -i 's/^version = ".*"/version = "$(V)"/' crates/dbrest-postgres/Cargo.toml
+	@sed -i 's/^version = ".*"/version = "$(V)"/' crates/dbrest-sqlite/Cargo.toml
+	@sed -i 's/\(dbrest-core = {.*version = "\)[^"]*/\1$(V)/' Cargo.toml
+	@sed -i 's/\(dbrest-core = {.*version = "\)[^"]*/\1$(V)/' crates/dbrest-postgres/Cargo.toml
+	@sed -i 's/\(dbrest-core = {.*version = "\)[^"]*/\1$(V)/' crates/dbrest-sqlite/Cargo.toml
+	@sed -i 's/\(dbrest-postgres = {.*version = "\)[^"]*/\1$(V)/' Cargo.toml
+	@sed -i 's/\(dbrest-sqlite = {.*version = "\)[^"]*/\1$(V)/' Cargo.toml
+	@echo "$(GREEN)Version bumped to $(V) in all Cargo.toml files$(NC)"
+	@echo "$(YELLOW)Don't forget to commit and tag: git tag v$(V)$(NC)"
+
+install-hooks: ## Install git hooks from .githooks/
+	@echo "$(BLUE)Installing git hooks...$(NC)"
+	git config core.hooksPath .githooks
+	@echo "$(GREEN)Git hooks installed$(NC)"
 
 ##@ Development Workflow
 

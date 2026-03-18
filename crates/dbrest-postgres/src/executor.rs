@@ -132,22 +132,22 @@ pub fn map_sqlx_error(e: sqlx::Error) -> Error {
                 if let Some(col_start) = message.find("column ")
                     && let Some(after_col) = message.get(col_start + 7..)
                 {
-                        let col_end = after_col.find(" does").unwrap_or(after_col.len());
-                        let col_ref = &after_col[..col_end];
-                        let col_ref = col_ref.trim();
+                    let col_end = after_col.find(" does").unwrap_or(after_col.len());
+                    let col_ref = &after_col[..col_end];
+                    let col_ref = col_ref.trim();
 
-                        let (table_name, col_name) = if let Some(dot_pos) = col_ref.find('.') {
-                            let table = col_ref[..dot_pos].trim_matches('"').to_string();
-                            let col = col_ref[dot_pos + 1..].trim_matches('"').to_string();
-                            (table, col)
-                        } else {
-                            let col = col_ref.trim_matches('"').to_string();
-                            ("unknown".to_string(), col)
-                        };
-                        return Error::ColumnNotFound {
-                            table: table_name,
-                            column: col_name,
-                        };
+                    let (table_name, col_name) = if let Some(dot_pos) = col_ref.find('.') {
+                        let table = col_ref[..dot_pos].trim_matches('"').to_string();
+                        let col = col_ref[dot_pos + 1..].trim_matches('"').to_string();
+                        (table, col)
+                    } else {
+                        let col = col_ref.trim_matches('"').to_string();
+                        ("unknown".to_string(), col)
+                    };
+                    return Error::ColumnNotFound {
+                        table: table_name,
+                        column: col_name,
+                    };
                 }
                 return Error::InvalidQueryParam {
                     param: "column".to_string(),
