@@ -1,6 +1,6 @@
 [package]
 name = "dbrest-postgres"
-version = "0.8.1"
+version = "0.8.2"
 edition = "2024"
 rust-version = "1.91"
 description = "PostgreSQL backend for the dbrest REST API"
@@ -10,7 +10,7 @@ keywords = ["rest", "api", "database", "postgres"]
 categories = ["web-programming::http-server", "database"]
 
 [dependencies]
-dbrest-core = { path = "../dbrest-core", version = "0.8.1" }
+dbrest-core = { path = "../dbrest-core", version = "0.8.2" }
 
 # Database
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "json", "macros"] }
