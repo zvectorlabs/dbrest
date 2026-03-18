@@ -8,7 +8,7 @@ members = [
 
 [package]
 name = "dbrest"
-version = "0.8.6"
+version = "9.0.0"
 edition = "2024"
 rust-version = "1.91"
 description = "dbrest — high-performance REST API for PostgreSQL, written in Rust"
@@ -19,9 +19,9 @@ categories = ["web-programming::http-server", "database"]
 
 [dependencies]
 # Workspace crates
-dbrest-core = { path = "crates/dbrest-core", version = "0.9.0" }
-dbrest-postgres = { path = "crates/dbrest-postgres", version = "0.8.6" }
-dbrest-sqlite = { path = "crates/dbrest-sqlite", version = "0.8.6" }
+dbrest-core = { path = "crates/dbrest-core", version = "9.0.0" }
+dbrest-postgres = { path = "crates/dbrest-postgres", version = "9.0.0" }
+dbrest-sqlite = { path = "crates/dbrest-sqlite", version = "9.0.0" }
 
 # Core async runtime
 tokio = { version = "1", features = ["full"] }
