@@ -75,6 +75,7 @@ pub fn redacted_config(config: &crate::config::AppConfig) -> serde_json::Value {
         "db_schemas": config.db_schemas,
         "db_anon_role": config.db_anon_role,
         "db_pool_size": config.db_pool_size,
+        "db_busy_timeout_ms": config.db_busy_timeout_ms,
         "db_channel": config.db_channel,
         "db_channel_enabled": config.db_channel_enabled,
         "db_max_rows": config.db_max_rows,

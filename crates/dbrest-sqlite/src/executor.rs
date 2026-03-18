@@ -154,6 +154,7 @@ impl DatabaseBackend for SqliteBackend {
         acquire_timeout_secs: u64,
         max_lifetime_secs: u64,
         idle_timeout_secs: u64,
+        busy_timeout_ms: u64,
     ) -> Result<Self, Error> {
         let pool = SqlitePoolOptions::new()
             .max_connections(pool_size)
@@ -173,6 +174,12 @@ impl DatabaseBackend for SqliteBackend {
             .execute(&pool)
             .await
             .map_err(map_sqlx_error)?;
+        if busy_timeout_ms > 0 {
+            sqlx::query(&format!("PRAGMA busy_timeout={}", busy_timeout_ms))
+                .execute(&pool)
+                .await
+                .map_err(map_sqlx_error)?;
+        }
 
         Ok(Self { pool })
     }

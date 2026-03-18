@@ -37,6 +37,14 @@ pub struct AppConfig {
     /// Pool connection idle timeout (seconds)
     pub db_pool_max_idletime: u64,
 
+    /// How long to wait for database locks before aborting (milliseconds).
+    ///
+    /// - SQLite: maps to `PRAGMA busy_timeout`
+    /// - Postgres: maps to `SET lock_timeout`
+    ///
+    /// Default: 5000ms (5 seconds). Set to 0 to disable.
+    pub db_busy_timeout_ms: u64,
+
     /// Enable automatic pool recovery
     pub db_pool_automatic_recovery: bool,
 
@@ -227,6 +235,7 @@ impl Default for AppConfig {
             db_pool_acquisition_timeout: 10,
             db_pool_max_lifetime: 1800,
             db_pool_max_idletime: 30,
+            db_busy_timeout_ms: 5000,
             db_pool_automatic_recovery: true,
             db_prepared_statements: true,
             db_pre_request: None,

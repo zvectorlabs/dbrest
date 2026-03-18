@@ -196,6 +196,7 @@ async fn start_pg_server(config: AppConfig) -> Result<(), Error> {
         config.db_pool_acquisition_timeout,
         config.db_pool_max_lifetime,
         config.db_pool_max_idletime,
+        config.db_busy_timeout_ms,
     )
     .await?;
 
@@ -231,6 +232,7 @@ async fn start_sqlite_server(config: AppConfig) -> Result<(), Error> {
         config.db_pool_acquisition_timeout,
         config.db_pool_max_lifetime,
         config.db_pool_max_idletime,
+        config.db_busy_timeout_ms,
     )
     .await?;
 

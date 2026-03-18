@@ -109,12 +109,16 @@ pub trait DatabaseBackend: Send + Sync + 'static {
     /// Connect to the database and return a backend instance.
     ///
     /// The implementation should create a connection pool internally.
+    /// `busy_timeout_ms` controls how long to wait for locks:
+    /// - SQLite: `PRAGMA busy_timeout`
+    /// - Postgres: `SET lock_timeout`
     async fn connect(
         uri: &str,
         pool_size: u32,
         acquire_timeout_secs: u64,
         max_lifetime_secs: u64,
         idle_timeout_secs: u64,
+        busy_timeout_ms: u64,
     ) -> Result<Self, Error>
     where
         Self: Sized;

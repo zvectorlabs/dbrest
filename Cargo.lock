@@ -714,7 +714,7 @@ dependencies = [
 
 [[package]]
 name = "dbrest"
-version = "0.8.6"
+version = "0.9.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -808,7 +808,7 @@ dependencies = [
 
 [[package]]
 name = "dbrest-postgres"
-version = "0.8.6"
+version = "0.9.0"
 dependencies = [
  "async-trait",
  "dbrest-core",
@@ -820,7 +820,7 @@ dependencies = [
 
 [[package]]
 name = "dbrest-sqlite"
-version = "0.8.6"
+version = "0.9.0"
 dependencies = [
  "async-trait",
  "dbrest-core",

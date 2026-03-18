@@ -283,12 +283,23 @@ impl DatabaseBackend for PgBackend {
         acquire_timeout_secs: u64,
         max_lifetime_secs: u64,
         idle_timeout_secs: u64,
+        busy_timeout_ms: u64,
     ) -> Result<Self, Error> {
         let pool = PgPoolOptions::new()
             .max_connections(pool_size)
             .acquire_timeout(Duration::from_secs(acquire_timeout_secs))
             .max_lifetime(Duration::from_secs(max_lifetime_secs))
             .idle_timeout(Duration::from_secs(idle_timeout_secs))
+            .after_connect(move |conn, _meta| {
+                Box::pin(async move {
+                    if busy_timeout_ms > 0 {
+                        sqlx::query(&format!("SET lock_timeout = '{}'", busy_timeout_ms))
+                            .execute(&mut *conn)
+                            .await?;
+                    }
+                    Ok(())
+                })
+            })
             .connect(uri)
             .await
             .map_err(|e| Error::DbConnection(e.to_string()))?;

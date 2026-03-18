@@ -155,6 +155,9 @@ pub fn apply_config_value(
         "db-pool-max-idletime" | "db-pool-timeout" => {
             config.db_pool_max_idletime = parse_int(key, value)?;
         }
+        "db-busy-timeout" => {
+            config.db_busy_timeout_ms = parse_int(key, value)?;
+        }
         "db-pool-automatic-recovery" => {
             config.db_pool_automatic_recovery = parse_bool(value)?;
         }
