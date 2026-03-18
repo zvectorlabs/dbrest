@@ -5,7 +5,6 @@
 //! layered on top.
 
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
 use arc_swap::ArcSwap;
 use axum::{
@@ -26,6 +25,19 @@ use crate::config::AppConfig;
 
 use super::handlers;
 use super::state::AppState;
+
+/// Adapter for extracting W3C traceparent from `http::HeaderMap`.
+struct HeaderMapExtractor<'a>(&'a http::HeaderMap);
+
+impl opentelemetry::propagation::Extractor for HeaderMapExtractor<'_> {
+    fn get(&self, key: &str) -> Option<&str> {
+        self.0.get(key).and_then(|v| v.to_str().ok())
+    }
+
+    fn keys(&self) -> Vec<&str> {
+        self.0.keys().map(|k| k.as_str()).collect()
+    }
+}
 
 /// Create the main application router with all routes and middleware.
 ///
@@ -77,20 +89,27 @@ pub fn create_router(state: AppState) -> Router {
         async move { auth_middleware_inner(auth, req, next).await }
     });
 
-    // Build metrics middleware layer
-    let metrics = state.metrics.clone();
-    let metrics_layer = middleware::from_fn(move |req: Request, next: Next| {
-        let m = metrics.clone();
-        async move {
-            m.requests_total.fetch_add(1, Ordering::Relaxed);
-            let response = next.run(req).await;
-            if response.status().is_success() {
-                m.requests_success.fetch_add(1, Ordering::Relaxed);
-            } else {
-                m.requests_error.fetch_add(1, Ordering::Relaxed);
-            }
-            response
-        }
+    // Build metrics middleware layer (uses `metrics` crate global facade)
+    let metrics_layer = middleware::from_fn(move |req: Request, next: Next| async move {
+        let method = req.method().as_str().to_owned();
+        let path = req.uri().path().to_owned();
+        let start = std::time::Instant::now();
+
+        let response = next.run(req).await;
+
+        let status = response.status().as_u16().to_string();
+        let duration = start.elapsed().as_secs_f64();
+
+        metrics::counter!("http.server.request.total",
+            "method" => method.clone(), "status" => status.clone()
+        )
+        .increment(1);
+        metrics::histogram!("http.server.request.duration",
+            "method" => method, "status" => status, "path" => path
+        )
+        .record(duration);
+
+        response
     });
 
     // Build CORS layer from config
@@ -117,6 +136,17 @@ pub fn create_router(state: AppState) -> Router {
         .layer(CompressionLayer::new())
         .layer(cors_layer)
         .layer(TraceLayer::new_for_http())
+        .layer(middleware::from_fn(|req: Request, next: Next| async move {
+            // Extract W3C traceparent from incoming headers and set it as
+            // the parent context on the current span. This links the
+            // TraceLayer's HTTP request span to the caller's trace.
+            let parent_cx = opentelemetry::global::get_text_map_propagator(|prop| {
+                prop.extract(&HeaderMapExtractor(req.headers()))
+            });
+            use tracing_opentelemetry::OpenTelemetrySpanExt;
+            let _ = tracing::Span::current().set_parent(parent_cx);
+            next.run(req).await
+        }))
         .layer(DefaultBodyLimit::max(config.server_max_body_size))
         .with_state(state)
 }

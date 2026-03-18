@@ -282,7 +282,11 @@ bump-version: ## Bump version across all crates (usage: make bump-version V=0.2.
 	@sed -i 's/\(dbrest-postgres = {.*version = "\)[^"]*/\1$(V)/' Cargo.toml
 	@sed -i 's/\(dbrest-sqlite = {.*version = "\)[^"]*/\1$(V)/' Cargo.toml
 	@echo "$(GREEN)Version bumped to $(V) in all Cargo.toml files$(NC)"
-	@echo "$(YELLOW)Don't forget to commit and tag: git tag v$(V)$(NC)"
+	@git add Cargo.toml crates/dbrest-core/Cargo.toml crates/dbrest-postgres/Cargo.toml crates/dbrest-sqlite/Cargo.toml
+	@git commit -m "release: v$(V)"
+	@git tag v$(V)
+	@echo "$(GREEN)Committed and tagged v$(V)$(NC)"
+	@read -p "Push commit and tag to origin? [y/N] " ans && [ "$$ans" = "y" ] && git push origin main --tags || echo "$(YELLOW)Skipped push. Run manually: git push origin main --tags$(NC)"
 
 install-hooks: ## Install git hooks from .githooks/
 	@echo "$(BLUE)Installing git hooks...$(NC)"

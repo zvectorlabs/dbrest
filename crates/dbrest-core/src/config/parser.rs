@@ -368,6 +368,30 @@ pub fn apply_config_value(
                     })?;
         }
 
+        // Metrics / Observability
+        "metrics-enabled" => {
+            config.metrics_enabled = parse_bool(value)?;
+        }
+        "metrics-otlp-endpoint" => config.metrics_otlp_endpoint = value.to_string(),
+        "metrics-otlp-protocol" => config.metrics_otlp_protocol = value.to_string(),
+        "metrics-export-interval-secs" => {
+            config.metrics_export_interval_secs = parse_int(key, value)?;
+        }
+        "metrics-service-name" => config.metrics_service_name = value.to_string(),
+        "tracing-enabled" => {
+            config.tracing_enabled = parse_bool(value)?;
+        }
+        "tracing-sampling-ratio" => {
+            config.tracing_sampling_ratio =
+                value
+                    .parse::<f64>()
+                    .map_err(|_| ConfigError::InvalidValue {
+                        key: key.to_string(),
+                        value: value.to_string(),
+                        expected: Some("float between 0.0 and 1.0".to_string()),
+                    })?;
+        }
+
         // App settings (app.settings.*)
         key if key.starts_with("app.settings.") => {
             if let Some(setting_key) = key.strip_prefix("app.settings.") {

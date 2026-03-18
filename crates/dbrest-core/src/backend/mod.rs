@@ -82,6 +82,21 @@ impl StatementResult {
 }
 
 // ==========================================================================
+// PoolStatus — connection pool metrics
+// ==========================================================================
+
+/// Connection pool status for metrics reporting.
+#[derive(Debug, Clone)]
+pub struct PoolStatus {
+    /// Number of connections currently in use.
+    pub active: u32,
+    /// Number of idle connections in the pool.
+    pub idle: u32,
+    /// Maximum pool size.
+    pub max_size: u32,
+}
+
+// ==========================================================================
 // DatabaseBackend — the main abstraction trait
 // ==========================================================================
 
@@ -158,6 +173,13 @@ pub trait DatabaseBackend: Send + Sync + 'static {
 
     /// Map a backend-specific database error into our Error type.
     fn map_error(&self, err: Box<dyn std::error::Error + Send + Sync>) -> Error;
+
+    /// Return current connection pool status for metrics reporting.
+    ///
+    /// Returns `None` if the backend does not track pool statistics.
+    fn pool_status(&self) -> Option<PoolStatus> {
+        None
+    }
 }
 
 // ==========================================================================

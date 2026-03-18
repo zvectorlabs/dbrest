@@ -174,6 +174,30 @@ pub struct AppConfig {
     pub server_streaming_threshold: u64,
 
     // =========================================
+    // Metrics / Observability settings
+    // =========================================
+    /// Enable OTLP metrics export
+    pub metrics_enabled: bool,
+
+    /// OTLP endpoint URL
+    pub metrics_otlp_endpoint: String,
+
+    /// OTLP protocol: "grpc" or "http"
+    pub metrics_otlp_protocol: String,
+
+    /// Metrics export interval in seconds
+    pub metrics_export_interval_secs: u64,
+
+    /// Service name for OTLP resource attribute
+    pub metrics_service_name: String,
+
+    /// Enable OTLP distributed tracing export
+    pub tracing_enabled: bool,
+
+    /// Trace sampling ratio (0.0 to 1.0, default 1.0 = sample all)
+    pub tracing_sampling_ratio: f64,
+
+    // =========================================
     // App settings (custom key-value pairs)
     // =========================================
     /// Custom application settings
@@ -258,6 +282,15 @@ impl Default for AppConfig {
             // Streaming
             server_streaming_enabled: true,
             server_streaming_threshold: 10 * 1024 * 1024, // 10MB
+
+            // Metrics
+            metrics_enabled: false,
+            metrics_otlp_endpoint: "http://localhost:4317".to_string(),
+            metrics_otlp_protocol: "grpc".to_string(),
+            metrics_export_interval_secs: 60,
+            metrics_service_name: "dbrest".to_string(),
+            tracing_enabled: false,
+            tracing_sampling_ratio: 1.0,
 
             // App settings
             app_settings: HashMap::new(),

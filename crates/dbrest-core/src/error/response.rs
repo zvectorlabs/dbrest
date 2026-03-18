@@ -58,6 +58,23 @@ impl IntoResponse for Error {
         let status = self.status();
         let body = ErrorResponse::from(&self);
 
+        if status.is_server_error() {
+            tracing::error!(
+                error_code = body.code,
+                http_status = status.as_u16(),
+                details = body.details.as_deref().unwrap_or(""),
+                "{}",
+                body.message
+            );
+        } else if status.is_client_error() {
+            tracing::warn!(
+                error_code = body.code,
+                http_status = status.as_u16(),
+                "{}",
+                body.message
+            );
+        }
+
         let mut response = (status, Json(body)).into_response();
 
         // Propagate WWW-Authenticate header for JWT errors

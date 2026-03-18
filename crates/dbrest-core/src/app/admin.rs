@@ -1,7 +1,7 @@
 //! Admin server
 //!
-//! Provides health check, readiness, metrics, and config endpoints on a
-//! separate port for operational monitoring.
+//! Provides health check, readiness, and config endpoints on a separate
+//! port for operational monitoring.
 //!
 //! # Endpoints
 //!
@@ -9,10 +9,7 @@
 //! |-------------|--------|--------------------------------------|
 //! | `/live`     | GET    | Liveness probe (always 200)          |
 //! | `/ready`    | GET    | Readiness probe (200 if schema ready)|
-//! | `/metrics`  | GET    | Basic metrics (JSON)                 |
 //! | `/config`   | GET    | Current config (redacted secrets)    |
-
-use std::sync::atomic::Ordering;
 
 use axum::{
     Router,
@@ -44,7 +41,6 @@ pub fn create_admin_router(state: AppState) -> Router {
     Router::new()
         .route("/live", get(liveness))
         .route("/ready", get(readiness))
-        .route("/metrics", get(metrics))
         .route("/config", get(config_handler))
         .with_state(state)
 }
@@ -90,25 +86,6 @@ pub fn redacted_config(config: &crate::config::AppConfig) -> serde_json::Value {
         "log_level": config.log_level.as_str(),
         "openapi_mode": config.openapi_mode.as_str(),
     })
-}
-
-/// Basic metrics endpoint (JSON).
-async fn metrics(State(state): State<AppState>) -> Response {
-    let m = &state.metrics;
-    let body = serde_json::json!({
-        "requests_total": m.requests_total.load(Ordering::Relaxed),
-        "requests_success": m.requests_success.load(Ordering::Relaxed),
-        "requests_error": m.requests_error.load(Ordering::Relaxed),
-        "db_queries_total": m.db_queries_total.load(Ordering::Relaxed),
-        "schema_cache_reloads": m.schema_cache_reloads.load(Ordering::Relaxed),
-        "jwt_cache_hits": m.jwt_cache_hits.load(Ordering::Relaxed),
-        "jwt_cache_misses": m.jwt_cache_misses.load(Ordering::Relaxed),
-        "jwt_cache_entries": state.jwt_cache.entry_count(),
-        "pg_version": format!("{}.{}.{}", state.pg_version.major, state.pg_version.minor, state.pg_version.patch),
-    });
-
-    let json = serde_json::to_string_pretty(&body).unwrap_or_else(|_| "{}".to_string());
-    json_response(json)
 }
 
 #[cfg(test)]

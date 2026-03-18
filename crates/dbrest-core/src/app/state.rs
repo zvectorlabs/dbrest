@@ -6,7 +6,6 @@
 //! `Arc`-wrapped) and passed to every axum handler via `State<AppState>`.
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use arc_swap::ArcSwap;
 
@@ -44,18 +43,6 @@ impl From<&DbVersion> for PgVersion {
     }
 }
 
-/// Application-level metrics (atomic counters).
-#[derive(Debug, Default)]
-pub struct Metrics {
-    pub requests_total: AtomicU64,
-    pub requests_success: AtomicU64,
-    pub requests_error: AtomicU64,
-    pub db_queries_total: AtomicU64,
-    pub schema_cache_reloads: AtomicU64,
-    pub jwt_cache_hits: AtomicU64,
-    pub jwt_cache_misses: AtomicU64,
-}
-
 /// Central application state.
 ///
 /// Constructed once at startup and shared across all handlers.
@@ -75,8 +62,6 @@ pub struct AppState {
     pub auth: AuthState,
     /// JWT validation cache (shared with AuthState).
     pub jwt_cache: JwtCache,
-    /// Application metrics.
-    pub metrics: Arc<Metrics>,
     /// Database version.
     pub db_version: DbVersion,
     /// PostgreSQL version (legacy — prefer `db_version` field).
@@ -105,7 +90,6 @@ impl AppState {
             schema_cache: Arc::new(ArcSwap::new(Arc::new(None))),
             auth,
             jwt_cache,
-            metrics: Arc::new(Metrics::default()),
             db_version,
             pg_version,
         }
@@ -122,6 +106,7 @@ impl AppState {
     }
 
     /// Reload configuration from file and environment.
+    #[tracing::instrument(name = "reload_config", skip(self))]
     pub async fn reload_config(&self) -> Result<(), Error> {
         let current = self.config.load();
         let file_path = current.config_file_path.clone();
@@ -139,14 +124,13 @@ impl AppState {
     }
 
     /// Load or reload the schema cache from the database.
+    #[tracing::instrument(name = "reload_schema_cache", skip(self))]
     pub async fn reload_schema_cache(&self) -> Result<(), Error> {
         let config = self.config.load();
         let introspector = self.db.introspector();
         let cache = SchemaCache::load(&*introspector, &config).await?;
 
-        self.metrics
-            .schema_cache_reloads
-            .fetch_add(1, Ordering::Relaxed);
+        metrics::counter!("schema_cache.reload.total").increment(1);
         self.schema_cache.store(Arc::new(Some(cache)));
 
         tracing::info!("Schema cache reloaded successfully");
