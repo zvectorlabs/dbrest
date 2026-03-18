@@ -1,6 +1,6 @@
 [package]
 name = "dbrest-sqlite"
-version = "0.9.0"
+version = "0.10.0"
 edition = "2024"
 rust-version = "1.91"
 description = "SQLite backend for the dbrest REST API"
@@ -10,7 +10,7 @@ keywords = ["rest", "api", "database", "sqlite"]
 categories = ["web-programming::http-server", "database"]
 
 [dependencies]
-dbrest-core = { path = "../dbrest-core", version = "0.9.0" }
+dbrest-core = { path = "../dbrest-core", version = "0.10.0" }
 
 # Database
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "json"] }
