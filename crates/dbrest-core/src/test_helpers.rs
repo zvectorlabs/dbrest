@@ -714,10 +714,22 @@ impl SqlDialect for TestPgDialect {
         b.push("), '[]')::text");
     }
 
+    fn json_agg_embed(&self, b: &mut SqlBuilder, alias: &str) {
+        b.push("coalesce(json_agg(");
+        b.push_ident(alias);
+        b.push("), '[]')");
+    }
+
     fn row_to_json_with_columns(&self, b: &mut SqlBuilder, alias: &str, _columns: &[&str]) {
         b.push("row_to_json(");
         b.push_ident(alias);
         b.push(")::text");
+    }
+
+    fn row_to_json_embed(&self, b: &mut SqlBuilder, alias: &str) {
+        b.push("row_to_json(");
+        b.push_ident(alias);
+        b.push(")");
     }
 
     fn count_expr(&self, b: &mut SqlBuilder, expr: &str) {

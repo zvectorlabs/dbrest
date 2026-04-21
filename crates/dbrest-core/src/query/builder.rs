@@ -106,9 +106,9 @@ pub fn read_plan_to_query(tree: &ReadPlanTree, dialect: &dyn SqlDialect) -> SqlB
 
             b.push("(SELECT ");
             if is_to_one {
-                dialect.row_to_json(&mut b, "_dbrst_t");
+                dialect.row_to_json_embed(&mut b, "_dbrst_t");
             } else {
-                dialect.json_agg(&mut b, "_dbrst_t");
+                dialect.json_agg_embed(&mut b, "_dbrst_t");
             }
             b.push(" FROM (");
             let child_query = read_plan_to_query(child, dialect);
@@ -164,11 +164,11 @@ pub fn read_plan_to_query(tree: &ReadPlanTree, dialect: &dyn SqlDialect) -> SqlB
 
             if is_to_one {
                 b.push("SELECT ");
-                dialect.row_to_json(&mut b, "_dbrst_t");
+                dialect.row_to_json_embed(&mut b, "_dbrst_t");
                 b.push(" AS body FROM (");
             } else {
                 b.push("SELECT ");
-                dialect.json_agg(&mut b, "_dbrst_t");
+                dialect.json_agg_embed(&mut b, "_dbrst_t");
                 b.push(" AS body FROM (");
             }
 
@@ -731,6 +731,45 @@ mod tests {
         assert!(sql.contains("LEFT JOIN LATERAL"));
         assert!(sql.contains("json_agg"));
         assert!(sql.contains("ON TRUE"));
+    }
+
+    #[test]
+    fn test_lateral_join_embed_no_text_cast() {
+        use crate::schema_cache::relationship::{AnyRelationship, Cardinality, Relationship};
+
+        let root = ReadPlan::root(test_qi());
+        let mut child = ReadPlan::child(
+            QualifiedIdentifier::new("public", "posts"),
+            "posts".into(),
+            1,
+        );
+        child.select = vec![select_field("id"), select_field("title")];
+        child.rel_to_parent = Some(AnyRelationship::ForeignKey(Relationship {
+            table: QualifiedIdentifier::new("public", "users"),
+            foreign_table: QualifiedIdentifier::new("public", "posts"),
+            is_self: false,
+            cardinality: Cardinality::O2M {
+                constraint: "fk_posts".into(),
+                columns: smallvec::smallvec![("id".into(), "user_id".into())],
+            },
+            table_is_view: false,
+            foreign_table_is_view: false,
+        }));
+        child.rel_join_conds = vec![JoinCondition {
+            parent: (test_qi(), "id".into()),
+            child: (
+                QualifiedIdentifier::new("public", "posts"),
+                "user_id".into(),
+            ),
+        }];
+
+        let tree = ReadPlanTree::with_children(root, vec![ReadPlanTree::leaf(child)]);
+        let sql = read_plan_to_query(&tree, dialect()).sql().to_string();
+
+        // The lateral join subquery must use json_agg WITHOUT ::text
+        // so the outer aggregation nests JSON natively.
+        assert!(sql.contains("coalesce(json_agg(\"_dbrst_t\"), '[]') AS body"));
+        assert!(!sql.contains("coalesce(json_agg(\"_dbrst_t\"), '[]')::text AS body"));
     }
 
     // ------------------------------------------------------------------

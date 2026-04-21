@@ -215,12 +215,29 @@ pub trait SqlDialect: Send + Sync {
     /// Default implementation ignores columns and delegates to the alias-based form.
     fn json_agg_with_columns(&self, b: &mut SqlBuilder, alias: &str, columns: &[&str]);
 
+    /// JSON array aggregation for embedded relations (no `::text` cast).
+    ///
+    /// The result stays as native JSON so the parent `json_agg` nests it
+    /// correctly instead of treating it as a string literal.
+    /// Backends that append `::text` in `json_agg` must override this.
+    fn json_agg_embed(&self, b: &mut SqlBuilder, alias: &str) {
+        self.json_agg(b, alias);
+    }
+
     /// Single-row JSON expression.
     ///
     /// PostgreSQL: `row_to_json(_dbrst_t)::text`
     /// MySQL:      `JSON_OBJECT(...)`
     fn row_to_json(&self, b: &mut SqlBuilder, alias: &str) {
         self.row_to_json_with_columns(b, alias, &[]);
+    }
+
+    /// Single-row JSON for embedded relations (no `::text` cast).
+    ///
+    /// Same rationale as `json_agg_embed` — keeps the value as native JSON
+    /// so the parent aggregation embeds it as an object, not a string.
+    fn row_to_json_embed(&self, b: &mut SqlBuilder, alias: &str) {
+        self.row_to_json(b, alias);
     }
 
     /// Single-row JSON with explicit column names.

@@ -8,6 +8,9 @@
 
 # Variables
 CARGO := cargo
+# Rancher Desktop uses a non-standard Docker socket path
+DOCKER_HOST ?= unix://$(HOME)/.rd/docker.sock
+export DOCKER_HOST
 BINARY_NAME := dbrest
 BENCH_DIR := benches
 TEST_DIR := tests

@@ -4,6 +4,7 @@
 [Configuration](configuration.md)
 [API Reference](api-reference.md)
 [Deployment](deployment.md)
+[Deployment — TLS + HTTP/2](deployment-http2.md)
 
 # How-tos
 
