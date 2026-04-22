@@ -14,6 +14,7 @@ pub mod auth;
 pub mod backend;
 pub mod config;
 pub mod error;
+pub mod notifier;
 pub mod openapi;
 pub mod plan;
 pub mod query;

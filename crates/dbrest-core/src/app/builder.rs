@@ -38,6 +38,8 @@ use axum::Router;
 use crate::backend::{DatabaseBackend, DbVersion, SqlDialect};
 use crate::config::AppConfig;
 use crate::error::Error;
+use crate::notifier::ChangeNotifier;
+use crate::notifier::app_level::AppLevelNotifier;
 
 use super::admin::create_admin_router;
 use super::router::create_router;
@@ -77,8 +79,10 @@ impl Datasource {
 
     /// Build an `AppState` and load the schema cache for this datasource.
     pub async fn into_state(self) -> Result<AppState, Error> {
+        let notifier: Arc<dyn ChangeNotifier> = Arc::new(AppLevelNotifier::new(1024));
         let state =
-            AppState::new_with_backend(self.backend, self.dialect, self.config, self.version);
+            AppState::new_with_backend(self.backend, self.dialect, self.config, self.version)
+                .with_notifier(notifier);
         state.reload_schema_cache().await?;
         Ok(state)
     }

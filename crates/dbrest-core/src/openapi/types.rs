@@ -155,6 +155,16 @@ pub struct Header {
     pub schema: Schema,
 }
 
+/// Extension describing a foreign key relationship for codegen
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct RelationshipExtension {
+    pub foreign_key_name: String,
+    pub columns: Vec<String>,
+    pub referenced_relation: String,
+    pub referenced_columns: Vec<String>,
+    pub cardinality: String, // "one-to-one", "many-to-one", "one-to-many", "many-to-many"
+}
+
 /// JSON Schema (simplified for OpenAPI)
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
@@ -187,6 +197,30 @@ pub enum Schema {
         enum_: Option<Vec<serde_json::Value>>,
         #[serde(rename = "enum", skip_serializing_if = "Option::is_none")]
         enum_values: Option<Vec<serde_json::Value>>,
+        /// Whether this column has a default value
+        #[serde(
+            rename = "x-dbrest-has-default",
+            skip_serializing_if = "Option::is_none"
+        )]
+        x_has_default: Option<bool>,
+        /// Whether this column is auto-generated (serial, identity, etc.)
+        #[serde(
+            rename = "x-dbrest-generated",
+            skip_serializing_if = "Option::is_none"
+        )]
+        x_generated: Option<bool>,
+        /// Whether this schema represents a view (not a table)
+        #[serde(
+            rename = "x-dbrest-is-view",
+            skip_serializing_if = "Option::is_none"
+        )]
+        x_is_view: Option<bool>,
+        /// Foreign key relationships for this table
+        #[serde(
+            rename = "x-dbrest-relationships",
+            skip_serializing_if = "Option::is_none"
+        )]
+        x_relationships: Option<Vec<RelationshipExtension>>,
     },
 }
 
@@ -211,6 +245,10 @@ impl Schema {
             example: None,
             enum_: None,
             enum_values: None,
+            x_has_default: None,
+            x_generated: None,
+            x_is_view: None,
+            x_relationships: None,
         }
     }
 
@@ -227,6 +265,10 @@ impl Schema {
             example: None,
             enum_: None,
             enum_values: None,
+            x_has_default: None,
+            x_generated: None,
+            x_is_view: None,
+            x_relationships: None,
         }
     }
 
@@ -243,6 +285,10 @@ impl Schema {
             example: None,
             enum_: None,
             enum_values: None,
+            x_has_default: None,
+            x_generated: None,
+            x_is_view: None,
+            x_relationships: None,
         }
     }
 
@@ -259,6 +305,10 @@ impl Schema {
             example: None,
             enum_: None,
             enum_values: None,
+            x_has_default: None,
+            x_generated: None,
+            x_is_view: None,
+            x_relationships: None,
         }
     }
 
@@ -275,6 +325,10 @@ impl Schema {
             example: None,
             enum_: None,
             enum_values: None,
+            x_has_default: None,
+            x_generated: None,
+            x_is_view: None,
+            x_relationships: None,
         }
     }
 
@@ -295,6 +349,10 @@ impl Schema {
             example: None,
             enum_: None,
             enum_values: None,
+            x_has_default: None,
+            x_generated: None,
+            x_is_view: None,
+            x_relationships: None,
         }
     }
 

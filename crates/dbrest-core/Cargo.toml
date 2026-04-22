@@ -72,6 +72,7 @@ clap = { version = "4", features = ["derive", "env"] }
 
 # Streaming
 futures = "0.3"
+tokio-stream = { version = "0.1", features = ["sync"] }
 
 [dev-dependencies]
 tokio-test = "0.4"

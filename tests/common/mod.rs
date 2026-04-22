@@ -15,6 +15,7 @@ use testcontainers_modules::postgres::Postgres;
 /// Test database container and pool (PostgreSQL)
 pub struct TestDb {
     pub pool: PgPool,
+    pub connection_string: String,
     // Keep container alive for the duration of the test
     #[allow(dead_code)]
     container: ContainerAsync<Postgres>,
@@ -42,7 +43,7 @@ impl TestDb {
         let fixtures = include_str!("../fixtures/schema.sql");
         sqlx::raw_sql(fixtures).execute(&pool).await?;
 
-        Ok(Self { pool, container })
+        Ok(Self { pool, connection_string, container })
     }
 
     /// Get a reference to the pool

@@ -28,6 +28,8 @@ use tokio::net::TcpListener;
 use crate::backend::{DatabaseBackend, DbVersion, SqlDialect};
 use crate::config::AppConfig;
 use crate::error::Error;
+use crate::notifier::ChangeNotifier;
+use crate::notifier::app_level::AppLevelNotifier;
 
 use super::admin::create_admin_router;
 use super::router::create_router;
@@ -62,7 +64,9 @@ pub async fn start_server_with_backend(
     db_version: DbVersion,
     config: AppConfig,
 ) -> Result<(), Error> {
-    let state = AppState::new_with_backend(db.clone(), dialect, config.clone(), db_version);
+    let notifier: Arc<dyn ChangeNotifier> = Arc::new(AppLevelNotifier::new(1024));
+    let state = AppState::new_with_backend(db.clone(), dialect, config.clone(), db_version)
+        .with_notifier(notifier);
 
     // 4. Load schema cache
     tracing::info!("Loading schema cache…");

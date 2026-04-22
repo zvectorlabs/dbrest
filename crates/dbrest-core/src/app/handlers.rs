@@ -19,14 +19,20 @@ use axum::{
     extract::{Path, State},
     http::{HeaderMap, Method, StatusCode, header},
     response::{IntoResponse, Response},
+    response::sse::{Event, KeepAlive, Sse},
 };
 use bytes::Bytes;
+use futures::stream::Stream;
+use std::convert::Infallible;
+use tokio_stream::StreamExt;
+use tokio_stream::wrappers::BroadcastStream;
 
 use crate::api_request;
 use crate::api_request::preferences::{PreferRepresentation, Preferences};
 use crate::auth::types::AuthResult;
 use crate::backend::StatementResult;
 use crate::error::Error;
+use crate::notifier::{ChangeEvent, ChangeOp};
 use crate::plan::{self, ActionPlan, CrudPlan, DbActionPlan};
 use crate::query::{self};
 use crate::schema_cache::SchemaCache;
@@ -79,6 +85,33 @@ fn flatten_headers(headers: &HeaderMap) -> Vec<(String, String)> {
                 .map(|val| (k.as_str().to_string(), val.to_string()))
         })
         .collect()
+}
+
+/// Fire a change notification after a successful mutation.
+///
+/// This is fire-and-forget: if no subscribers exist the event is silently
+/// dropped. The notifier field is `Option`, so this is a no-op when SSE is
+/// not configured.
+async fn notify_change(state: &AppState, method: &str, resource: &str) {
+    if let Some(notifier) = &state.notifier {
+        let op = match method {
+            "POST" => ChangeOp::Insert,
+            "PATCH" => ChangeOp::Update,
+            "PUT" => ChangeOp::Update,
+            "DELETE" => ChangeOp::Delete,
+            _ => return,
+        };
+
+        let event = ChangeEvent {
+            table: resource.to_string(),
+            schema: "public".to_string(),
+            event: op,
+            new: None,
+            old: None,
+        };
+
+        notifier.notify(event).await;
+    }
 }
 
 /// Execute a `MainQuery` against the database backend inside a transaction.
@@ -332,6 +365,50 @@ pub async fn read_handler(
 }
 
 // ==========================================================================
+// SSE listen handler (GET /listen/:resource)
+// ==========================================================================
+
+/// Handle `GET /listen/:resource` — Server-Sent Events stream for change notifications.
+///
+/// Subscribes to the change notifier and streams events matching the given
+/// resource (table) name. Returns 503 Service Unavailable if no notifier is
+/// configured.
+pub async fn listen_handler(
+    State(state): State<AppState>,
+    Path(resource): Path<String>,
+) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, StatusCode> {
+    use crate::notifier::ChangeOp;
+
+    let notifier = state.notifier.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+
+    let rx = notifier.subscribe();
+    let stream = BroadcastStream::new(rx).filter_map(move |result| {
+        match result {
+            Ok(event) if event.table == resource => {
+                let event_type = match &event.event {
+                    ChangeOp::Insert => "INSERT",
+                    ChangeOp::Update => "UPDATE",
+                    ChangeOp::Delete => "DELETE",
+                };
+                let data = serde_json::to_string(&event).unwrap_or_default();
+                Some(Ok(Event::default().event(event_type).data(data)))
+            }
+            Ok(_) => None, // Different table, skip
+            Err(tokio_stream::wrappers::errors::BroadcastStreamRecvError::Lagged(n)) => {
+                tracing::warn!(lagged = n, "SSE subscriber lagged");
+                None
+            }
+        }
+    });
+
+    Ok(Sse::new(stream).keep_alive(
+        KeepAlive::new()
+            .interval(std::time::Duration::from_secs(15))
+            .text("heartbeat"),
+    ))
+}
+
+// ==========================================================================
 // Create handler (POST)
 // ==========================================================================
 
@@ -349,6 +426,7 @@ pub async fn create_handler(
 
     match process_request(&state, &auth, "POST", &path, query_str, &headers, body).await {
         Ok((result, prefs, media)) => {
+            notify_change(&state, "POST", &resource).await;
             let config = state.config();
             build_mutate_response(result, &prefs, "POST", &path, &config, &media)
         }
@@ -374,6 +452,7 @@ pub async fn update_handler(
 
     match process_request(&state, &auth, "PATCH", &path, query_str, &headers, body).await {
         Ok((result, prefs, media)) => {
+            notify_change(&state, "PATCH", &resource).await;
             let config = state.config();
             build_mutate_response(result, &prefs, "PATCH", &path, &config, &media)
         }
@@ -408,6 +487,7 @@ pub async fn delete_handler(
     .await
     {
         Ok((result, prefs, media)) => {
+            notify_change(&state, "DELETE", &resource).await;
             let config = state.config();
             build_mutate_response(result, &prefs, "DELETE", &path, &config, &media)
         }
@@ -433,6 +513,7 @@ pub async fn upsert_handler(
 
     match process_request(&state, &auth, "PUT", &path, query_str, &headers, body).await {
         Ok((result, prefs, media)) => {
+            notify_change(&state, "PUT", &resource).await;
             let config = state.config();
             build_mutate_response(result, &prefs, "PUT", &path, &config, &media)
         }

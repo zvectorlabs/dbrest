@@ -7,6 +7,7 @@
 pub mod dialect;
 pub mod executor;
 pub mod introspector;
+pub mod notifier;
 
 pub use dialect::PgDialect;
 pub use executor::PgBackend;

@@ -519,6 +519,21 @@ impl OpenApiGenerator {
             );
         }
 
+        // Add x-dbrest extension fields (only when true to keep output clean)
+        if let Schema::Object {
+            x_has_default,
+            x_generated,
+            ..
+        } = &mut schema
+        {
+            if col.has_default() {
+                *x_has_default = Some(true);
+            }
+            if col.is_generated() {
+                *x_generated = Some(true);
+            }
+        }
+
         Ok(schema)
     }
 
@@ -622,6 +637,54 @@ impl OpenApiGenerator {
             && let Schema::Object { description, .. } = &mut schema
         {
             *description = Some(desc.clone());
+        }
+
+        // Add x-dbrest-is-view extension (only when true)
+        if table.is_view {
+            if let Schema::Object { x_is_view, .. } = &mut schema {
+                *x_is_view = Some(true);
+            }
+        }
+
+        // Add x-dbrest-relationships extension
+        let table_qi = table.qi();
+        let rels = self.cache.find_relationships(&table_qi);
+        if !rels.is_empty() {
+            let mut rel_extensions = Vec::new();
+            for any_rel in rels {
+                if let Some(fk_rel) = any_rel.as_fk() {
+                    let cardinality_str = match &fk_rel.cardinality {
+                        crate::schema_cache::Cardinality::M2O { .. } => "many-to-one",
+                        crate::schema_cache::Cardinality::O2M { .. } => "one-to-many",
+                        crate::schema_cache::Cardinality::O2O { .. } => "one-to-one",
+                        crate::schema_cache::Cardinality::M2M(_) => "many-to-many",
+                    };
+
+                    let source_cols: Vec<String> =
+                        fk_rel.source_columns().map(|s| s.to_string()).collect();
+                    let target_cols: Vec<String> =
+                        fk_rel.target_columns().map(|s| s.to_string()).collect();
+
+                    rel_extensions.push(RelationshipExtension {
+                        foreign_key_name: fk_rel.constraint_name().to_string(),
+                        columns: source_cols,
+                        referenced_relation: format!(
+                            "{}.{}",
+                            fk_rel.foreign_table.schema, fk_rel.foreign_table.name
+                        ),
+                        referenced_columns: target_cols,
+                        cardinality: cardinality_str.to_string(),
+                    });
+                }
+            }
+            if !rel_extensions.is_empty() {
+                if let Schema::Object {
+                    x_relationships, ..
+                } = &mut schema
+                {
+                    *x_relationships = Some(rel_extensions);
+                }
+            }
         }
 
         Ok(schema)
@@ -838,5 +901,340 @@ impl OpenApiGenerator {
 
         // Check actual PostgreSQL EXECUTE privilege
         Ok(routine.executable)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::AppConfig;
+    use crate::schema_cache::{AnyRelationship, SchemaCache};
+    use crate::test_helpers::*;
+    use crate::types::QualifiedIdentifier;
+    use std::collections::{HashMap, HashSet};
+
+    /// Helper to create a minimal SchemaCache with given tables and relationships
+    fn test_cache_with(
+        tables: Vec<crate::schema_cache::Table>,
+        relationships: Vec<(QualifiedIdentifier, AnyRelationship)>,
+    ) -> SchemaCache {
+        let mut tables_map = HashMap::new();
+        for t in tables {
+            tables_map.insert(t.qi(), t);
+        }
+
+        let mut rels_map: crate::schema_cache::RelationshipsMap = HashMap::new();
+        for (source_qi, rel) in relationships {
+            let key = (source_qi.clone(), source_qi.schema.to_string());
+            rels_map.entry(key).or_default().push(rel);
+        }
+
+        SchemaCache {
+            tables: Arc::new(tables_map),
+            relationships: Arc::new(rels_map),
+            routines: Arc::new(HashMap::new()),
+            timezones: Arc::new(HashSet::new()),
+            representations: Arc::new(HashMap::new()),
+            media_handlers: Arc::new(HashMap::new()),
+        }
+    }
+
+    fn test_config(schemas: Vec<String>) -> AppConfig {
+        AppConfig {
+            db_schemas: schemas,
+            openapi_mode: OpenApiMode::IgnorePrivileges,
+            ..AppConfig::default()
+        }
+    }
+
+    #[test]
+    fn test_column_schema_has_default_extension() {
+        let col = test_column()
+            .name("status")
+            .data_type("text")
+            .default_value("'active'")
+            .build();
+
+        let cache = test_cache_with(vec![], vec![]);
+        let config = Arc::new(test_config(vec![]));
+        let generator = OpenApiGenerator::new(config, Arc::new(cache), None);
+
+        let schema = generator.column_to_schema(&col).unwrap();
+        if let Schema::Object {
+            x_has_default,
+            x_generated,
+            ..
+        } = &schema
+        {
+            assert_eq!(*x_has_default, Some(true));
+            // has_default but not generated (no nextval/generated)
+            assert_eq!(*x_generated, None);
+        } else {
+            panic!("Expected Schema::Object");
+        }
+    }
+
+    #[test]
+    fn test_column_schema_generated_extension() {
+        let col = test_column()
+            .name("id")
+            .data_type("integer")
+            .default_value("nextval('users_id_seq'::regclass)")
+            .build();
+
+        let cache = test_cache_with(vec![], vec![]);
+        let config = Arc::new(test_config(vec![]));
+        let generator = OpenApiGenerator::new(config, Arc::new(cache), None);
+
+        let schema = generator.column_to_schema(&col).unwrap();
+        if let Schema::Object {
+            x_has_default,
+            x_generated,
+            ..
+        } = &schema
+        {
+            assert_eq!(*x_has_default, Some(true));
+            assert_eq!(*x_generated, Some(true));
+        } else {
+            panic!("Expected Schema::Object");
+        }
+    }
+
+    #[test]
+    fn test_column_schema_no_extensions_when_false() {
+        let col = test_column()
+            .name("name")
+            .data_type("text")
+            .nullable(true)
+            .build();
+
+        let cache = test_cache_with(vec![], vec![]);
+        let config = Arc::new(test_config(vec![]));
+        let generator = OpenApiGenerator::new(config, Arc::new(cache), None);
+
+        let schema = generator.column_to_schema(&col).unwrap();
+        if let Schema::Object {
+            x_has_default,
+            x_generated,
+            ..
+        } = &schema
+        {
+            assert_eq!(*x_has_default, None);
+            assert_eq!(*x_generated, None);
+        } else {
+            panic!("Expected Schema::Object");
+        }
+    }
+
+    #[test]
+    fn test_table_schema_is_view_extension() {
+        let view = test_table()
+            .schema("public")
+            .name("user_stats")
+            .is_view(true)
+            .column(test_column().name("id").data_type("integer").build())
+            .build();
+
+        let cache = test_cache_with(vec![view.clone()], vec![]);
+        let config = Arc::new(test_config(vec!["public".to_string()]));
+        let generator = OpenApiGenerator::new(config, Arc::new(cache), None);
+
+        let schema = generator.table_to_schema(&view).unwrap();
+        if let Schema::Object { x_is_view, .. } = &schema {
+            assert_eq!(*x_is_view, Some(true));
+        } else {
+            panic!("Expected Schema::Object");
+        }
+    }
+
+    #[test]
+    fn test_table_schema_no_is_view_for_table() {
+        let table = test_table()
+            .schema("public")
+            .name("users")
+            .is_view(false)
+            .column(test_column().name("id").data_type("integer").build())
+            .build();
+
+        let cache = test_cache_with(vec![table.clone()], vec![]);
+        let config = Arc::new(test_config(vec!["public".to_string()]));
+        let generator = OpenApiGenerator::new(config, Arc::new(cache), None);
+
+        let schema = generator.table_to_schema(&table).unwrap();
+        if let Schema::Object { x_is_view, .. } = &schema {
+            assert_eq!(*x_is_view, None);
+        } else {
+            panic!("Expected Schema::Object");
+        }
+    }
+
+    #[test]
+    fn test_table_schema_relationships_extension() {
+        let posts_table = test_table()
+            .schema("public")
+            .name("posts")
+            .column(test_column().name("id").data_type("integer").build())
+            .column(test_column().name("user_id").data_type("integer").build())
+            .build();
+
+        let users_table = test_table()
+            .schema("public")
+            .name("users")
+            .column(test_column().name("id").data_type("integer").build())
+            .build();
+
+        let rel = test_relationship()
+            .table("public", "posts")
+            .foreign_table("public", "users")
+            .m2o("fk_posts_user", &[("user_id", "id")])
+            .build();
+
+        let source_qi = QualifiedIdentifier::new("public", "posts");
+        let cache = test_cache_with(
+            vec![posts_table.clone(), users_table],
+            vec![(source_qi, AnyRelationship::ForeignKey(rel))],
+        );
+        let config = Arc::new(test_config(vec!["public".to_string()]));
+        let generator = OpenApiGenerator::new(config, Arc::new(cache), None);
+
+        let schema = generator.table_to_schema(&posts_table).unwrap();
+        if let Schema::Object {
+            x_relationships, ..
+        } = &schema
+        {
+            let rels = x_relationships.as_ref().expect("expected relationships");
+            assert_eq!(rels.len(), 1);
+            assert_eq!(rels[0].foreign_key_name, "fk_posts_user");
+            assert_eq!(rels[0].columns, vec!["user_id"]);
+            assert_eq!(rels[0].referenced_relation, "public.users");
+            assert_eq!(rels[0].referenced_columns, vec!["id"]);
+            assert_eq!(rels[0].cardinality, "many-to-one");
+        } else {
+            panic!("Expected Schema::Object");
+        }
+    }
+
+    #[test]
+    fn test_table_schema_no_relationships_when_none() {
+        let table = test_table()
+            .schema("public")
+            .name("standalone")
+            .column(test_column().name("id").data_type("integer").build())
+            .build();
+
+        let cache = test_cache_with(vec![table.clone()], vec![]);
+        let config = Arc::new(test_config(vec!["public".to_string()]));
+        let generator = OpenApiGenerator::new(config, Arc::new(cache), None);
+
+        let schema = generator.table_to_schema(&table).unwrap();
+        if let Schema::Object {
+            x_relationships, ..
+        } = &schema
+        {
+            assert_eq!(*x_relationships, None);
+        } else {
+            panic!("Expected Schema::Object");
+        }
+    }
+
+    #[test]
+    fn test_extensions_serialize_correctly() {
+        let col = test_column()
+            .name("id")
+            .data_type("integer")
+            .nullable(false)
+            .default_value("nextval('seq')")
+            .build();
+
+        let cache = test_cache_with(vec![], vec![]);
+        let config = Arc::new(test_config(vec![]));
+        let generator = OpenApiGenerator::new(config, Arc::new(cache), None);
+
+        let schema = generator.column_to_schema(&col).unwrap();
+        let json = serde_json::to_value(&schema).unwrap();
+
+        assert_eq!(json["x-dbrest-has-default"], true);
+        assert_eq!(json["x-dbrest-generated"], true);
+        // These should not be present
+        assert!(json.get("x-dbrest-is-view").is_none());
+        assert!(json.get("x-dbrest-relationships").is_none());
+    }
+
+    #[test]
+    fn test_extensions_omitted_when_none() {
+        let col = test_column()
+            .name("name")
+            .data_type("text")
+            .build();
+
+        let cache = test_cache_with(vec![], vec![]);
+        let config = Arc::new(test_config(vec![]));
+        let generator = OpenApiGenerator::new(config, Arc::new(cache), None);
+
+        let schema = generator.column_to_schema(&col).unwrap();
+        let json = serde_json::to_value(&schema).unwrap();
+
+        // Extension fields should not appear in JSON when None
+        assert!(json.get("x-dbrest-has-default").is_none());
+        assert!(json.get("x-dbrest-generated").is_none());
+        assert!(json.get("x-dbrest-is-view").is_none());
+        assert!(json.get("x-dbrest-relationships").is_none());
+    }
+
+    #[test]
+    fn test_relationship_cardinality_strings() {
+        let table = test_table()
+            .schema("public")
+            .name("test")
+            .column(test_column().name("id").data_type("integer").build())
+            .build();
+
+        let source_qi = QualifiedIdentifier::new("public", "test");
+
+        // Test O2M
+        let o2m_rel = test_relationship()
+            .table("public", "test")
+            .foreign_table("public", "children")
+            .o2m("fk_children", &[("id", "parent_id")])
+            .build();
+
+        let cache = test_cache_with(
+            vec![table.clone()],
+            vec![(source_qi.clone(), AnyRelationship::ForeignKey(o2m_rel))],
+        );
+        let config = Arc::new(test_config(vec!["public".to_string()]));
+        let generator = OpenApiGenerator::new(config, Arc::new(cache), None);
+
+        let schema = generator.table_to_schema(&table).unwrap();
+        if let Schema::Object {
+            x_relationships, ..
+        } = &schema
+        {
+            let rels = x_relationships.as_ref().unwrap();
+            assert_eq!(rels[0].cardinality, "one-to-many");
+        }
+
+        // Test O2O
+        let o2o_rel = test_relationship()
+            .table("public", "test")
+            .foreign_table("public", "profile")
+            .o2o("fk_profile", &[("id", "user_id")], true)
+            .build();
+
+        let cache2 = test_cache_with(
+            vec![table.clone()],
+            vec![(source_qi.clone(), AnyRelationship::ForeignKey(o2o_rel))],
+        );
+        let config2 = Arc::new(test_config(vec!["public".to_string()]));
+        let gen2 = OpenApiGenerator::new(config2, Arc::new(cache2), None);
+
+        let schema2 = gen2.table_to_schema(&table).unwrap();
+        if let Schema::Object {
+            x_relationships, ..
+        } = &schema2
+        {
+            let rels = x_relationships.as_ref().unwrap();
+            assert_eq!(rels[0].cardinality, "one-to-one");
+        }
     }
 }

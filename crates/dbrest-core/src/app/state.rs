@@ -14,6 +14,7 @@ use crate::auth::middleware::AuthState;
 use crate::backend::{DatabaseBackend, DbVersion, SqlDialect};
 use crate::config::AppConfig;
 use crate::error::Error;
+use crate::notifier::ChangeNotifier;
 use crate::schema_cache::SchemaCache;
 
 // Keep PgVersion as a compatibility alias during migration
@@ -66,6 +67,8 @@ pub struct AppState {
     pub db_version: DbVersion,
     /// PostgreSQL version (legacy — prefer `db_version` field).
     pub pg_version: PgVersion,
+    /// Optional change notifier for SSE event streaming.
+    pub notifier: Option<Arc<dyn ChangeNotifier>>,
 }
 
 impl AppState {
@@ -92,7 +95,14 @@ impl AppState {
             jwt_cache,
             db_version,
             pg_version,
+            notifier: None,
         }
+    }
+
+    /// Set the change notifier for SSE event streaming.
+    pub fn with_notifier(mut self, notifier: Arc<dyn ChangeNotifier>) -> Self {
+        self.notifier = Some(notifier);
+        self
     }
 
     /// Get the current config snapshot.

@@ -1,7 +1,7 @@
 # Makefile for dbrest development lifecycle
 # Provides convenient commands for building, testing, benchmarking, and running
 
-.PHONY: help build build-release clean run run-release test test-unit test-integration test-all test-ignored bench bench-micro bench-integration bench-load fmt lint clippy check doc docs-build docs-serve docs-clean docs-install bump-version install-hooks
+.PHONY: help build build-release clean run run-release test test-unit test-integration test-all test-ignored test-sse-sqlite test-sse-pg bench bench-micro bench-integration bench-load fmt lint clippy check doc docs-build docs-serve docs-clean docs-install bump-version install-hooks
 
 # Default target
 .DEFAULT_GOAL := help
@@ -62,13 +62,27 @@ test: ## Run unit tests only (no Docker required)
 
 test-unit: test ## Alias for test
 
-test-integration: ## Run integration tests (requires Docker)
-	@echo "$(BLUE)Running integration tests (requires Docker)...$(NC)"
+test-integration: ## Run integration tests including SSE (requires Docker)
+	@echo "$(BLUE)Running integration tests including SSE (requires Docker)...$(NC)"
 	@if ! docker info > /dev/null 2>&1; then \
 		echo "$(YELLOW)Warning: Docker is not running. Integration tests require Docker.$(NC)"; \
 		exit 1; \
 	fi
+	$(CARGO) test --test sse_sqlite -- --test-threads=8
+	$(CARGO) test --test sse_integration -- --ignored --test-threads=8
 	$(CARGO) test --test '*' -- --ignored --test-threads=8
+
+test-sse-sqlite: ## Run SSE integration tests (SQLite, no Docker required)
+	@echo "$(BLUE)Running SSE integration tests (SQLite)...$(NC)"
+	$(CARGO) test --test sse_sqlite -- --test-threads=8
+
+test-sse-pg: ## Run SSE integration tests (PostgreSQL, requires Docker)
+	@echo "$(BLUE)Running SSE integration tests (PostgreSQL, requires Docker)...$(NC)"
+	@if ! docker info > /dev/null 2>&1; then \
+		echo "$(YELLOW)Warning: Docker is not running. SSE PG tests require Docker.$(NC)"; \
+		exit 1; \
+	fi
+	$(CARGO) test --test sse_integration -- --ignored --test-threads=8
 
 test-all: ## Run all tests including Docker-dependent ones
 	@echo "$(BLUE)Running all tests (including Docker-dependent)...$(NC)"

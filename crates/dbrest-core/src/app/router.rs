@@ -55,6 +55,7 @@ impl opentelemetry::propagation::Extractor for HeaderMapExtractor<'_> {
 /// | PUT     | `/:resource`     | upsert_handler        |
 /// | DELETE  | `/:resource`     | delete_handler        |
 /// | OPTIONS | `/:resource`     | options_handler       |
+/// | GET     | `/listen/:resource`| listen_handler       |
 /// | GET     | `/rpc/:function` | rpc_get_handler       |
 /// | POST    | `/rpc/:function` | rpc_post_handler      |
 ///
@@ -123,12 +124,17 @@ pub fn create_router(state: AppState) -> Router {
         async move { server_timing_middleware(cfg, req, next).await }
     });
 
+    // SSE listen routes (must be before catch-all /:resource)
+    let listen_routes = Router::new()
+        .route("/:resource", get(handlers::listen_handler));
+
     // Assemble main router (fixed paths before catch-all /:resource)
     Router::new()
         .route("/", get(handlers::schema_root_handler))
         .route("/", options(handlers::root_options_handler))
         .route("/openapi.json", get(handlers::openapi_spec_handler))
         .nest("/rpc", rpc_routes)
+        .nest("/listen", listen_routes)
         .merge(resource_routes)
         .route_layer(auth_layer)
         .layer(metrics_layer)
