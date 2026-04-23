@@ -1,5 +1,5 @@
-use dbrest_core::notifier::{ChangeEvent, ChangeNotifier};
 use async_trait::async_trait;
+use dbrest_core::notifier::{ChangeEvent, ChangeNotifier};
 use sqlx::PgPool;
 use sqlx::postgres::PgListener;
 use tokio::sync::broadcast;

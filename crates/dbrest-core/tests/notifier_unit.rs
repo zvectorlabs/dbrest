@@ -1,4 +1,4 @@
-use dbrest_core::notifier::{app_level::AppLevelNotifier, ChangeEvent, ChangeNotifier, ChangeOp};
+use dbrest_core::notifier::{ChangeEvent, ChangeNotifier, ChangeOp, app_level::AppLevelNotifier};
 
 #[tokio::test]
 async fn subscribe_and_notify_round_trip() {

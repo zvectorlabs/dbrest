@@ -125,8 +125,7 @@ pub fn create_router(state: AppState) -> Router {
     });
 
     // SSE listen routes (must be before catch-all /:resource)
-    let listen_routes = Router::new()
-        .route("/:resource", get(handlers::listen_handler));
+    let listen_routes = Router::new().route("/:resource", get(handlers::listen_handler));
 
     // Assemble main router (fixed paths before catch-all /:resource)
     Router::new()

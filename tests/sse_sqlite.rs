@@ -79,8 +79,7 @@ impl SseTestClient {
                     .await
                     .expect("SSE stream error")
                     .expect("SSE stream ended unexpectedly");
-                self.buffer
-                    .push_str(&String::from_utf8_lossy(&chunk));
+                self.buffer.push_str(&String::from_utf8_lossy(&chunk));
             }
         })
         .await
@@ -281,7 +280,8 @@ impl TestServer {
 #[tokio::test]
 async fn sse_returns_503_when_no_notifier() {
     let server = TestServer::start_without_notifier().await;
-    let resp = server.client
+    let resp = server
+        .client
         .get(server.listen_url("users"))
         .send()
         .await
@@ -292,14 +292,20 @@ async fn sse_returns_503_when_no_notifier() {
 #[tokio::test]
 async fn sse_connection_returns_200_event_stream() {
     let server = TestServer::start().await;
-    let resp = server.client
+    let resp = server
+        .client
         .get(server.listen_url("products"))
         .header("accept", "text/event-stream")
         .send()
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    let ct = resp.headers().get("content-type").unwrap().to_str().unwrap();
+    let ct = resp
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap();
     assert!(
         ct.contains("text/event-stream"),
         "Expected text/event-stream content-type, got: {}",
@@ -336,7 +342,10 @@ async fn sse_filters_events_by_table_name() {
         })
         .await;
 
-    let event = sse.next_event(Duration::from_secs(2)).await.expect("Should receive products event");
+    let event = sse
+        .next_event(Duration::from_secs(2))
+        .await
+        .expect("Should receive products event");
     assert_eq!(event.event_type, "UPDATE");
     let ce = event.change_event();
     assert_eq!(ce.table, "products");
@@ -357,7 +366,10 @@ async fn sse_post_produces_insert_event() {
         .await;
     assert!(resp.status().is_success(), "POST failed: {}", resp.status());
 
-    let event = sse.next_event(Duration::from_secs(2)).await.expect("Should receive INSERT event");
+    let event = sse
+        .next_event(Duration::from_secs(2))
+        .await
+        .expect("Should receive INSERT event");
     assert_eq!(event.event_type, "INSERT");
     let ce = event.change_event();
     assert_eq!(ce.table, "products");
@@ -374,9 +386,16 @@ async fn sse_patch_produces_update_event() {
     let resp = server
         .patch_json("/products?name=eq.Widget", &json!({"price": 19.99}))
         .await;
-    assert!(resp.status().is_success(), "PATCH failed: {}", resp.status());
+    assert!(
+        resp.status().is_success(),
+        "PATCH failed: {}",
+        resp.status()
+    );
 
-    let event = sse.next_event(Duration::from_secs(2)).await.expect("Should receive UPDATE event");
+    let event = sse
+        .next_event(Duration::from_secs(2))
+        .await
+        .expect("Should receive UPDATE event");
     assert_eq!(event.event_type, "UPDATE");
     let ce = event.change_event();
     assert_eq!(ce.table, "products");
@@ -390,9 +409,16 @@ async fn sse_delete_produces_delete_event() {
     tokio::time::sleep(Duration::from_millis(50)).await;
 
     let resp = server.delete("/products?name=eq.Doohickey").await;
-    assert!(resp.status().is_success(), "DELETE failed: {}", resp.status());
+    assert!(
+        resp.status().is_success(),
+        "DELETE failed: {}",
+        resp.status()
+    );
 
-    let event = sse.next_event(Duration::from_secs(2)).await.expect("Should receive DELETE event");
+    let event = sse
+        .next_event(Duration::from_secs(2))
+        .await
+        .expect("Should receive DELETE event");
     assert_eq!(event.event_type, "DELETE");
     let ce = event.change_event();
     assert_eq!(ce.table, "products");
@@ -433,8 +459,7 @@ async fn sse_mutations_different_tables_filtered() {
     let server = TestServer::start().await;
     let mut sse_products =
         SseTestClient::connect(&server.client, &server.listen_url("products")).await;
-    let mut sse_tasks =
-        SseTestClient::connect(&server.client, &server.listen_url("tasks")).await;
+    let mut sse_tasks = SseTestClient::connect(&server.client, &server.listen_url("tasks")).await;
     tokio::time::sleep(Duration::from_millis(50)).await;
 
     // Mutate products
@@ -466,7 +491,9 @@ async fn sse_mutations_different_tables_filtered() {
     assert_eq!(event.change_event().table, "tasks");
 
     // Neither should get the other's event
-    sse_products.expect_no_event(Duration::from_millis(300)).await;
+    sse_products
+        .expect_no_event(Duration::from_millis(300))
+        .await;
     sse_tasks.expect_no_event(Duration::from_millis(300)).await;
 }
 
@@ -483,7 +510,10 @@ async fn sse_multiple_clients_same_resource_all_receive() {
     tokio::time::sleep(Duration::from_millis(50)).await;
 
     let resp = server
-        .post_json("/products", &json!({"name": "BroadcastTest", "price": 7.00}))
+        .post_json(
+            "/products",
+            &json!({"name": "BroadcastTest", "price": 7.00}),
+        )
         .await;
     assert!(resp.status().is_success());
 
@@ -503,13 +533,15 @@ async fn sse_multiple_clients_different_resources_correct_filtering() {
     let server = TestServer::start().await;
     let mut sse_products =
         SseTestClient::connect(&server.client, &server.listen_url("products")).await;
-    let mut sse_tasks =
-        SseTestClient::connect(&server.client, &server.listen_url("tasks")).await;
+    let mut sse_tasks = SseTestClient::connect(&server.client, &server.listen_url("tasks")).await;
     tokio::time::sleep(Duration::from_millis(50)).await;
 
     // Only mutate products
     let resp = server
-        .post_json("/products", &json!({"name": "IsolationTest", "price": 1.00}))
+        .post_json(
+            "/products",
+            &json!({"name": "IsolationTest", "price": 1.00}),
+        )
         .await;
     assert!(resp.status().is_success());
 
@@ -590,7 +622,10 @@ async fn sse_client_disconnect_no_panic() {
 
     // Fire a mutation — server should not panic
     let resp = server
-        .post_json("/products", &json!({"name": "AfterDisconnect", "price": 1.00}))
+        .post_json(
+            "/products",
+            &json!({"name": "AfterDisconnect", "price": 1.00}),
+        )
         .await;
     assert!(resp.status().is_success());
 
@@ -602,11 +637,8 @@ async fn sse_client_disconnect_no_panic() {
 #[tokio::test]
 async fn sse_listen_nonexistent_table_connects() {
     let server = TestServer::start().await;
-    let mut sse = SseTestClient::connect(
-        &server.client,
-        &server.listen_url("nonexistent_table_xyz"),
-    )
-    .await;
+    let mut sse =
+        SseTestClient::connect(&server.client, &server.listen_url("nonexistent_table_xyz")).await;
     tokio::time::sleep(Duration::from_millis(50)).await;
 
     // The handler does not validate table existence — it just filters by name.

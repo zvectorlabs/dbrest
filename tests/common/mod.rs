@@ -43,7 +43,11 @@ impl TestDb {
         let fixtures = include_str!("../fixtures/schema.sql");
         sqlx::raw_sql(fixtures).execute(&pool).await?;
 
-        Ok(Self { pool, connection_string, container })
+        Ok(Self {
+            pool,
+            connection_string,
+            container,
+        })
     }
 
     /// Get a reference to the pool

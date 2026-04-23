@@ -204,16 +204,10 @@ pub enum Schema {
         )]
         x_has_default: Option<bool>,
         /// Whether this column is auto-generated (serial, identity, etc.)
-        #[serde(
-            rename = "x-dbrest-generated",
-            skip_serializing_if = "Option::is_none"
-        )]
+        #[serde(rename = "x-dbrest-generated", skip_serializing_if = "Option::is_none")]
         x_generated: Option<bool>,
         /// Whether this schema represents a view (not a table)
-        #[serde(
-            rename = "x-dbrest-is-view",
-            skip_serializing_if = "Option::is_none"
-        )]
+        #[serde(rename = "x-dbrest-is-view", skip_serializing_if = "Option::is_none")]
         x_is_view: Option<bool>,
         /// Foreign key relationships for this table
         #[serde(

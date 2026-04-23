@@ -18,8 +18,8 @@ use axum::{
     body::Body,
     extract::{Path, State},
     http::{HeaderMap, Method, StatusCode, header},
-    response::{IntoResponse, Response},
     response::sse::{Event, KeepAlive, Sse},
+    response::{IntoResponse, Response},
 };
 use bytes::Bytes;
 use futures::stream::Stream;
@@ -379,7 +379,10 @@ pub async fn listen_handler(
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, StatusCode> {
     use crate::notifier::ChangeOp;
 
-    let notifier = state.notifier.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let notifier = state
+        .notifier
+        .as_ref()
+        .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
 
     let rx = notifier.subscribe();
     let stream = BroadcastStream::new(rx).filter_map(move |result| {

@@ -169,7 +169,11 @@ impl TestServer {
         let state = dbrest::compat::app_state_from_pool(
             pool,
             config,
-            PgVersion { major: 16, minor: 0, patch: 0 },
+            PgVersion {
+                major: 16,
+                minor: 0,
+                patch: 0,
+            },
         );
 
         let notifier: Arc<dyn ChangeNotifier> = Arc::new(AppLevelNotifier::new(1024));
@@ -193,7 +197,11 @@ impl TestServer {
         let state = dbrest::compat::app_state_from_pool(
             pool.clone(),
             config,
-            PgVersion { major: 16, minor: 0, patch: 0 },
+            PgVersion {
+                major: 16,
+                minor: 0,
+                patch: 0,
+            },
         );
 
         let notifier = PgChangeNotifier::new(pool, NOTIFY_CHANNEL, 1024)
@@ -220,7 +228,11 @@ impl TestServer {
         let state = dbrest::compat::app_state_from_pool(
             pool,
             config,
-            PgVersion { major: 16, minor: 0, patch: 0 },
+            PgVersion {
+                major: 16,
+                minor: 0,
+                patch: 0,
+            },
         );
 
         Self::boot(db, state).await
@@ -284,7 +296,10 @@ impl TestServer {
         self.client
             .put(format!("{}{}", self.base_url, path))
             .header("content-type", "application/json")
-            .header("prefer", "return=representation,resolution=merge-duplicates")
+            .header(
+                "prefer",
+                "return=representation,resolution=merge-duplicates",
+            )
             .json(body)
             .send()
             .await
@@ -316,7 +331,8 @@ impl TestServer {
 #[ignore]
 async fn sse_returns_503_when_no_notifier() {
     let server = TestServer::start_without_notifier().await;
-    let resp = server.client
+    let resp = server
+        .client
         .get(server.listen_url("users"))
         .send()
         .await
@@ -328,14 +344,20 @@ async fn sse_returns_503_when_no_notifier() {
 #[ignore]
 async fn sse_connection_returns_200_event_stream() {
     let server = TestServer::start_with_app_notifier().await;
-    let resp = server.client
+    let resp = server
+        .client
         .get(server.listen_url("products"))
         .header("accept", "text/event-stream")
         .send()
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    let ct = resp.headers().get("content-type").unwrap().to_str().unwrap();
+    let ct = resp
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap();
     assert!(
         ct.contains("text/event-stream"),
         "Expected text/event-stream, got: {}",
@@ -371,7 +393,10 @@ async fn sse_filters_events_by_table_name() {
         })
         .await;
 
-    let event = sse.next_event(Duration::from_secs(2)).await.expect("Should receive products event");
+    let event = sse
+        .next_event(Duration::from_secs(2))
+        .await
+        .expect("Should receive products event");
     assert_eq!(event.event_type, "UPDATE");
     assert_eq!(event.change_event().table, "products");
 }
@@ -388,11 +413,17 @@ async fn sse_post_produces_insert_event() {
     tokio::time::sleep(Duration::from_millis(50)).await;
 
     let resp = server
-        .post_json("/products", &json!({"name": "PG SSE Widget", "price": 5.99}))
+        .post_json(
+            "/products",
+            &json!({"name": "PG SSE Widget", "price": 5.99}),
+        )
         .await;
     assert!(resp.status().is_success(), "POST failed: {}", resp.status());
 
-    let event = sse.next_event(Duration::from_secs(2)).await.expect("Should receive INSERT event");
+    let event = sse
+        .next_event(Duration::from_secs(2))
+        .await
+        .expect("Should receive INSERT event");
     assert_eq!(event.event_type, "INSERT");
     let ce = event.change_event();
     assert_eq!(ce.table, "products");
@@ -409,9 +440,16 @@ async fn sse_patch_produces_update_event() {
     let resp = server
         .patch_json("/products?name=eq.Widget", &json!({"price": 19.99}))
         .await;
-    assert!(resp.status().is_success(), "PATCH failed: {}", resp.status());
+    assert!(
+        resp.status().is_success(),
+        "PATCH failed: {}",
+        resp.status()
+    );
 
-    let event = sse.next_event(Duration::from_secs(2)).await.expect("Should receive UPDATE event");
+    let event = sse
+        .next_event(Duration::from_secs(2))
+        .await
+        .expect("Should receive UPDATE event");
     assert_eq!(event.event_type, "UPDATE");
     assert_eq!(event.change_event().table, "products");
 }
@@ -429,7 +467,10 @@ async fn sse_put_produces_update_event() {
         .await;
     assert!(resp.status().is_success(), "PUT failed: {}", resp.status());
 
-    let event = sse.next_event(Duration::from_secs(2)).await.expect("Should receive UPDATE event");
+    let event = sse
+        .next_event(Duration::from_secs(2))
+        .await
+        .expect("Should receive UPDATE event");
     assert_eq!(event.event_type, "UPDATE");
     assert_eq!(event.change_event().table, "products");
 }
@@ -442,9 +483,16 @@ async fn sse_delete_produces_delete_event() {
     tokio::time::sleep(Duration::from_millis(50)).await;
 
     let resp = server.delete("/products?name=eq.Doohickey").await;
-    assert!(resp.status().is_success(), "DELETE failed: {}", resp.status());
+    assert!(
+        resp.status().is_success(),
+        "DELETE failed: {}",
+        resp.status()
+    );
 
-    let event = sse.next_event(Duration::from_secs(2)).await.expect("Should receive DELETE event");
+    let event = sse
+        .next_event(Duration::from_secs(2))
+        .await
+        .expect("Should receive DELETE event");
     assert_eq!(event.event_type, "DELETE");
     assert_eq!(event.change_event().table, "products");
 }
@@ -482,8 +530,7 @@ async fn sse_mutations_different_tables_filtered() {
     let server = TestServer::start_with_app_notifier().await;
     let mut sse_products =
         SseTestClient::connect(&server.client, &server.listen_url("products")).await;
-    let mut sse_tasks =
-        SseTestClient::connect(&server.client, &server.listen_url("tasks")).await;
+    let mut sse_tasks = SseTestClient::connect(&server.client, &server.listen_url("tasks")).await;
     tokio::time::sleep(Duration::from_millis(50)).await;
 
     let resp = server
@@ -492,7 +539,10 @@ async fn sse_mutations_different_tables_filtered() {
     assert!(resp.status().is_success());
 
     let resp = server
-        .post_json("/tasks", &json!({"title": "PGFilterTask", "priority": "low"}))
+        .post_json(
+            "/tasks",
+            &json!({"title": "PGFilterTask", "priority": "low"}),
+        )
         .await;
     assert!(resp.status().is_success());
 
@@ -508,7 +558,9 @@ async fn sse_mutations_different_tables_filtered() {
         .expect("tasks client should receive event");
     assert_eq!(event.change_event().table, "tasks");
 
-    sse_products.expect_no_event(Duration::from_millis(300)).await;
+    sse_products
+        .expect_no_event(Duration::from_millis(300))
+        .await;
     sse_tasks.expect_no_event(Duration::from_millis(300)).await;
 }
 
@@ -536,7 +588,12 @@ async fn pg_notify_raw_sql_produces_sse_event() {
         NOTIFY_CHANNEL,
         payload.to_string().replace('\'', "''")
     );
-    server.db.pool().execute(sql.as_str()).await.expect("pg_notify failed");
+    server
+        .db
+        .pool()
+        .execute(sql.as_str())
+        .await
+        .expect("pg_notify failed");
 
     let event = sse
         .next_event(Duration::from_secs(3))
@@ -547,7 +604,10 @@ async fn pg_notify_raw_sql_produces_sse_event() {
     assert_eq!(ce.table, "users");
     assert_eq!(ce.schema, "test_api");
     // PgChangeNotifier preserves the new/old data from the NOTIFY payload
-    assert!(ce.new.is_some(), "new should be populated from NOTIFY payload");
+    assert!(
+        ce.new.is_some(),
+        "new should be populated from NOTIFY payload"
+    );
     let new_val = ce.new.unwrap();
     assert_eq!(new_val["id"], 99);
     assert_eq!(new_val["email"], "notify@test.com");
@@ -596,11 +656,9 @@ async fn pg_notify_with_trigger_produces_event() {
     server
         .db
         .pool()
-        .execute(
-            sqlx::query(
-                "INSERT INTO test_api.users (email, name) VALUES ('trigger@test.com', 'Trigger User')",
-            ),
-        )
+        .execute(sqlx::query(
+            "INSERT INTO test_api.users (email, name) VALUES ('trigger@test.com', 'Trigger User')",
+        ))
         .await
         .expect("INSERT failed");
 
@@ -630,7 +688,12 @@ async fn pg_notify_malformed_payload_no_crash() {
         "SELECT pg_notify('{}', 'this is not valid json at all')",
         NOTIFY_CHANNEL
     );
-    server.db.pool().execute(bad_sql.as_str()).await.expect("pg_notify failed");
+    server
+        .db
+        .pool()
+        .execute(bad_sql.as_str())
+        .await
+        .expect("pg_notify failed");
 
     // Small delay to let the receive_loop process the bad payload
     tokio::time::sleep(Duration::from_millis(200)).await;
@@ -648,7 +711,12 @@ async fn pg_notify_malformed_payload_no_crash() {
         NOTIFY_CHANNEL,
         valid_payload.to_string().replace('\'', "''")
     );
-    server.db.pool().execute(good_sql.as_str()).await.expect("pg_notify failed");
+    server
+        .db
+        .pool()
+        .execute(good_sql.as_str())
+        .await
+        .expect("pg_notify failed");
 
     let event = sse
         .next_event(Duration::from_secs(3))
@@ -699,7 +767,12 @@ async fn sse_large_notify_payload() {
         NOTIFY_CHANNEL,
         payload.to_string().replace('\'', "''")
     );
-    server.db.pool().execute(sql.as_str()).await.expect("pg_notify with large payload failed");
+    server
+        .db
+        .pool()
+        .execute(sql.as_str())
+        .await
+        .expect("pg_notify with large payload failed");
 
     let event = sse
         .next_event(Duration::from_secs(3))
@@ -716,11 +789,8 @@ async fn sse_large_notify_payload() {
 #[ignore]
 async fn sse_listen_nonexistent_table_connects_pg() {
     let server = TestServer::start_with_app_notifier().await;
-    let mut sse = SseTestClient::connect(
-        &server.client,
-        &server.listen_url("nonexistent_table_xyz"),
-    )
-    .await;
+    let mut sse =
+        SseTestClient::connect(&server.client, &server.listen_url("nonexistent_table_xyz")).await;
     tokio::time::sleep(Duration::from_millis(50)).await;
 
     let notifier = server.state.notifier.as_ref().unwrap();
