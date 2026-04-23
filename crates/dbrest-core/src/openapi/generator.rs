@@ -640,10 +640,10 @@ impl OpenApiGenerator {
         }
 
         // Add x-dbrest-is-view extension (only when true)
-        if table.is_view {
-            if let Schema::Object { x_is_view, .. } = &mut schema {
-                *x_is_view = Some(true);
-            }
+        if table.is_view
+            && let Schema::Object { x_is_view, .. } = &mut schema
+        {
+            *x_is_view = Some(true);
         }
 
         // Add x-dbrest-relationships extension
@@ -677,13 +677,12 @@ impl OpenApiGenerator {
                     });
                 }
             }
-            if !rel_extensions.is_empty() {
-                if let Schema::Object {
+            if !rel_extensions.is_empty()
+                && let Schema::Object {
                     x_relationships, ..
                 } = &mut schema
-                {
-                    *x_relationships = Some(rel_extensions);
-                }
+            {
+                *x_relationships = Some(rel_extensions);
             }
         }
 
@@ -1162,10 +1161,7 @@ mod tests {
 
     #[test]
     fn test_extensions_omitted_when_none() {
-        let col = test_column()
-            .name("name")
-            .data_type("text")
-            .build();
+        let col = test_column().name("name").data_type("text").build();
 
         let cache = test_cache_with(vec![], vec![]);
         let config = Arc::new(test_config(vec![]));

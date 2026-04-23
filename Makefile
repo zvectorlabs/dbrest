@@ -289,15 +289,7 @@ bump-version: ## Bump version across all crates (usage: make bump-version V=0.2.
 		exit 1; \
 	fi
 	@echo "$(BLUE)Bumping version to $(V) across all crates...$(NC)"
-	@sed -i 's/^version = ".*"/version = "$(V)"/' Cargo.toml
-	@sed -i 's/^version = ".*"/version = "$(V)"/' crates/dbrest-core/Cargo.toml
-	@sed -i 's/^version = ".*"/version = "$(V)"/' crates/dbrest-postgres/Cargo.toml
-	@sed -i 's/^version = ".*"/version = "$(V)"/' crates/dbrest-sqlite/Cargo.toml
-	@sed -i 's/\(dbrest-core = {.*version = "\)[^"]*/\1$(V)/' Cargo.toml
-	@sed -i 's/\(dbrest-core = {.*version = "\)[^"]*/\1$(V)/' crates/dbrest-postgres/Cargo.toml
-	@sed -i 's/\(dbrest-core = {.*version = "\)[^"]*/\1$(V)/' crates/dbrest-sqlite/Cargo.toml
-	@sed -i 's/\(dbrest-postgres = {.*version = "\)[^"]*/\1$(V)/' Cargo.toml
-	@sed -i 's/\(dbrest-sqlite = {.*version = "\)[^"]*/\1$(V)/' Cargo.toml
+	@cargo set-version $(V)
 	@echo "$(GREEN)Version bumped to $(V) in all Cargo.toml files$(NC)"
 	@git add Cargo.toml crates/dbrest-core/Cargo.toml crates/dbrest-postgres/Cargo.toml crates/dbrest-sqlite/Cargo.toml
 	@git commit -m "release: v$(V)"
